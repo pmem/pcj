@@ -16,7 +16,7 @@ This library currently provides 3 Java classes whose instances can persist (i.e.
 beyond the life of a Java VM instance.
 
 1. ```PersistentByteBuffer```: very similar to ```java.nio.ByteBuffer```.
-2. ```PersistentSortedMap```: a ```java.util.SortedMap``` whose keys and values are ```PersistentByteBuffer```s.
+2. ```PersistentSortedMap```: a ```java.util.SortedMap``` whose keys and values are ```PersistentByteBuffers```.
 3. ```ObjectDirectory```: a map between ```String``` keys and persistent object values; value types are 
    currently limited to the two classes above.
   
@@ -88,12 +88,12 @@ directory in your Java classpath and the project's ```target/cppbuild``` directo
 3. By default, the path to the NVML pool is ```/mnt/mem``` directory. To modify this path, you can change
    the value for ```PATH``` in ```pcj/src/main/cpp/persistent_heap.cpp```.
 
-4. The ```PersistentSortedMap``` provided by this library only allows ```PersistentByteBuffer```s for keys and 
+4. The ```PersistentSortedMap``` provided by this library only allows ```PersistentByteBuffers``` for keys and 
    values; should other types need to be stored within the map, they should be stored inside 
-   ```PersistentByteBuffer```s first.
+   ```PersistentByteBuffers``` first.
 
-5. The PersistentSortedMap does not allow for any comparator other than natural ordering of the 
-   PersistentByteBuffers, which is the same as the natural ordering of ```java.nio.ByteBuffers```.
+5. The ```PersistentSortedMap``` does not allow for any comparator other than natural ordering of the 
+   ```PersistentByteBuffers```, which is the same as the natural ordering of ```java.nio.ByteBuffers```.
 
 6. An ```Iterator``` on the ```PersistentSortedMap``` can be obtained via the map's ```EntrySet```. Modifications via 
    either the ```Iterator``` or the ```EntrySet``` are not allowed (the ```Iterator``` does not support the ```remove()``` 
