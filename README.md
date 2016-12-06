@@ -107,6 +107,8 @@ directory in your Java classpath and the project's ```target/cppbuild``` directo
 
 9. Interrupting opening of the heap as indicated in the console with "Opening heap... Cleaning up heap... Done." can result in a subsequent crash.  This is being investigated and will be fixed.
 
+10. The project includes an ```XMemory``` directory that provides an API for volatile ByteBuffer construction on external memory.
+
 ##Contacts##
 
 For more information on this library, contact Lei Fan (lei.t.fan@intel.com) or Steve Dohrmann (steve.dohrmann@intel.com).
