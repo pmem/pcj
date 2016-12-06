@@ -42,10 +42,10 @@ PMEMobjpool* get_or_create_pool()
         return pool;
     }
     if (access(PATH, F_OK)) {
-        pool = pmemobj_create(PATH, POBJ_LAYOUT_NAME(persistent_structures),
+        pool = pmemobj_create(PATH, POBJ_LAYOUT_NAME(persistent_heap),
                               PM_POOL_SIZE, S_IRUSR | S_IWUSR);
     } else {
-        pool = pmemobj_open(PATH, POBJ_LAYOUT_NAME(persistent_structures));
+        pool = pmemobj_open(PATH, POBJ_LAYOUT_NAME(persistent_heap));
     }
 
     TOID(char) arr;
