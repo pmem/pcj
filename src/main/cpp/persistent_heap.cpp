@@ -24,6 +24,7 @@
 #include "persistent_structs.h"
 #include "persistent_byte_buffer.h"
 #include "persistent_sorted_map.h"
+#include <pthread.h>
 
 PMEMobjpool *pool = NULL;
 TOID(struct root_struct) root;
@@ -56,6 +57,7 @@ PMEMobjpool* get_or_create_pool()
         TX_MEMSET(pmemobj_direct(arr.oid), 0, 1);
     } TX_ONABORT {
         printf("Encountered error opening pool!\n");
+        fflush(stdout);
         exit(-1);
     } TX_END
 
@@ -65,18 +67,51 @@ PMEMobjpool* get_or_create_pool()
     create_root(root);
     vm_offsets = D_RO(root)->vm_offsets;
 
+    //printf("walking through vm_offsets");
+    //fflush(stdout);
     //walk_through_vm_offsets();
+    //print_all_objects(1);
     printf("Cleaning up heap... ");
     fflush(stdout);
-    hm_tx_foreach(pool, vm_offsets, decrement_from_obj_ref_counts, NULL);
-    hm_tx_clear(pool, vm_offsets);
+    TOID(struct locks_entry) locks_entry;
+    TX_BEGIN(pool) {
+        POBJ_LIST_FOREACH(locks_entry, &D_RO(root)->locks, list) {
+            unlock(locks_entry);
+            pmemobj_list_remove(pool, TOID_OFFSETOF(POBJ_LIST_FIRST(&D_RO(root)->locks), list), (void*)(&D_RO(root)->locks), locks_entry.oid, 0);
+        }
+        pmemobj_mutex_unlock(pool, &D_RW(root)->locks_mutex);
+        D_RW(root)->mutex_lock_owner = 0;
+        hm_tx_foreach(pool, vm_offsets, decrement_from_obj_ref_counts, NULL);
+        hm_tx_clear(pool, vm_offsets);
+    } TX_ONABORT {
+        printf("Encountered error cleaning up heap!\n");
+        fflush(stdout);
+        exit(-1);
+    } TX_END
     //walk_through_vm_offsets();
     //collect();
-    //print_all_objects();
 
     printf("Done.\n");
     fflush(stdout);
     return pool;
+}
+
+void create_root(TOID(struct root_struct) rt)
+{
+    TX_BEGIN(pool) {
+        if (rbtree_map_check(pool, D_RW(rt)->root_map) != 0) {
+            TX_ADD_FIELD(rt, root_map);
+            if (rbtree_map_new(pool, &D_RW(rt)->root_map, NULL) != 0) {
+                pmemobj_tx_abort(0);
+            }
+        }
+        if (hm_tx_check(pool, D_RW(rt)->vm_offsets) != 0) {
+            TX_ADD_FIELD(rt, vm_offsets);
+            if (hm_tx_new(pool, &D_RW(rt)->vm_offsets, 1000000, 0, NULL) != 0) {
+                pmemobj_tx_abort(0);
+            }
+        }
+    } TX_END
 }
 
 TOID(struct root_struct) get_root()
@@ -99,26 +134,14 @@ int add_to_vm_offsets(uint64_t offset)
         old_count = ret.value;
     }
     //printf("Adding: Offset %lu had old count of %lu\n", offset, old_count);
-    fflush(stdout);
+    //fflush(stdout);
     ret = hm_tx_insert(pool, vm_offsets, offset, old_count + 1);
     if (NEOID_IS_ERR(ret)) {
         printf("Encountered error adding a new reference to offset %lu\n", offset);
         exit(-1);
     } else {
         //printf("Added a new reference to offset %lu to vm_offsets, new count is %d\n", offset, (hm_tx_get(pool, vm_offsets, offset)).value);
-        fflush(stdout);
-    }
-    return 0;
-}
-
-int remove_from_vm_offsets(uint64_t offset)
-{
-    //printf("Removing: Offset %lu\n", offset);
-    fflush(stdout);
-    NEPMEMoid ret = hm_tx_remove(pool, vm_offsets, offset);
-    if (NEOID_IS_ERR(ret) || NEOID_IS_NULL(ret)) {
-        printf("Encountered error removing all references to offset %lu\n", offset);
-        exit(-1);
+        //fflush(stdout);
     }
     return 0;
 }
@@ -141,7 +164,7 @@ int decrement_from_vm_offsets(uint64_t offset)
             exit(-1);
         } else {
             //printf("Removed all references to offset %lu in vm_offsets\n", offset);
-            fflush(stdout);
+            //fflush(stdout);
         }
     } else {
         ret = hm_tx_insert(pool, vm_offsets, offset, old_count - 1);
@@ -150,16 +173,23 @@ int decrement_from_vm_offsets(uint64_t offset)
             exit(-1);
         } else {
             //printf("Removed a reference to offset %lu to vm_offsets, new count is %d\n", offset, (hm_tx_get(pool, vm_offsets, offset)).value);
-            fflush(stdout);
+            //fflush(stdout);
         }
     }
+    return 0;
+}
+
+int unlock(TOID(struct locks_entry) locks_entry)
+{
     return 0;
 }
 
 int decrement_from_obj_ref_counts(uint64_t key, uint64_t value, void* arg)
 {
     PMEMoid oid = {get_uuid_lo(), key};
-    dec_ref(oid, value);
+    //printf("decrementing from obj_ref_counts: offset %lu, amount %lu\n", key, value);
+    //fflush(stdout);
+    dec_ref(oid, value, 1);
     return 0;
 }
 
@@ -168,58 +198,131 @@ int walk_through_vm_offsets()
     hm_tx_cmd(pool, vm_offsets, HASHMAP_CMD_DEBUG, 0);
 }
 
-int inc_ref(PMEMoid oid, int amount)
+int inc_ref(PMEMoid oid, int amount, int already_locked)
 {
     TOID(struct header) *hdr = (TOID(struct header)*)(pmemobj_direct(oid));
     //printf("incref: refcount is %d on offset %lu\n", D_RO(*hdr)->refCount, oid.off);
-    fflush(stdout);
+    //fflush(stdout);
 
     int ret = 0;
-    TX_BEGIN_LOCK(pool, TX_LOCK_MUTEX, &D_RW(*hdr)->obj_mutex, TX_LOCK_NONE) {
-        TX_ADD_FIELD(*hdr, refCount);
-        TX_ADD_FIELD(*hdr, color);
+    //printf("in incref, getting lock on %lu\n", (*hdr).oid.off);
+    //fflush(stdout);
+    //int already_locked = get_lock(*hdr);
+    //uint64_t hdr_off = (*hdr).oid.off;
+    if (already_locked) {
+        TX_BEGIN(pool) {
+            TX_ADD_FIELD(*hdr, refCount);
+            TX_ADD_FIELD(*hdr, color);
 
-        D_RW(*hdr)->refCount += amount;
-        D_RW(*hdr)->color = BLACK;
-    } TX_ONABORT {
-        printf("IncRef failed on offset %lu, exiting now\n", oid.off);
-        exit(-1);
-        //ret = 1;
-    } TX_END
+            D_RW(*hdr)->refCount += amount;
+            D_RW(*hdr)->color = BLACK;
+        } TX_ONABORT {
+            printf("IncRef failed on offset %lu, exiting now\n", oid.off);
+            fflush(stdout);
+            exit(-1);
+            //ret = 1;
+        } TX_END
+    } else {
+        TX_BEGIN_LOCK(pool, TX_LOCK_MUTEX, &D_RW(*hdr)->obj_mutex, TX_LOCK_NONE) {
+            TX_ADD_FIELD(*hdr, refCount);
+            TX_ADD_FIELD(*hdr, color);
+
+            D_RW(*hdr)->refCount += amount;
+            D_RW(*hdr)->color = BLACK;
+        } TX_ONABORT {
+            printf("IncRef failed on offset %lu, exiting now\n", oid.off);
+            fflush(stdout);
+            exit(-1);
+            //ret = 1;
+        } TX_END
+    }
+    //printf("in incref, maybe releasing lock on %lu\n", (*hdr).oid.off);
+    //fflush(stdout);
+    /*if (!already_locked) {
+        //printf("in incref, releasing lock on %lu\n", (*hdr).oid.off);
+        //fflush(stdout);
+        release_lock(hdr_off, 1);
+    }*/
 
     return ret;
 }
 
-int dec_ref(PMEMoid oid, int amount)
+int dec_ref(PMEMoid oid, int amount, int already_locked)
 {
     TOID(struct header) *hdr = (TOID(struct header)*)(pmemobj_direct(oid));
-    //printf("decref: refcount is %d on offset %lu\n", D_RO(*hdr)->refCount, oid.off);
-    fflush(stdout);
+    //printf("decref: refcount is %d on offset %lu, amount is %d\n", D_RO(*hdr)->refCount, oid.off, amount);
+    //fflush(stdout);
 
     int ret = 0;
-    TX_BEGIN_LOCK(pool, TX_LOCK_MUTEX, &D_RW(*hdr)->obj_mutex, TX_LOCK_NONE) {
-        TX_ADD_FIELD(*hdr, refCount);
-        D_RW(*hdr)->refCount -= amount;
+    //printf("in decref, getting lock on %lu\n", (*hdr).oid.off);
+    //fflush(stdout);
+    /*int already_locked = get_lock(*hdr);
+    uint64_t hdr_off = (*hdr).oid.off;
+    int destroyed = 0;*/
+    if (already_locked) {
+        //printf("not getting lock again in dec_ref\n");
+        //fflush(stdout);
+        TX_BEGIN(pool) {
+            TX_ADD_FIELD(*hdr, refCount);
+            D_RW(*hdr)->refCount -= amount;
+            ret = D_RO(*hdr)->refCount;
 
-        if (D_RO(*hdr)->refCount == 0) {
-            delete_struct(oid);
-        } else {
-            add_candidate(oid);
-        }
-    } TX_ONABORT {
-        printf("DecRef failed on offset %lu, exiting now\n", oid.off);
-        exit(-1);
-        //ret = 1;
-    } TX_END
+            if (D_RO(*hdr)->refCount == 0) {
+                delete_struct(oid, already_locked);
+                //printf("object at offset %lu deleted\n", oid.off);
+                //fflush(stdout);
+                //destroyed = 1;
+            } else {
+                add_candidate(oid);
+            }
+        } TX_ONABORT {
+            printf("DecRef failed on offset %lu, exiting now\n", oid.off);
+            fflush(stdout);
+            exit(-1);
+            //ret = 1;
+        } TX_END
+    } else {
+        //printf("getting lock again in dec_ref\n");
+        //fflush(stdout);
+        TX_BEGIN_LOCK(pool, TX_LOCK_MUTEX, &D_RW(*hdr)->obj_mutex, TX_LOCK_NONE) {
+            TX_ADD_FIELD(*hdr, refCount);
+            D_RW(*hdr)->refCount -= amount;
+            ret = D_RO(*hdr)->refCount;
+
+            if (D_RO(*hdr)->refCount == 0) {
+                delete_struct(oid, already_locked);
+                //printf("object at offset %lu deleted\n", oid.off);
+                //fflush(stdout);
+                //destroyed = 1;
+            } else {
+                add_candidate(oid);
+            }
+        } TX_ONABORT {
+            printf("DecRef failed on offset %lu, exiting now\n", oid.off);
+            fflush(stdout);
+            exit(-1);
+            //ret = 1;
+        } TX_END
+    }
+    //printf("in decref, maybe releasing lock on %lu\n", (*hdr).oid.off);
+    //fflush(stdout);
+    /*if (!already_locked) {
+        //printf("in decref, releasing lock on %lu\n", (*hdr).oid.off);
+        //fflush(stdout);
+        release_lock(hdr_off, !destroyed);
+    } else {
+        //printf("not first time to lock %llu on thread %llu, not unlocking\n");
+        //fflush(stdout);
+    }*/
 
     return ret;
 }
 
-int delete_struct(PMEMoid oid)
+int delete_struct(PMEMoid oid, int already_locked)
 {
     TOID(struct header) *hdr = (TOID(struct header)*)(pmemobj_direct(oid));
     //printf("delete_struct: type is %d on offset %lu, hdr is at %lu\n", D_RO(*hdr)->type, oid.off, (*hdr).oid.off);
-    fflush(stdout);
+    //fflush(stdout);
 
     int ret = 0;
     TX_BEGIN(pool) {
@@ -233,19 +336,19 @@ int delete_struct(PMEMoid oid)
         switch(D_RO(*hdr)->type) {
             case RBTREE_MAP_TYPE_OFFSET:
                 //printf("Deleting PSM at offset %lu\n", oid.off);
-                fflush(stdout);
+                //fflush(stdout);
                 TOID_ASSIGN(map, oid);
                 rbtree_map_delete(pool, &map);
                 break;
             case PERSISTENT_BYTE_BUFFER_TYPE_OFFSET:
                 //printf("Deleting PBB at offset %lu\n", oid.off);
-                fflush(stdout);
+                //fflush(stdout);
                 TOID_ASSIGN(buf, oid);
-                free_buffer(buf);
+                free_buffer(buf, already_locked);
                 break;
             case PERSISTENT_BYTE_ARRAY_TYPE_OFFSET:
                 //printf("Deleting PBA at offset %lu\n", oid.off);
-                fflush(stdout);
+                //fflush(stdout);
                 TOID_ASSIGN(arr, oid);
                 free_array(arr);
                 break;
@@ -256,6 +359,7 @@ int delete_struct(PMEMoid oid)
         }
     } TX_ONABORT {
         printf("Failed in delete_struct on offset %lu of type %d, exiting now\n", oid.off, D_RO(*hdr)->type);
+        fflush(stdout);
         exit(-1);
         //ret = 1;
     } TX_END
@@ -277,6 +381,7 @@ void add_candidate(PMEMoid oid)
             D_RW(*hdr)->is_candidate = 1;
         } TX_ONABORT {
             printf("Adding candidate on offset %lu failed!\n", oid.off);
+            fflush(stdout);
             exit(-1);
         } TX_END
     }
@@ -290,6 +395,7 @@ void collect()
         collect_candidates();
     } TX_ONABORT {
         printf("Collecting cyclic reference counts failed!\n");
+        fflush(stdout);
         exit(-1);
     } TX_END
 }
@@ -310,7 +416,7 @@ void mark_candidates()
                     D_RW(*hdr)->is_candidate = 0;
 
                     if (D_RO(*hdr)->color == BLACK && D_RO(*hdr)->refCount == 0) {
-                        delete_struct(oid);
+                        delete_struct(oid, 0);
                     }
                 }
             }
@@ -318,6 +424,7 @@ void mark_candidates()
         }
     } TX_ONABORT {
         printf("Marking candidates failed!\n");
+        fflush(stdout);
         exit(-1);
     } TX_END
 }
@@ -336,6 +443,7 @@ void scan_candidates()
         }
     } TX_ONABORT {
         printf("Scanning candidates failed!\n");
+        fflush(stdout);
         exit(-1);
     } TX_END
 }
@@ -356,6 +464,7 @@ void collect_candidates()
         }
     } TX_ONABORT {
         printf("Collecting candidates failed!\n");
+        fflush(stdout);
         exit(-1);
     } TX_END
 }
@@ -382,6 +491,7 @@ void mark_gray(PMEMoid oid)
         }
     } TX_ONABORT {
         printf("Mark Gray failed!\n");
+        fflush(stdout);
         exit(-1);
     } TX_END
 }
@@ -407,6 +517,7 @@ void scan(PMEMoid oid)
         }
     } TX_ONABORT {
         printf("Scanning failed!\n");
+        fflush(stdout);
         exit(-1);
     } TX_END
 }
@@ -433,6 +544,7 @@ void scan_black(PMEMoid oid)
         }
     } TX_ONABORT {
         printf("Scan black failed!\n");
+        fflush(stdout);
         exit(-1);
     } TX_END
 }
@@ -451,10 +563,11 @@ void collect_white(PMEMoid oid)
                 child = *(PMEMoid*)((long)pmemobj_direct(oid) + sizeof(TOID(struct header)) + i*sizeof(PMEMoid));
                 collect_white(child);
             }
-            delete_struct(oid);
+            delete_struct(oid, 0);
         }
     } TX_ONABORT {
         printf("Collect white failed!\n");
+        fflush(stdout);
         exit(-1);
     } TX_END
 }
@@ -465,6 +578,11 @@ int add_to_obj_list(PMEMoid oid)
     TOID(struct header) *this_hdr = (TOID(struct header)*)(pmemobj_direct(oid));
 
     int ret = 0;
+    //printf("in add_to_obj_list, getting lock on %lu\n", (*this_hdr).oid.off);
+    //fflush(stdout);
+    //int already_locked = get_lock(*this_hdr);
+    //uint64_t hdr_off = (*this_hdr).oid.off;
+    //TX_BEGIN(pool) {
     TX_BEGIN_LOCK(pool, TX_LOCK_MUTEX, &D_RW(root)->obj_list_mutex, TX_LOCK_NONE) {
         TX_ADD_FIELD(*this_hdr, prev_obj_offset);
         TX_ADD_FIELD(*this_hdr, next_obj_offset);
@@ -480,9 +598,17 @@ int add_to_obj_list(PMEMoid oid)
         D_RW(root)->newest_obj_off = oid.off;
     } TX_ONABORT {
         printf("Adding obj at offset %lu to obj list failed!\n", oid.off);
+        fflush(stdout);
         exit(-1);
         //ret = 1;
     } TX_END
+    //printf("in add_to_obj_list, maybe releasing lock? %lu\n", (*this_hdr).oid.off);
+    //fflush(stdout);
+    /*if (!already_locked) {
+        //printf("in add_to_obj_list, releasing lock %lu\n", (*this_hdr).oid.off);
+        //fflush(stdout);
+        release_lock(hdr_off, 1);
+    }*/
 
     return ret;
 }
@@ -493,7 +619,12 @@ int delete_from_obj_list(PMEMoid oid)
     this_hdr = (TOID(struct header)*)(pmemobj_direct(oid));
 
     int ret = 0;
+    //printf("in delete_from_obj_list, getting lock on %lu\n", (*this_hdr).oid.off);
+    //fflush(stdout);
+    //int already_locked = get_lock(*this_hdr);
+    //uint64_t hdr_off = (*this_hdr).oid.off;
     TX_BEGIN_LOCK(pool, TX_LOCK_MUTEX, &D_RW(root)->obj_list_mutex, TX_LOCK_NONE) {
+    //TX_BEGIN(pool) {
         PMEMoid prev = {get_uuid_lo(), D_RO(*this_hdr)->prev_obj_offset};
         PMEMoid next = {get_uuid_lo(), D_RO(*this_hdr)->next_obj_offset};
 
@@ -529,9 +660,17 @@ int delete_from_obj_list(PMEMoid oid)
         }
     } TX_ONABORT {
         printf("Deleting obj at offset %lu from obj list failed!\n", oid.off);
+        fflush(stdout);
         exit(-1);
         //ret = 1;
     } TX_END
+    //printf("in delete_from_obj_list, maybe releasing lock on %lu\n", (*this_hdr).oid.off);
+    //fflush(stdout);
+    /*if (!already_locked) {
+        //printf("in delete_from_obj_list, releasing lock on %lu\n", (*this_hdr).oid.off);
+        //fflush(stdout);
+        release_lock(hdr_off, 1);
+    }*/
 
     return ret;
 }

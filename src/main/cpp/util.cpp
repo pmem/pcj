@@ -30,6 +30,37 @@ void print_all_objects(int verbosity)
     TOID(struct persistent_byte_array) arr;
     int map_count = 0, buf_count = 0, arr_count = 0;;
 
+    /*POBJ_FOREACH_TYPE(pool, map) {
+        if (verbosity > 0) {
+            printf("Map found at offset %lu", map.oid.off);
+            fflush(stdout);
+            printf(", header at offset %lu, refCount %d, vm_offsets %lu\n", D_RO(map)->header.oid.off, D_RO(D_RO(map)->header)->refCount, (hm_tx_get(pool, vm_offsets, map.oid.off)).value);
+            fflush(stdout);
+        }
+        map_count++;
+    }
+
+    POBJ_FOREACH_TYPE(pool, buf) {
+        if (verbosity > 0) {
+            printf("Buffer found at offset %lu", buf.oid.off);
+            fflush(stdout);
+            printf(", header at offset %lu, array offset %lu, refCount %d, vmOffsets %lu\n", D_RO(buf)->header.oid.off, (D_RO(buf)->arr).off, D_RO(D_RO(buf)->header)->refCount, (hm_tx_get(pool, vm_offsets, buf.oid.off)).value);
+            fflush(stdout);
+        }
+        buf_count++;
+    }
+
+    POBJ_FOREACH_TYPE(pool, arr) {
+        if (verbosity > 0) {
+            printf("Array found at offset %lu", arr.oid.off);
+            fflush(stdout);
+            printf(", header at offset %lu, content %s, refCount %d\n", D_RO(arr)->header.oid.off, (char*)(pmemobj_direct(D_RO(arr)->bytes)), D_RO(D_RO(arr)->header)->refCount);
+            fflush(stdout);
+        }
+        arr_count++;
+    }*/
+
+
     PMEMoid oid = {get_uuid_lo(), D_RO(root)->newest_obj_off};
     while (!OID_IS_NULL(oid)) {
         TOID(struct header) *hdr = (TOID(struct header)*)(pmemobj_direct(oid));
@@ -38,7 +69,7 @@ void print_all_objects(int verbosity)
             case RBTREE_MAP_TYPE_OFFSET:
                 if (verbosity > 0) {
                     TOID_ASSIGN(map, oid);
-                    printf("Map found at offset %lu, refCount %d, vm_offsets %lu\n", map.oid.off, D_RO(D_RO(map)->header)->refCount, (hm_tx_get(pool, vm_offsets, map.oid.off)).value);
+                    printf("Map found at offset %lu, header at offset %lu, refCount %d, vm_offsets %lu\n", map.oid.off, D_RO(map)->header.oid.off, D_RO(D_RO(map)->header)->refCount, (hm_tx_get(pool, vm_offsets, map.oid.off)).value);
                     fflush(stdout);
                 }
                 map_count++;
@@ -46,7 +77,7 @@ void print_all_objects(int verbosity)
             case PERSISTENT_BYTE_BUFFER_TYPE_OFFSET:
                 if (verbosity > 0) {
                     TOID_ASSIGN(buf, oid);
-                    printf("Buffer found at offset %lu, array offset %lu, refCount %d, vmOffsets %lu\n", buf.oid.off, (D_RO(buf)->arr).off, D_RO(D_RO(buf)->header)->refCount, (hm_tx_get(pool, vm_offsets, buf.oid.off)).value);
+                    printf("Buffer found at offset %lu, header at offset %lu, array offset %lu, refCount %d, vmOffsets %lu\n", buf.oid.off, D_RO(buf)->header.oid.off, (D_RO(buf)->arr).off, D_RO(D_RO(buf)->header)->refCount, (hm_tx_get(pool, vm_offsets, buf.oid.off)).value);
                     fflush(stdout);
                 }
                 buf_count++;
@@ -54,7 +85,7 @@ void print_all_objects(int verbosity)
             case PERSISTENT_BYTE_ARRAY_TYPE_OFFSET:
                 if (verbosity > 0) {
                     TOID_ASSIGN(arr, oid);
-                    printf("Array found at offset %lu, content %s, refCount %d\n", oid.off, (char*)(pmemobj_direct(D_RO(arr)->bytes)), D_RO(D_RO(arr)->header)->refCount);
+                    printf("Array found at offset %lu, header at offset %lu, content %s, refCount %d\n", oid.off, D_RO(arr)->header.oid.off, (char*)(pmemobj_direct(D_RO(arr)->bytes)), D_RO(D_RO(arr)->header)->refCount);
                     fflush(stdout);
                 }
                 arr_count++;
@@ -87,7 +118,7 @@ void call_JNI_static_method_with_string
 
     if (mid == 0) {
         //printf("Can't find method %s\n", method_name);
-        fflush(stdout);
+        //fflush(stdout);
         return;
     }
 
@@ -120,7 +151,7 @@ jmethodID find_JNI_method
 
     if (mid == 0) {
         //printf("Can't find method %s\n", method_name);
-        fflush(stdout);
+        //fflush(stdout);
     }
 
     return mid;
@@ -140,4 +171,60 @@ void throw_persistent_object_exception(JNIEnv *env, const char* arg)
     strcpy(errmsg, arg);
     strcat(errmsg, pmemobj_errormsg());
     env->ThrowNew(exClass, errmsg);
+}
+
+int create_locks_entry(PMEMobjpool *pop, void *ptr, void *arg)
+{
+    int ret = 0;
+
+    struct locks_entry *e = (struct locks_entry *)ptr;
+    TOID(struct hashmap_tx) locks;
+
+    hm_tx_new(pop, &locks, *(int*)arg, 0, NULL);
+    e->locks = locks;
+    memset(&e->list, 0, sizeof(e->list));
+    pmemobj_persist(pop, e, sizeof(*e));
+
+    return ret;
+}
+
+void lock(PMEMoid oid)
+{
+    TOID(struct header) *hdr = (TOID(struct header)*)(pmemobj_direct(oid));
+    PMEMmutex *obj_lock = &D_RW(*hdr)->obj_mutex;
+    pmemobj_mutex_lock(pool, obj_lock);
+}
+
+int add_to_locks(PMEMoid oid, TOID(struct hashmap_tx) locks)
+{
+    if (NEOID_IS_NULL(hm_tx_get(pool, locks, oid.off))) {
+        hm_tx_insert(pool, locks, oid.off, 1);
+        return 0;
+    }
+    return 1;
+}
+
+int unlock_from_locks(uint64_t key, uint64_t value, void* arg)
+{
+    PMEMoid oid = {get_uuid_lo(), key};
+    TOID(struct persistent_byte_buffer) buf;
+    TOID(struct persistent_byte_array) arr;
+    TOID_ASSIGN(buf, oid);
+    if (TOID_VALID(buf)) {
+        pmemobj_mutex_unlock(pool, &D_RW(D_RW(buf)->header)->obj_mutex);
+    }
+    TOID_ASSIGN(arr, oid);
+    if (TOID_VALID(arr)) {
+        pmemobj_mutex_unlock(pool, &D_RW(D_RW(arr)->header)->obj_mutex);
+    }
+    return 0;
+}
+
+void clear_locks(TOID(struct locks_entry) locks)
+{
+    TX_BEGIN(pool) {
+        hm_tx_foreach(pool, D_RW(locks)->locks, unlock_from_locks, NULL);
+        hm_tx_delete(pool, &D_RW(locks)->locks);
+        POBJ_LIST_REMOVE_FREE(pool, &D_RW(root)->locks, locks, list);
+    } TX_END
 }

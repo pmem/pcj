@@ -39,6 +39,9 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeCreateSort
     if (rbtree_map_new(pool, &rbtree, NULL) != 0) {
         throw_persistent_object_exception(env, "NativeCreateSortedMap: Failed to create new backing tree structure; ");
     }
+    //printf("new PSM created at offset %lu with header at %lu\n", rbtree.oid.off, D_RO(rbtree)->header.oid.off);
+    //fflush(stdout);
+    add_to_obj_list(rbtree.oid);
     return rbtree.oid.off;
 }
 
@@ -71,19 +74,7 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativePut
     TOID(struct rbtree_map) rbtree;
     TOID_ASSIGN(rbtree, map);
 
-    TOID(struct persistent_byte_buffer) key, value;
-    TOID_ASSIGN(key, key_buf);
-    TOID_ASSIGN(value, value_buf);
-
-    if (TOID_IS_NULL(rbtree_map_get(pool, rbtree, key_buf))) {
-        //printf("put: incRef of key at offset %d\n", key.oid.off);
-        fflush(stdout);
-        inc_ref(key.oid, 1);
-    }
-    //printf("put: incRef of value at offset %d\n", value.oid.off);
-    fflush(stdout);
-    if (!TOID_IS_NULL(value)) inc_ref(value.oid, 1);
-    EPMEMoid item = rbtree_map_insert(pool, rbtree, key_buf, value_buf);
+    EPMEMoid item = put_common(rbtree, key_buf, value_buf, TOID_NULL(struct hashmap_tx), 0, 0);
     if (EOID_IS_ERR(item)) {
         throw_persistent_object_exception(env, "NativePut: Failed to insert key/value pair; ");
     }
@@ -111,37 +102,17 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeRemove
   (JNIEnv *env, jobject obj, jlong map_offset, jlong key_offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
-
     PMEMoid key_buf = {get_uuid_lo(), (uint64_t)key_offset};
 
     TOID(struct rbtree_map) rbtree;
     TOID_ASSIGN(rbtree, map);
 
-    TOID(struct persistent_byte_buffer) key, map_key, value;
-    TOID_ASSIGN(key, key_buf);
+    TOID(struct tree_map_node) node = rbtree_map_get(pool, rbtree, key_buf);
+    EPMEMoid item = remove_common(rbtree, key_buf, node, TOID_NULL(struct hashmap_tx), 0, 0);
+    if (EOID_IS_ERR(item)) {
+        throw_persistent_object_exception(env, "NativePut: Failed to insert key/value pair; ");
+    }
 
-    EPMEMoid item = EOID_NULL;
-    TX_BEGIN(pool) {
-        TOID(struct tree_map_node) node = rbtree_map_get(pool, rbtree, key_buf);
-        if (!(TOID_IS_NULL(node))) {
-            TOID_ASSIGN(map_key, D_RO(node)->key);
-            //printf("remove: supplying key at offset %d\n", key.oid.off);
-            fflush(stdout);
-            item = rbtree_map_remove(pool, rbtree, key_buf);
-            if (!(EOID_IS_ERR(item))) {
-                //printf("remove: decRef of key at offset %d\n", map_key.oid.off);
-                fflush(stdout);
-                dec_ref(map_key.oid, 1);
-                TOID_ASSIGN(value, item.oid);
-                if (!TOID_IS_NULL(value)) {
-                    inc_ref(value.oid, 1);
-                    dec_ref(value.oid, 1);
-                }
-            } else {
-                throw_persistent_object_exception(env, "NativeRemove: Failed to remove key/value pair; ");
-            }
-        }
-    } TX_END
     return item.oid.off;
 }
 
@@ -248,7 +219,7 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetNodeKey
 
     PMEMoid key = D_RO(node)->key;
 
-    inc_ref(key, 1);
+    inc_ref(key, 1, 0);
     return key.off;
 }
 
@@ -261,7 +232,14 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetNodeVal
     TOID_ASSIGN(node, node_pmemoid);
 
     PMEMoid value = D_RO(node)->value;
-    if (!OID_IS_NULL(value)) inc_ref(value, 1);
+    //printf("in getNodeValue, value's offset is %lu\n", value.off);
+
+    TOID(struct persistent_byte_buffer) value_toid;
+    TOID_ASSIGN(value_toid, value);
+    if (!OID_IS_NULL(value))
+        //printf("in getNodeValue, value's header's offset is %lu\n", D_RO(value_toid)->header.oid.off);
+    //fflush(stdout);
+    if (!OID_IS_NULL(value)) inc_ref(value, 1, 0);
     return value.off;
 }
 
@@ -285,11 +263,27 @@ JNIEXPORT void JNICALL Java_lib_persistent_PersistentSortedMap_nativePutAll
     jlong* keys_array = (env)->GetLongArrayElements(keys, &is_copy_keys);
     jlong* values_array = (env)->GetLongArrayElements(values, &is_copy_values);
 
+    PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
+    TOID(struct rbtree_map) rbtree;
+    TOID_ASSIGN(rbtree, map);
+
     int i;
     TX_BEGIN(pool) {
+        PMEMoid locks_entry_oid = POBJ_LIST_INSERT_NEW_HEAD(pool, &D_RW(root)->locks, list, sizeof(struct locks_entry), create_locks_entry, (void*)(&size));
+        TOID(struct locks_entry) locks;
+        TOID_ASSIGN(locks, locks_entry_oid);
+
         for (i = 0; i < size; i++) {
-            Java_lib_persistent_PersistentSortedMap_nativePut(env, obj, map_offset, keys_array[i], values_array[i]);
+            PMEMoid key_buf = {get_uuid_lo(), (uint64_t)keys_array[i]};
+            PMEMoid value_buf = {get_uuid_lo(), (uint64_t)values_array[i]};
+
+            EPMEMoid item = put_common(rbtree, key_buf, value_buf, D_RO(locks)->locks, 1, 1);
+            if (EOID_IS_ERR(item)) {
+                throw_persistent_object_exception(env, "NativePutAll: Failed to insert key/value pair; ");
+            }
         }
+
+        clear_locks(locks);
     } TX_ONABORT {
         throw_persistent_object_exception(env, "NativePutAll: Failed to insert all key/valur pairs; ");
     } TX_FINALLY {
@@ -304,14 +298,95 @@ JNIEXPORT void JNICALL Java_lib_persistent_PersistentSortedMap_nativeRemoveAll
     jboolean is_copy_keys;
     jlong* keys_array = (env)->GetLongArrayElements(keys, &is_copy_keys);
 
+    PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
+    TOID(struct rbtree_map) rbtree;
+    TOID_ASSIGN(rbtree, map);
+
     int i;
     TX_BEGIN(pool) {
+        PMEMoid locks_entry_oid = POBJ_LIST_INSERT_NEW_HEAD(pool, &D_RW(root)->locks, list, sizeof(struct locks_entry), create_locks_entry, (void*)(&size));
+        TOID(struct locks_entry) locks;
+        TOID_ASSIGN(locks, locks_entry_oid);
+
         for (i = 0; i < size; i++) {
-            Java_lib_persistent_PersistentSortedMap_nativeRemove(env, obj, map_offset, keys_array[i]);
+            PMEMoid key_buf = {get_uuid_lo(), (uint64_t)keys_array[i]};
+            TOID(struct tree_map_node) node = rbtree_map_get(pool, rbtree, key_buf);
+            EPMEMoid item = remove_common(rbtree, key_buf, node, D_RO(locks)->locks, 1, 1);
+            if (EOID_IS_ERR(item)) {
+                throw_persistent_object_exception(env, "NativeRemoveAll: Failed to remove all key/valur pairs; ");
+            }
         }
+
+        clear_locks(locks);
     } TX_ONABORT {
-        throw_persistent_object_exception(env, "NativePutAll: Failed to remove all key/valur pairs; ");
+        throw_persistent_object_exception(env, "NativeRemoveAll: Failed to remove all key/valur pairs; ");
     } TX_FINALLY {
         if (is_copy_keys) (env)->ReleaseLongArrayElements(keys, keys_array, 0);
     } TX_END
+}
+
+EPMEMoid put_common(TOID(struct rbtree_map) map, PMEMoid key, PMEMoid value,
+                    TOID(struct hashmap_tx) locks, int lock_key, int lock_value)
+{
+    EPMEMoid item = EOID_NULL;
+    TX_BEGIN(pool) {
+        if (TOID_IS_NULL(rbtree_map_get(pool, map, key))) {
+            //printf("put: incRef of key at offset %d\n", key.oid.off);
+            //fflush(stdout);
+            if (lock_key) {
+                lock_byte_buffer(locks, key, 1);
+            }
+            inc_ref(key, 1, lock_key);
+        }
+        //printf("put: incRef of value at offset %d\n", value.oid.off);
+        //fflush(stdout);
+        if (!OID_IS_NULL(value)) {
+            if (lock_value) {
+                lock_byte_buffer(locks, value, 1);
+            }
+            inc_ref(value, 1, lock_value);
+        }
+        item = rbtree_map_insert(pool, map, key, value);
+        //printf("in insert, value's offset is %lu\n", value_offset);
+        //fflush(stdout);
+    } TX_ONABORT {
+        printf("NativePut failed!\n");
+        exit(-1);
+    } TX_END
+
+    return item;
+}
+
+EPMEMoid remove_common(TOID(struct rbtree_map) map, PMEMoid key, TOID(struct tree_map_node) node,
+                       TOID(struct hashmap_tx) locks, int lock_key, int lock_value)
+{
+    EPMEMoid item = EOID_NULL;
+    TX_BEGIN(pool) {
+        if (!(TOID_IS_NULL(node))) {
+            //printf("remove: supplying key at offset %lu\n", key.off);
+            //fflush(stdout);
+            PMEMoid map_key = D_RO(node)->key;
+            item = rbtree_map_remove(pool, map, key);
+            if (!(EOID_IS_ERR(item))) {
+                //printf("remove: decRef of key at offset %lu\n", map_key.off);
+                //fflush(stdout);
+                if (lock_key) {
+                    lock_byte_buffer(locks, map_key, -1);
+                }
+                dec_ref(map_key, 1, lock_key);
+                if (!OID_IS_NULL(item.oid)) {
+                    if (lock_value) {
+                        lock_byte_buffer(locks, item.oid, 0);
+                    }
+                    inc_ref(item.oid, 1, lock_value);
+                    dec_ref(item.oid, 1, lock_value);
+                }
+            }
+        }
+    } TX_ONABORT {
+        printf("NativeRemove failed!\n");
+        exit(-1);
+    } TX_END
+
+    return item;
 }

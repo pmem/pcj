@@ -27,8 +27,10 @@
 #include <errno.h>
 #include <stdio.h>
 #include "rbtree_map.h"
+#include "hashmap_tx.h"
 #include "persistent_byte_buffer.h"
 #include "persistent_heap.h"
+#include "util.h"
 
 #define NODE_P(_n)\
 D_RW(_n)->parent
@@ -98,7 +100,6 @@ int rbtree_map_new(PMEMobjpool *pop, TOID(struct rbtree_map) *map, void *arg)
         D_RW(D_RW(*map)->header)->type = TOID_TYPE_NUM(struct rbtree_map);
         D_RW(D_RW(*map)->header)->fieldCount = RBTREE_MAP_FIELD_COUNT;
         D_RW(D_RW(*map)->header)->color = BLACK;
-        add_to_obj_list((*map).oid);
     } TX_ONABORT {
         printf("rbtree_map_new aborted\n");
         fflush(stdout);
@@ -111,23 +112,30 @@ int rbtree_map_new(PMEMobjpool *pop, TOID(struct rbtree_map) *map, void *arg)
 /*
  * rbtree_map_clear_node -- (internal) clears this node and its children
  */
-static void rbtree_map_clear_node(TOID(struct rbtree_map) map, TOID(struct tree_map_node) p)
+static void rbtree_map_clear_node(TOID(struct rbtree_map) map, TOID(struct tree_map_node) p,
+                                  TOID(struct hashmap_tx) locks)
 {
     TOID(struct tree_map_node) s = D_RO(map)->sentinel;
 
     if (!NODE_IS_NULL(D_RO(p)->slots[RB_LEFT]))
-        rbtree_map_clear_node(map, D_RO(p)->slots[RB_LEFT]);
+        rbtree_map_clear_node(map, D_RO(p)->slots[RB_LEFT], locks);
 
     if (!NODE_IS_NULL(D_RO(p)->slots[RB_RIGHT]))
-        rbtree_map_clear_node(map, D_RO(p)->slots[RB_RIGHT]);
+        rbtree_map_clear_node(map, D_RO(p)->slots[RB_RIGHT], locks);
 
-    if (!(OID_IS_NULL(D_RO(p)->key))) dec_ref(D_RW(p)->key, 1);
-    if (!(OID_IS_NULL(D_RO(p)->value))) dec_ref(D_RW(p)->value, 1);
+
+    if (!(OID_IS_NULL(D_RO(p)->key))) {
+        lock_byte_buffer(locks, D_RO(p)->key, -1);
+        dec_ref(D_RW(p)->key, 1, 1);
+    }
+    if (!(OID_IS_NULL(D_RO(p)->value))) {
+        lock_byte_buffer(locks, D_RO(p)->value, -1);
+        dec_ref(D_RW(p)->value, 1, 1);
+    }
 
     TX_FREE(p);
     TX_MEMSET(pmemobj_direct(p.oid), 0, sizeof(struct tree_map_node));
 }
-
 
 /*
  * rbtree_map_clear -- removes all elements from the map
@@ -137,7 +145,10 @@ int rbtree_map_clear(PMEMobjpool *pop, TOID(struct rbtree_map) map)
     int ret = 0;
     if (D_RO(map)->size != 0) {
         TX_BEGIN(pop) {
-            rbtree_map_clear_node(map, D_RW(map)->root);
+            PMEMoid locks_entry_oid = POBJ_LIST_INSERT_NEW_HEAD(pop, &D_RW(root)->locks, list, sizeof(struct locks_entry), create_locks_entry, (void*)(&D_RO(map)->size));
+            TOID(struct locks_entry) locks;
+            TOID_ASSIGN(locks, locks_entry_oid);
+            rbtree_map_clear_node(map, D_RW(map)->root, D_RO(locks)->locks);
             TX_ADD_FIELD(map, root);
             TX_ADD_FIELD(map, sentinel);
 
@@ -159,6 +170,10 @@ int rbtree_map_clear(PMEMobjpool *pop, TOID(struct rbtree_map) map)
             D_RW(map)->sentinel = s;
             D_RW(map)->root = r;
             D_RW(map)->size = 0;
+
+            hm_tx_foreach(pop, D_RO(locks)->locks, unlock_from_locks, NULL);
+            hm_tx_delete(pop, &D_RW(locks)->locks);
+            POBJ_LIST_REMOVE_FREE(pop, &D_RW(root)->locks, locks, list);
         } TX_ONABORT {
             printf("rbtree_map_clear aborted\n");
             fflush(stdout);
@@ -178,9 +193,9 @@ int rbtree_map_delete(PMEMobjpool *pop, TOID(struct rbtree_map) *map)
     int ret = 0;
     TX_BEGIN(pop) {
         rbtree_map_clear(pop, *map);
+        TX_MEMSET(pmemobj_direct((*map).oid), 0, sizeof(struct rbtree_map));
         TX_FREE(D_RO(*map)->header);
         TX_FREE(*map);
-        TX_MEMSET(pmemobj_direct((*map).oid), 0, sizeof(struct rbtree_map));
         *map = TOID_NULL(struct rbtree_map);
     } TX_ONABORT {
         ret = 1;

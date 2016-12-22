@@ -32,9 +32,10 @@
 /*
  * create_hashmap -- hashmap initializer
  */
-static void create_hashmap(PMEMobjpool *pop, TOID(struct hashmap_tx) hashmap, uint32_t seed)
+static void create_hashmap(PMEMobjpool *pop, TOID(struct hashmap_tx) hashmap,
+                           int init_size, int resize_allowed, uint32_t seed)
 {
-	size_t len = INIT_BUCKETS_NUM;
+	size_t len = init_size;
 	size_t sz = sizeof(struct buckets) +
 			len * sizeof(TOID(struct entry));
 
@@ -50,6 +51,9 @@ static void create_hashmap(PMEMobjpool *pop, TOID(struct hashmap_tx) hashmap, ui
 
 		D_RW(hashmap)->buckets = TX_ZALLOC(struct buckets, sz);
 		D_RW(D_RW(hashmap)->buckets)->nbuckets = len;
+
+        D_RW(hashmap)->init_size = init_size;
+        D_RW(hashmap)->resize_allowed = resize_allowed;
 	} TX_ONABORT {
 		fprintf(stderr, "%s: transaction aborted: %s\n", __func__,
 			pmemobj_errormsg());
@@ -70,6 +74,14 @@ static uint64_t hash
 	size_t len = D_RO(*buckets)->nbuckets;
 
 	return ((a * value + b) % p) % len;
+
+    /*const uint64_t w_bit = 4294967295;
+    const int A = 2654435769;
+    uint64_t r0 = (value * A) ^ (value+1);;
+    uint64_t ret = ((r0 & w_bit)) % len;
+    //printf("Returning hash value %lu for input value %lu\n", ret, value);
+    fflush(stdout);
+    return ret;*/
 }
 
 /*
@@ -111,8 +123,8 @@ static void hm_tx_rebuild(PMEMobjpool *pop, TOID(struct hashmap_tx) hashmap, siz
 		}
 
 		D_RW(hashmap)->buckets = buckets_new;
-		TX_FREE(buckets_old);
         TX_MEMSET(pmemobj_direct(buckets_old.oid), 0, sizeof(struct buckets));
+		TX_FREE(buckets_old);
 	} TX_ONABORT {
 		fprintf(stderr, "%s: transaction aborted: %s\n", __func__,
 			pmemobj_errormsg());
@@ -120,6 +132,7 @@ static void hm_tx_rebuild(PMEMobjpool *pop, TOID(struct hashmap_tx) hashmap, siz
 		 * We don't need to do anything here, because everything is
 		 * consistent. The only thing affected is performance.
 		 */
+        exit(-1);
 	} TX_END
 
 }
@@ -164,18 +177,21 @@ NEPMEMoid hm_tx_insert
 		D_RW(hashmap)->count++;
 		num++;
 	} TX_ONABORT {
-		fprintf(stderr, "transaction aborted: %s\n",
+		fprintf(stderr, "transaction aborted in insert: %s\n",
 			pmemobj_errormsg());
 		ret = NEOID_ERR;
 	} TX_END
 
-	if (NEOID_IS_ERR(ret))
+	if (NEOID_IS_ERR(ret)) {
 		return ret;
+    }
 
-	if (num > MAX_HASHSET_THRESHOLD ||
+	if (D_RO(hashmap)->resize_allowed == 1 &&
+	    num > MAX_HASHSET_THRESHOLD ||
 			(num > MIN_HASHSET_THRESHOLD &&
-			D_RO(hashmap)->count > 2 * D_RO(buckets)->nbuckets))
+			D_RO(hashmap)->count > 2 * D_RO(buckets)->nbuckets)) {
 		hm_tx_rebuild(pop, hashmap, D_RO(buckets)->nbuckets * 2);
+    }
 
 	return ret;
 }
@@ -212,16 +228,19 @@ NEPMEMoid hm_tx_remove(PMEMobjpool *pop, TOID(struct hashmap_tx) hashmap, uint64
 		else
 			D_RW(prev)->next = D_RO(var)->next;
 		D_RW(hashmap)->count--;
-		TX_FREE(var);
         TX_MEMSET(pmemobj_direct(var.oid), 0, sizeof(struct entry));
+		TX_FREE(var);
 	} TX_ONABORT {
-		fprintf(stderr, "transaction aborted: %s\n",
+		fprintf(stderr, "transaction aborted in remove: %s\n",
 			pmemobj_errormsg());
 		return NEOID_ERR;
 	} TX_END
 
-	if (D_RO(hashmap)->count < D_RO(buckets)->nbuckets)
+	if (D_RO(hashmap)->resize_allowed == 1 &&
+        D_RO(hashmap)->count < D_RO(buckets)->nbuckets &&
+        D_RO(buckets)->nbuckets > 2 * MAX_HASHSET_THRESHOLD) {
 		hm_tx_rebuild(pop, hashmap, D_RO(buckets)->nbuckets / 2);
+    }
 
     NEPMEMoid ret = {D_RO(var)->value, 0, 0};
 	return ret;
@@ -272,8 +291,8 @@ int hm_tx_clear(PMEMobjpool *pop, TOID(struct hashmap_tx) hashmap)
             cur = D_RO(buckets)->bucket[i];
             do {
                 next = D_RO(cur)->next;
-                TX_FREE(cur);
                 TX_MEMSET(pmemobj_direct(cur.oid), 0, sizeof(struct entry));
+                TX_FREE(cur);
                 cur = next;
             } while (!TOID_IS_NULL(cur));
         }
@@ -281,7 +300,25 @@ int hm_tx_clear(PMEMobjpool *pop, TOID(struct hashmap_tx) hashmap)
         TX_FREE(buckets);
         D_RW(hashmap)->count = 0;
 
-        create_hashmap(pop, hashmap, D_RO(hashmap)->seed);
+        create_hashmap(pop, hashmap, D_RO(hashmap)->init_size, D_RO(hashmap)->resize_allowed, D_RO(hashmap)->seed);
+    } TX_ONABORT {
+        ret = 1;
+    } TX_END
+
+    return ret;
+}
+
+/*
+ * hm_tx_delete -- clears the map and deletes the map itself
+ */
+int hm_tx_delete(PMEMobjpool *pop, TOID(struct hashmap_tx)* hashmap)
+{
+    int ret = 0;
+    TX_BEGIN(pop) {
+        hm_tx_clear(pop, *hashmap);
+        TX_MEMSET(pmemobj_direct((*hashmap).oid), 0, sizeof(struct hashmap_tx));
+        TX_FREE(*hashmap);
+        *hashmap = TOID_NULL(struct hashmap_tx);
     } TX_ONABORT {
         ret = 1;
     } TX_END
@@ -381,7 +418,8 @@ int hm_tx_init(PMEMobjpool *pop, TOID(struct hashmap_tx) hashmap)
 /*
  * hm_tx_new -- allocates new hashmap
  */
-int hm_tx_new(PMEMobjpool *pop, TOID(struct hashmap_tx) *map, void *arg)
+int hm_tx_new(PMEMobjpool *pop, TOID(struct hashmap_tx) *map,
+              int init_size, int resize_allowed, void *arg)
 {
 	struct hashmap_args *args = (struct hashmap_args*)arg;
 	int ret = 0;
@@ -389,7 +427,7 @@ int hm_tx_new(PMEMobjpool *pop, TOID(struct hashmap_tx) *map, void *arg)
 		*map = TX_ZNEW(struct hashmap_tx);
 
 		uint32_t seed = args ? args->seed : 0;
-		create_hashmap(pop, *map, seed);
+		create_hashmap(pop, *map, init_size, resize_allowed, seed);
 	} TX_ONABORT {
 		ret = -1;
 	} TX_END

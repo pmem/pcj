@@ -6,20 +6,21 @@
  * This file has been designated as subject to the "Classpath"
  * exception as provided in the LICENSE file that accompanied
  * this code.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License version 2 for more details (a copy
  * is included in the LICENSE file that accompanied this code).
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; if not, write to the Free 
+ * version 2 along with this program; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA  02110-1301, USA.
  */
 
 #include "rbtree_map.h"
+#include "persistent_structs.h"
 #include "hashmap_tx.h"
 #include <errno.h>
 #include <unistd.h>
@@ -36,8 +37,11 @@
 struct root_struct {
     TOID(struct rbtree_map) root_map;
     TOID(struct hashmap_tx) vm_offsets;
+    POBJ_LIST_HEAD(locks, struct locks_entry) locks;
     uint64_t newest_obj_off;
     PMEMmutex obj_list_mutex;
+    PMEMmutex locks_mutex;
+    uint64_t mutex_lock_owner;
 };
 
 extern PMEMobjpool* pool;
@@ -51,16 +55,19 @@ POBJ_LAYOUT_END(persistent_heap);
 PMEMobjpool* get_or_create_pool();
 TOID(struct root_struct) get_root();
 uint64_t get_uuid_lo();
-int search_through_pool(long offset);
 void create_root(TOID(struct root_struct) rt);
+int search_through_pool(long offset);
 int add_to_vm_offsets(uint64_t offset);
 int remove_from_vm_offsets(uint64_t offset);
 int decrement_from_vm_offsets(uint64_t offset);
 int decrement_from_obj_ref_counts(uint64_t key, uint64_t value, void* arg);
+int unlock(TOID(struct locks_entry) locks_entry);
 int walk_through_vm_offsets();
-int inc_ref(PMEMoid oid, int amount);
-int dec_ref(PMEMoid oid, int amount);
-int delete_struct(PMEMoid oid);
+int inc_ref(PMEMoid oid, int amount, int already_locked);
+int dec_ref(PMEMoid oid, int amount, int already_locked);
+int delete_struct(PMEMoid oid, int already_locked);
+int get_lock(TOID(struct header));
+void release_lock(uint64_t hdr_off, int unlock);
 void add_candidate(PMEMoid oid);
 int add_to_obj_list(PMEMoid oid);
 int delete_from_obj_list(PMEMoid oid);

@@ -39,28 +39,8 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_Util_nativeGetRoot
     } TX_ONABORT {
         throw_persistent_object_exception(env, "Failed to create new root!");
     } TX_END
-    inc_ref((D_RO(root)->root_map).oid, 1);
+    inc_ref((D_RO(root)->root_map).oid, 1, 0);
     return (D_RO(root)->root_map).oid.off;
-}
-
-void create_root(TOID(struct root_struct) rt)
-{
-    pool = get_or_create_pool();
-
-    TX_BEGIN(pool) {
-        if (rbtree_map_check(pool, D_RW(rt)->root_map) != 0) {
-            TX_ADD_FIELD(rt, root_map);
-            if (rbtree_map_new(pool, &D_RW(rt)->root_map, NULL) != 0) {
-                pmemobj_tx_abort(0);
-            }
-        }
-        if (hm_tx_check(pool, D_RW(rt)->vm_offsets) != 0) {
-            TX_ADD_FIELD(rt, vm_offsets);
-            if (hm_tx_new(pool, &D_RW(rt)->vm_offsets, NULL) != 0) {
-                pmemobj_tx_abort(0);
-            }
-        }
-    } TX_END
 }
 
 JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeDebugPool
@@ -73,7 +53,7 @@ JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeRegisterOffset
   (JNIEnv *env, jobject obj, jlong offset)
 {
     //printf("registering offset %llu to vm_offsets\n", offset);
-    fflush(stdout);
+    //fflush(stdout);
     add_to_vm_offsets(offset);
 }
 
@@ -81,7 +61,7 @@ JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeDeregisterOffset
   (JNIEnv *env, jclass klass, jlong offset)
 {
     //printf("deregistering offset %llu from vm_offsets\n", offset);
-    fflush(stdout);
+    //fflush(stdout);
     decrement_from_vm_offsets(offset);
 }
 
@@ -90,7 +70,7 @@ JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeIncRef
 {
     PMEMoid oid = {get_uuid_lo(), (uint64_t)offset};
     TX_BEGIN(pool) {
-        inc_ref(oid, 1);
+        inc_ref(oid, 1, 0);
     } TX_ONABORT {
         throw_persistent_object_exception(env, "NativeIncRef: ");
     } TX_END
@@ -100,11 +80,11 @@ JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeDecRef
   (JNIEnv *env, jclass klass, jlong offset)
 {
     //printf("calling PBB nativeDecRef\n");
-    fflush(stdout);
+    //fflush(stdout);
 
     PMEMoid oid = {get_uuid_lo(), (uint64_t)offset};
     TX_BEGIN(pool) {
-        dec_ref(oid, 1);
+        dec_ref(oid, 1, 0);
     } TX_ONABORT {
         throw_persistent_object_exception(env, "NativeDecRef: ");
     } TX_END

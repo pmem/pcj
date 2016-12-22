@@ -6,15 +6,15 @@
  * This file has been designated as subject to the "Classpath"
  * exception as provided in the LICENSE file that accompanied
  * this code.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License version 2 for more details (a copy
  * is included in the LICENSE file that accompanied this code).
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; if not, write to the Free 
+ * version 2 along with this program; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA  02110-1301, USA.
  */
@@ -37,11 +37,10 @@
 #define BUCKETS_TYPE_OFFSET 1022
 #define ENTRY_TYPE_OFFSET 1023
 #define CHAR_TYPE_OFFSET 1024
-#define HASHSET_TYPE_OFFSET 1025
+#define LOCKS_ENTRY_TYPE_OFFSET 1025
 
 struct rbtree_map;
 struct hashmap_tx;
-struct hashset;
 
 TOID_DECLARE(struct header, HEADER_TYPE_OFFSET);
 TOID_DECLARE(struct rbtree_map, RBTREE_MAP_TYPE_OFFSET);
@@ -52,7 +51,7 @@ TOID_DECLARE(struct hashmap_tx, HASHMAP_TX_TYPE_OFFSET);
 TOID_DECLARE(struct buckets, BUCKETS_TYPE_OFFSET);
 TOID_DECLARE(struct entry, ENTRY_TYPE_OFFSET);
 TOID_DECLARE(char, CHAR_TYPE_OFFSET);
-TOID_DECLARE(struct hashset, HASHSET_TYPE_OFFSET);
+TOID_DECLARE(struct locks_entry, LOCKS_ENTRY_TYPE_OFFSET);
 
 // Special PMEMoid that supports addition of null & error code as metadata
 typedef struct pmemoid_ne {
@@ -170,6 +169,14 @@ struct hashmap_tx {
 
 	/* buckets */
 	TOID(struct buckets) buckets;
+
+    int init_size;
+    int resize_allowed;
+};
+
+struct locks_entry {
+    TOID(struct hashmap_tx) locks;
+    POBJ_LIST_ENTRY(struct locks_entry) list;
 };
 
 #define PERSISTENT_BYTE_ARRAY_FIELD_COUNT 0
