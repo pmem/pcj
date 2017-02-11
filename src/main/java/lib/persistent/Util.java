@@ -24,7 +24,7 @@ package lib.persistent;
 public class Util {
 
     static {
-        System.loadLibrary("PoolUtility");
+        System.loadLibrary("Persistent");
         nativeOpenPool();
     }
 
@@ -56,7 +56,16 @@ public class Util {
         nativeDecRef(offset);
     }
 
+    public static void openPool() {
+        nativeOpenPool();
+    }
+
+    public static void closePool() {
+        nativeClosePool();
+    }
+
     private synchronized static native void nativeOpenPool();
+    private synchronized static native void nativeClosePool();
     private synchronized static native long nativeGetRoot();
     private synchronized static native void nativeDebugPool(int verbosity);
     private synchronized static native void nativeRegisterOffset(long offset);

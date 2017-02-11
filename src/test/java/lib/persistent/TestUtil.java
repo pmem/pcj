@@ -66,7 +66,7 @@ public class TestUtil {
         System.out.println("(" + decode(key) + ", " + decode(val) + ")");
     }
 
-    static void retrieveKVPair(PersistentByteBuffer key, PersistentSortedMap map) {
+    static void retrieveKVPair(PersistentByteBuffer key, PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> map) {
         System.out.println("In map: (" + decode(key) + ", " + decode(map.get(key)) + ").");
     }
 
@@ -76,10 +76,10 @@ public class TestUtil {
         }
     }
 
-    static PersistentSortedMap getOrCreateMap(String name) {
-        PersistentSortedMap map;
-        if ((map = ObjectDirectory.get(name, PersistentSortedMap.class)) == null) {
-            map = new PersistentSortedMap();
+    static PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> getOrCreateMap(String name) {
+        PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> map;
+        if ((map = ObjectDirectory.get(name, PersistentTreeMap.class)) == null) {
+            map = new PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer>();
             ObjectDirectory.put(name, map);
         }
         return map;

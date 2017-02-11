@@ -1,4 +1,4 @@
-/* Copyright (C) 2015, 2016  Intel Corporation
+/* Copyright (C) 2015-17  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -152,30 +152,33 @@ NEPMEMoid hm_tx_insert
 	uint64_t h = hash(&hashmap, &buckets, key);
 	int num = 0;
 
-	for (var = D_RO(buckets)->bucket[h];
-			!TOID_IS_NULL(var);
-			var = D_RO(var)->next) {
-		if (D_RO(var)->key == key) {
-            ret.null = 0;
-            ret.value = D_RO(var)->value;
-            D_RW(var)->value = value;
-			return ret;
-        }
-		num++;
-	}
-
 	TX_BEGIN(pop) {
-		TX_ADD_FIELD(D_RO(hashmap)->buckets, bucket[h]);
-		TX_ADD_FIELD(hashmap, count);
+	    for (var = D_RO(buckets)->bucket[h];
+		    	!TOID_IS_NULL(var);
+			    var = D_RO(var)->next) {
+    		if (D_RO(var)->key == key) {
+                ret.null = 0;
+                ret.value = D_RO(var)->value;
+                TX_ADD_FIELD(var, value);
+                D_RW(var)->value = value;
+                break;
+            }
+		    num++;
+    	}
 
-		TOID(struct entry) e = TX_ZNEW(struct entry);
-		D_RW(e)->key = key;
-		D_RW(e)->value = value;
-		D_RW(e)->next = D_RO(buckets)->bucket[h];
-		D_RW(buckets)->bucket[h] = e;
+        if ((NEOID_IS_NULL(ret))) {
+    		TX_ADD_FIELD(D_RO(hashmap)->buckets, bucket[h]);
+	    	TX_ADD_FIELD(hashmap, count);
 
-		D_RW(hashmap)->count++;
-		num++;
+		    TOID(struct entry) e = TX_ZNEW(struct entry);
+    		D_RW(e)->key = key;
+	    	D_RW(e)->value = value;
+		    D_RW(e)->next = D_RO(buckets)->bucket[h];
+    		D_RW(buckets)->bucket[h] = e;
+
+	    	D_RW(hashmap)->count++;
+		    num++;
+        }
 	} TX_ONABORT {
 		fprintf(stderr, "transaction aborted in insert: %s\n",
 			pmemobj_errormsg());

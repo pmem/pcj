@@ -23,12 +23,26 @@
 #include "persistent_structs.h"
 #include "persistent_heap.h"
 #include "util.h"
-#include "persistent_sorted_map.h"
+#include "persistent_tree_map.h"
+#include "aggregate.h"
+
+JavaVM *jvm = NULL;
 
 JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeOpenPool
   (JNIEnv *env, jclass klass)
 {
     get_or_create_pool();
+    jint rs = env->GetJavaVM(&jvm);
+    if (rs != JNI_OK) {
+        printf("Failed to get JVM from env!\n");
+        exit(-1);
+    }
+}
+
+JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeClosePool
+  (JNIEnv *env, jclass klass)
+{
+    close_pool();
 }
 
 JNIEXPORT jlong JNICALL Java_lib_persistent_Util_nativeGetRoot
@@ -36,10 +50,10 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_Util_nativeGetRoot
 {
     TX_BEGIN(pool) {
         create_root(root);
+        inc_ref((D_RO(root)->root_map).oid, 1, 0);
     } TX_ONABORT {
         throw_persistent_object_exception(env, "Failed to create new root!");
     } TX_END
-    inc_ref((D_RO(root)->root_map).oid, 1, 0);
     return (D_RO(root)->root_map).oid.off;
 }
 
@@ -50,7 +64,7 @@ JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeDebugPool
 }
 
 JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeRegisterOffset
-  (JNIEnv *env, jobject obj, jlong offset)
+  (JNIEnv *env, jclass klass, jlong offset)
 {
     //printf("registering offset %llu to vm_offsets\n", offset);
     //fflush(stdout);

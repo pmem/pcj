@@ -6,15 +6,15 @@
  * This file has been designated as subject to the "Classpath"
  * exception as provided in the LICENSE file that accompanied
  * this code.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License version 2 for more details (a copy
  * is included in the LICENSE file that accompanied this code).
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; if not, write to the Free 
+ * version 2 along with this program; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA  02110-1301, USA.
  */
@@ -51,13 +51,14 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_Util_nativeGetRoot
  */
 JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeDebugPool
   (JNIEnv *, jclass, jint);
+
 /*
  * Class:     lib_persistent_Util
  * Method:    nativeRegisterOffset
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeRegisterOffset
-  (JNIEnv *, jobject, jlong);
+  (JNIEnv *, jclass, jlong);
 
 /*
  * Class:     lib_persistent_Util
@@ -69,18 +70,18 @@ JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeDeregisterOffset
 
 /*
  * Class:     lib_persistent_Util
- * Method:    nativeIncRef
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeIncRef
-  (JNIEnv *, jclass, jlong);
-
-/*
- * Class:     lib_persistent_Util
  * Method:    nativeDecRef
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeDecRef
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     lib_persistent_Util
+ * Method:    nativeIncRef
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_lib_persistent_Util_nativeIncRef
   (JNIEnv *, jclass, jlong);
 
 #ifdef __cplusplus

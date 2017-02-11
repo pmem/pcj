@@ -1,4 +1,4 @@
-/* Copyright (C) 2016  Intel Corporation
+/* Copyright (C) 2016-17  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,67 +37,63 @@ import java.lang.UnsupportedOperationException;
 import java.lang.NullPointerException;
 import java.util.function.BiFunction;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.nio.charset.*;
 
-public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, PersistentByteBuffer> implements Persistent, SortedMap<PersistentByteBuffer, PersistentByteBuffer> {
+public class PersistentTreeMap<K extends Persistent, V extends Persistent> extends AbstractMap<K, V> implements Persistent, SortedMap<K, V> {
 
     private long offset;
 
     static {
-        System.loadLibrary("PersistentSortedMap");
-        nativeOpenPool();
+        System.loadLibrary("Persistent");
+        Util.openPool();
     }
 
-    synchronized static PersistentSortedMap fromOffset(long offset) {
-        return new PersistentSortedMap(offset);
+    synchronized static PersistentTreeMap fromOffset(long offset) {
+        return new PersistentTreeMap(offset);
     }
 
     synchronized static boolean isValidOffset(long offset) {
-        return nativeCheckSortedMapExists(offset);
+        return nativeCheckTreeMapExists(offset);
     }
 
     public synchronized long getOffset() {
         return this.offset;
     }
 
-    public PersistentSortedMap() {
-        synchronized (PersistentSortedMap.class) {
-            this.offset = nativeCreateSortedMap();
+    public PersistentTreeMap() {
+        synchronized (PersistentTreeMap.class) {
+            this.offset = nativeCreateTreeMap();
             ObjectDirectory.registerObject(this);
         }
     }
 
-    private PersistentSortedMap(long offset) {
-        synchronized (PersistentSortedMap.class) {
+    private PersistentTreeMap(long offset) {
+        synchronized (PersistentTreeMap.class) {
             this.offset = offset;
             ObjectDirectory.registerObject(this);
         }
     }
 
-    public synchronized PersistentByteBuffer put(PersistentByteBuffer key, PersistentByteBuffer val) {
-        PersistentByteBuffer ret;
-        if (key == null)
-            throw new NullPointerException();
-        else if (val == null)
-            ret = byteBufferFromOffset(nativePut(getOffset(), key.getOffset(), 0));
-        else ret = byteBufferFromOffset(nativePut(getOffset(), key.getOffset(), val.getOffset()));
-        return ret;
+    public synchronized V put(K key, V val) {
+        if (key == null) throw new NullPointerException();
+        else if (val == null) return nativePut(getOffset(), key.getOffset(), 0);
+        else return nativePut(getOffset(), key.getOffset(), val.getOffset());
     }
 
-    public synchronized PersistentByteBuffer remove(Object key) {
+    public synchronized V remove(Object key) {
         if (key == null)
             throw new NullPointerException();
-        if (!(key instanceof PersistentByteBuffer)) return null;
+        if (!(key instanceof Persistent)) return null;
 
-        PersistentByteBuffer ret = byteBufferFromOffset(nativeRemove(getOffset(), ((PersistentByteBuffer)key).getOffset()));
-        return ret;
+        return nativeRemove(getOffset(), ((Persistent)key).getOffset());
     }
 
-    public synchronized PersistentByteBuffer get(Object key) {
+    public synchronized V get(Object key) {
         if (key == null)
             throw new NullPointerException();
-        Entry entry = getEntry(key);
+        Entry<K, V> entry = getEntry(key);
         return entry == null ? null : entry.getValue();
     }
 
@@ -105,59 +101,59 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
         return nativeSize(getOffset());
     }
 
-    public synchronized Set<Map.Entry<PersistentByteBuffer, PersistentByteBuffer>> entrySet() {
+    public synchronized Set<Map.Entry<K, V>> entrySet() {
         return new EntrySet();
     }
 
-    public synchronized PersistentByteBuffer firstKey() {
+    public synchronized K firstKey() {
         long offset = nativeGetFirstNode(getOffset());
         if (offset == 0)
             throw new NoSuchElementException();
         else
-            return byteBufferFromOffset(nativeGetNodeKey(getOffset(), offset));
+            return nativeGetNodeKey(getOffset(), offset);
     }
 
-    public synchronized PersistentByteBuffer lastKey() {
+    public synchronized K lastKey() {
         long offset = nativeGetLastNode(getOffset());
         if (offset == 0)
             throw new NoSuchElementException();
         else
-            return byteBufferFromOffset(nativeGetNodeKey(getOffset(), offset));
+            return nativeGetNodeKey(getOffset(), offset);
     }
 
-    public synchronized SortedMap<PersistentByteBuffer, PersistentByteBuffer> headMap(PersistentByteBuffer toKey) {
+    public synchronized SortedMap<K, V> headMap(K toKey) {
         if (toKey == null)
             throw new NullPointerException();
         return new SubMap(null, toKey, true, false, true, false);
     }
 
-    public synchronized SortedMap<PersistentByteBuffer, PersistentByteBuffer> subMap(PersistentByteBuffer fromKey, PersistentByteBuffer toKey) {
+    public synchronized SortedMap<K, V> subMap(K fromKey, K toKey) {
         if (toKey == null || fromKey == null)
             throw new NullPointerException();
         return new SubMap(fromKey, toKey, true, false, false, false);
     }
 
-    public synchronized SortedMap<PersistentByteBuffer, PersistentByteBuffer> tailMap(PersistentByteBuffer fromKey) {
+    public synchronized SortedMap<K, V> tailMap(K fromKey) {
         if (fromKey == null)
             throw new NullPointerException();
         return new SubMap(fromKey, null, true, true, false, true);
     }
 
     // natural ordering
-    public synchronized Comparator<? super PersistentByteBuffer> comparator() { return null; }
+    public synchronized Comparator<? super K> comparator() { return null; }
 
     public synchronized void clear() {
         nativeClear(getOffset());
     }
 
-    public synchronized void putAll(Map<? extends PersistentByteBuffer, ? extends PersistentByteBuffer> m) {
+    public synchronized void putAll(Map<? extends K, ? extends V> m) {
         if (m == null)
             throw new NullPointerException();
         int size = m.size();
         long[] keys = new long[size];
         long[] values = new long[size];
         int i = 0;
-        for (Map.Entry<? extends PersistentByteBuffer, ? extends PersistentByteBuffer> e : m.entrySet()) {
+        for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
             keys[i] = e.getKey().getOffset();
             values[i] = e.getValue().getOffset();
             i++;
@@ -176,27 +172,27 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
     }
 
     @Override
-    public synchronized Set<PersistentByteBuffer> keySet() {
+    public synchronized Set<K> keySet() {
         return super.keySet();
     }
 
     @Override
-    public synchronized Collection<PersistentByteBuffer> values() {
+    public synchronized Collection<V> values() {
         return super.values();
     }
 
     @Override
-    public synchronized PersistentByteBuffer compute(PersistentByteBuffer key, BiFunction<? super PersistentByteBuffer, ? super PersistentByteBuffer, ? extends PersistentByteBuffer> remappingFunction) {
+    public synchronized V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
         return super.compute(key, remappingFunction);
     }
 
     @Override
-    public synchronized PersistentByteBuffer computeIfAbsent(PersistentByteBuffer key, Function<? super PersistentByteBuffer, ? extends PersistentByteBuffer> mappingFunction) {
+    public synchronized V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
         return super.computeIfAbsent(key, mappingFunction);
     }
 
     @Override
-    public synchronized PersistentByteBuffer computeIfPresent(PersistentByteBuffer key, BiFunction<? super PersistentByteBuffer, ? super PersistentByteBuffer, ? extends PersistentByteBuffer> remappingFunction) {
+    public synchronized V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
         return super.computeIfPresent(key, remappingFunction);
     }
 
@@ -216,12 +212,12 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
     }
 
     @Override
-    public synchronized void forEach(BiConsumer<? super PersistentByteBuffer, ? super PersistentByteBuffer> action) {
+    public synchronized void forEach(BiConsumer<? super K, ? super V> action) {
         super.forEach(action);
     }
 
     @Override
-    public synchronized PersistentByteBuffer getOrDefault(Object key, PersistentByteBuffer defaultValue) {
+    public synchronized V getOrDefault(Object key, V defaultValue) {
         return super.getOrDefault(key, defaultValue);
     }
 
@@ -231,12 +227,12 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
     }
 
     @Override
-    public synchronized PersistentByteBuffer merge(PersistentByteBuffer key, PersistentByteBuffer value, BiFunction<? super PersistentByteBuffer, ? super PersistentByteBuffer, ? extends PersistentByteBuffer> remappingFunction) {
+    public synchronized V merge(K key, V value, BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
         return super.merge(key, value, remappingFunction);
     }
 
     @Override
-    public synchronized PersistentByteBuffer putIfAbsent(PersistentByteBuffer key, PersistentByteBuffer value) {
+    public synchronized V putIfAbsent(K key, V value) {
         return super.putIfAbsent(key, value);
     }
 
@@ -246,50 +242,49 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
     }
 
     @Override
-    public synchronized PersistentByteBuffer replace(PersistentByteBuffer key, PersistentByteBuffer value) {
+    public synchronized V replace(K key, V value) {
         return super.replace(key, value);
     }
 
     @Override
-    public synchronized boolean replace(PersistentByteBuffer key, PersistentByteBuffer oldValue, PersistentByteBuffer newValue) {
+    public synchronized boolean replace(K key, V oldValue, V newValue) {
         return super.replace(key, oldValue, newValue);
     }
 
     @Override
-    public synchronized void replaceAll(BiFunction<? super PersistentByteBuffer, ? super PersistentByteBuffer, ? extends PersistentByteBuffer> remappingFunction) {
+    public synchronized void replaceAll(BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
         throw new UnsupportedOperationException();
     }
 
-    private synchronized static native void nativeOpenPool();
-    private synchronized static native long nativeCreateSortedMap();
-    private synchronized static native boolean nativeCheckSortedMapExists(long offset);
-    private synchronized native long nativePut(long mapOffset, long keyOffset, long valOffset);
+    private synchronized native long nativeCreateTreeMap();
+    private synchronized static native boolean nativeCheckTreeMapExists(long offset);
+    private synchronized native V nativePut(long mapOffset, long keyOffset, long valOffset);
     private synchronized native long nativeGet(long mapOffset, long keyOffset);             // gets the whole node
-    private synchronized native long nativeRemove(long mapOffset, long keyOffset);
+    private synchronized native V nativeRemove(long mapOffset, long keyOffset);
     private synchronized native int nativeSize(long mapOffset);
     private synchronized native long nativeGetFirstNode(long mapOffset);
     private synchronized native long nativeGetLastNode(long mapOffset);
     private synchronized native long nativeGetSuccessor(long mapOffset, long keyOffset);
     private synchronized native long nativeGetPredecessor(long mapOffset, long keyOffset);
-    private synchronized native long nativeGetNodeKey(long mapOffset, long nodeOffset);
-    private synchronized native long nativeGetNodeValue(long mapOffset, long nodeOffset);
+    private synchronized native K nativeGetNodeKey(long mapOffset, long nodeOffset);
+    private synchronized native V nativeGetNodeValue(long mapOffset, long nodeOffset);
     private synchronized native void nativeClear(long mapOffset);
     private synchronized native void nativePutAll(long mapOffset, long[] keys, long[] values, int size);
     private synchronized native void nativeRemoveAll(long mapOffset, long[] keys, int size);
 
-    private synchronized final Entry getFirstEntry() {
+    private synchronized final Entry<K, V> getFirstEntry() {
         long offset = nativeGetFirstNode(getOffset());
         return nodeOffsetToEntry(offset);
     }
 
-    private synchronized final Entry getLastEntry() {
+    private synchronized final Entry<K, V> getLastEntry() {
         long offset = nativeGetLastNode(getOffset());
         return nodeOffsetToEntry(offset);
     }
 
-    synchronized final Entry getEntry(Object key) {
-        if (!(key instanceof PersistentByteBuffer)) return null;
-        long offset = nativeGet(getOffset(), ((PersistentByteBuffer)key).getOffset());
+    synchronized final Entry<K, V> getEntry(Object key) {
+        if (!(key instanceof Persistent)) return null;
+        long offset = nativeGet(getOffset(), ((Persistent)key).getOffset());
         return nodeOffsetToEntry(offset);
     }
 
@@ -297,7 +292,7 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
         remove(key);
     }
 
-    private synchronized final Entry successor(Entry t) {
+    private synchronized final Entry<K, V> successor(Entry<K, V> t) {
         if (t == null) {
             return null;
         } else {
@@ -306,7 +301,7 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
         }
     }
 
-    private synchronized final Entry predecessor(Entry t) {
+    private synchronized final Entry<K, V> predecessor(Entry<K, V> t) {
         if (t == null) {
             return null;
         } else {
@@ -315,9 +310,10 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
         }
     }
 
-    private synchronized Entry nodeOffsetToEntry(long offset) {
-        return offset == 0 ? null : new Entry(byteBufferFromOffset(nativeGetNodeKey(getOffset(), offset)),
-                                              byteBufferFromOffset(nativeGetNodeValue(getOffset(), offset)));
+    @SuppressWarnings("unchecked")
+    private synchronized Entry<K, V> nodeOffsetToEntry(long offset) {
+        return offset == 0 ? null : new Entry(nativeGetNodeKey(getOffset(), offset),
+                                              nativeGetNodeValue(getOffset(), offset));
     }
 
     private synchronized PersistentByteBuffer byteBufferFromOffset(long bufOffset) {
@@ -329,86 +325,94 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
     }
 
     // Smallest entry larger than the given key (or equal, if inclusive)
-    private synchronized Entry getCeilingEntry(PersistentByteBuffer key, boolean inclusive) {
+    private synchronized Map.Entry<K, V> getCeilingEntry(K key, boolean inclusive) {
         if (inclusive) {
-            Entry e = getEntry(key);
+            Entry<K, V> e = getEntry(key);
             if (e != null) return e;
         }
 
-        for (Map.Entry<PersistentByteBuffer, PersistentByteBuffer> entry : entrySet()) {
-            if (entry.getKey().compareTo(key) > 0)  // only test for greater; equality returns earlier
-                return (Entry)entry;
+        for (Map.Entry<K, V> e : entrySet()) {
+            @SuppressWarnings("unchecked") Comparable<? super K> ek = (Comparable<? super K>)(e.getKey());
+            if (ek.compareTo(key) > 0)  // only test for greater; equality returns earlier
+                return e;
         }
 
         return null;   // key is greater than everything in map
     }
 
     // Largest entry smaller than the given key (or equal, if inclusive)
-    private synchronized Entry getFloorEntry(PersistentByteBuffer key, boolean inclusive) {
+    private synchronized Map.Entry<K, V> getFloorEntry(K key, boolean inclusive) {
         if (inclusive) {
-            Entry e = getEntry(key);
+            Entry<K, V> e = getEntry(key);
             if (e != null) return e;
         }
 
-        Entry prev = null;
-        for (Map.Entry<PersistentByteBuffer, PersistentByteBuffer> entry : entrySet()) {
-            if (entry.getKey().compareTo(key) >= 0)  // if cur == key, return previous one, since non-inclusive
+        Map.Entry<K, V> prev = null;
+        for (Map.Entry<K, V> e : entrySet()) {
+            @SuppressWarnings("unchecked") Comparable<? super K> ek = (Comparable<? super K>)(e.getKey());
+            if (ek.compareTo(key) >= 0)  // if cur == key, return previous one, since non-inclusive
                 return prev;    // could be null, which handles special case of smallest entry too big
-            prev = (Entry)entry;
+            prev = e;
         }
 
         return null;  // should never get here
     }
 
-    static final class Entry implements Map.Entry<PersistentByteBuffer, PersistentByteBuffer> {
+    static final class Entry<K, V> implements Map.Entry<K, V> {
 
-        PersistentByteBuffer key;
-        PersistentByteBuffer value;
+        K key;
+        V value;
 
-        Entry(PersistentByteBuffer key, PersistentByteBuffer value) {
+        Entry(K key, V value) {
             this.key = key;
             this.value = value;
         }
 
-        public synchronized PersistentByteBuffer getKey() {
+        @Override
+        public synchronized K getKey() {
             return key;
         }
 
-        public synchronized PersistentByteBuffer getValue() {
+        @Override
+        public synchronized V getValue() {
             return value;
         }
 
-        public synchronized PersistentByteBuffer setValue(PersistentByteBuffer value) {
+        @Override
+        public synchronized V setValue(V value) {
             throw new UnsupportedOperationException();
         }
 
+        @Override
         public synchronized boolean equals(Object o) {
             if (!(o instanceof Entry))
                 return false;
-            Entry e = (Entry) o;
+            Entry e = (Entry)o;
             return valEquals(key, e.getKey()) && valEquals(value, e.getValue());
         }
 
+        @Override
         public synchronized int hashCode() {
             int keyHash = (key == null) ? 0 : key.hashCode();
             int valHash = (value == null) ? 0 : value.hashCode();
             return keyHash ^ valHash;
         }
 
+        @Override
         public synchronized String toString() {
             return key + " = " + value;
         }
     }
 
-    class EntrySet extends AbstractSet<Map.Entry<PersistentByteBuffer, PersistentByteBuffer>> {
+    class EntrySet extends AbstractSet<Map.Entry<K, V>> {
 
         boolean fromStart;
         boolean toEnd;
-        PersistentByteBuffer firstKey;
-        PersistentByteBuffer lastKey;
+        K firstKey;
+        K lastKey;
 
         public EntrySet(boolean fromStart, boolean toEnd,
-                        PersistentByteBuffer firstKey, PersistentByteBuffer lastKey) {
+                        K firstKey, K lastKey) {
             this.fromStart = fromStart;
             this.toEnd = toEnd;
             this.firstKey = firstKey;
@@ -419,65 +423,64 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
             this(true, true, null, null);
         }
 
-        public EntrySet(PersistentByteBuffer firstKey, PersistentByteBuffer lastKey) {
+        public EntrySet(K firstKey, K lastKey) {
             this(false, false, firstKey, lastKey);
         }
 
-        public Iterator<Map.Entry<PersistentByteBuffer, PersistentByteBuffer>> iterator() {
-            synchronized(PersistentSortedMap.this) {
-                Entry firstEntry, lastEntry;
+        public Iterator<Map.Entry<K, V>> iterator() {
+            synchronized(PersistentTreeMap.this) {
+                Entry<K, V> firstEntry, lastEntry;
                 if (firstKey == null) {
-                    firstEntry = fromStart ? PersistentSortedMap.this.getFirstEntry() : null;
+                    firstEntry = fromStart ? PersistentTreeMap.this.getFirstEntry() : null;
                 } else {
-                    firstEntry = PersistentSortedMap.this.getEntry(firstKey);
+                    firstEntry = PersistentTreeMap.this.getEntry(firstKey);
                 }
                 if (lastKey == null) {
-                    lastEntry = toEnd ? PersistentSortedMap.this.getLastEntry() : null;
+                    lastEntry = toEnd ? PersistentTreeMap.this.getLastEntry() : null;
                 } else {
-                    lastEntry = PersistentSortedMap.this.getEntry(lastKey);
+                    lastEntry = PersistentTreeMap.this.getEntry(lastKey);
                 }
                 return new EntryIterator(firstEntry, lastEntry);
             }
         }
 
         public boolean contains(Object o) {
-            synchronized(PersistentSortedMap.this) {
-                if (!(o instanceof Entry))
-                    return false;
-                Entry entry = (Entry) o;
+            synchronized(PersistentTreeMap.this) {
+                if (!(o instanceof Entry)) return false;
+                Entry entry = (Entry)o;
                 if (!inRange(entry.getKey())) return false;
-                PersistentByteBuffer value = entry.getValue();
-                Entry p = getEntry(entry.getKey());
+                Object value = entry.getValue();
+                Entry<K, V> p = getEntry(entry.getKey());
                 return p != null && valEquals(p.getValue(), value);
             }
         }
 
         public int size() {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 int size = 0;
-                Iterator<Map.Entry<PersistentByteBuffer, PersistentByteBuffer>> it = iterator();
+                Iterator<Map.Entry<K, V>> it = iterator();
                 while (it.hasNext()) {
                     size++;
-                    Entry e = (Entry)it.next();
+                    Entry<K, V> e = (Entry<K, V>)it.next();
                 }
                 return size;
             }
         }
 
         public boolean remove(Object o) {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 throw new UnsupportedOperationException();
             }
         }
 
         public boolean removeAll(Collection<?> c) {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 throw new UnsupportedOperationException();
             }
         }
 
-        private boolean inRange(PersistentByteBuffer key) {
-            synchronized(PersistentSortedMap.this) {
+        private boolean inRange(Object key) {
+            synchronized(PersistentTreeMap.this) {
                 if (largerThanFirst(key) && smallerThanLast(key)) {
                     return true;
                 } else {
@@ -486,35 +489,38 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
             }
         }
 
-        private boolean largerThanFirst(PersistentByteBuffer key) {
-            synchronized(PersistentSortedMap.this) {
+        private boolean largerThanFirst(Object key) {
+            synchronized(PersistentTreeMap.this) {
+                @SuppressWarnings("unchecked") Comparable<? super K> k = (Comparable<? super K>)key;
                 if (fromStart)
                     return true;
-                if (key.compareTo(firstKey) >= 0)
+                if (k.compareTo(firstKey) >= 0)
                     return true;
                 return false;
             }
         }
 
-        private boolean smallerThanLast(PersistentByteBuffer key) {
-            synchronized(PersistentSortedMap.this) {
+        private boolean smallerThanLast(Object key) {
+            synchronized(PersistentTreeMap.this) {
+                @SuppressWarnings("unchecked") Comparable<? super K> k = (Comparable<? super K>)key;
                 if (toEnd)
                     return true;
-                if (key.compareTo(lastKey) <= 0)
+                if (k.compareTo(lastKey) <= 0)
                     return true;
                 return false;
             }
         }
     }
 
-    class EntryIterator extends PrivateEntryIterator<Map.Entry<PersistentByteBuffer, PersistentByteBuffer>> {
+    class EntryIterator extends PrivateEntryIterator<Map.Entry<K, V>> {
 
-        EntryIterator(Entry first, Entry last) {
+        EntryIterator(Entry<K, V> first, Entry<K, V> last) {
             super(first, last);
         }
 
-        public Entry next() {
-            synchronized(PersistentSortedMap.this) {
+        @Override
+        public Entry<K, V> next() {
+            synchronized(PersistentTreeMap.this) {
                 return nextEntry();
             }
         }
@@ -522,56 +528,65 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
 
     abstract class PrivateEntryIterator<T> implements Iterator<T> {
 
-        Entry next;
-        Entry lastReturned;
-        Entry last;
-        Entry first;
+        Entry<K, V> next;
+        Entry<K, V> lastReturned;
+        Entry<K, V> last;
+        Entry<K, V> first;
 
-        PrivateEntryIterator(Entry first, Entry last) {
+        PrivateEntryIterator(Entry<K, V> first, Entry<K, V> last) {
             this.lastReturned = null;
             this.next = first;
             this.first = first;
             this.last = last;
         }
 
+        @Override
         public final boolean hasNext() {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 return next != null;
             }
         }
 
-        final Entry nextEntry() {
-            synchronized(PersistentSortedMap.this) {
-                Entry e = next;
+        final Entry<K, V> nextEntry() {
+            synchronized(PersistentTreeMap.this) {
+                Entry<K, V> e = next;
                 if (e == null)
                     throw new NoSuchElementException();
                 if (e.equals(last)) {    // if current == last, don't go any further
                     next = null;
                 } else {
-                    next = PersistentSortedMap.this.successor(e);
+                    next = PersistentTreeMap.this.successor(e);
                 }
                 lastReturned = e;
                 return e;
             }
         }
 
+        @Override
         public void remove() {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
+                throw new UnsupportedOperationException();
+            }
+        }
+
+        @Override
+        public void forEachRemaining(Consumer<? super T> action) {
+            synchronized(PersistentTreeMap.this) {
                 throw new UnsupportedOperationException();
             }
         }
     }
 
-    final class SubMap extends AbstractMap<PersistentByteBuffer, PersistentByteBuffer> implements SortedMap<PersistentByteBuffer, PersistentByteBuffer> {
+    final class SubMap extends AbstractMap<K, V> implements SortedMap<K, V> {
 
-        private PersistentByteBuffer firstKey;
-        private PersistentByteBuffer lastKey;
+        private K firstKey;
+        private K lastKey;
         private boolean loInclusive;
         private boolean hiInclusive;
         private boolean fromStart;
         private boolean toEnd;
 
-        public SubMap(PersistentByteBuffer firstKey, PersistentByteBuffer lastKey,
+        public SubMap(K firstKey, K lastKey,
                       boolean loInclusive, boolean hiInclusive, boolean fromStart, boolean toEnd) {
             this.firstKey = firstKey;
             this.lastKey = lastKey;
@@ -581,77 +596,71 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
             this.toEnd = toEnd;
         }
 
-        public PersistentByteBuffer put(PersistentByteBuffer key, PersistentByteBuffer val) {
-            synchronized(PersistentSortedMap.this) {
+        public V put(K key, V val) {
+            synchronized(PersistentTreeMap.this) {
                 if (inRange(key))
-                    return PersistentSortedMap.this.put(key, val);
+                    return PersistentTreeMap.this.put(key, val);
                 else
                     throw new IllegalArgumentException("Key out of range");
             }
         }
 
-        public PersistentByteBuffer remove(Object key) {
-            synchronized(PersistentSortedMap.this) {
-                if (!(key instanceof PersistentByteBuffer))
-                    throw new IllegalArgumentException("Expecting a PersistentByteBuffer");
-                PersistentByteBuffer pbbKey = (PersistentByteBuffer)key;
-                if (inRange(pbbKey))
-                    return PersistentSortedMap.this.remove(pbbKey);
+        public V remove(Object key) {
+            synchronized(PersistentTreeMap.this) {
+                if (inRange(key))
+                    return PersistentTreeMap.this.remove(key);
                 else
                     return null;
             }
         }
 
-        public PersistentByteBuffer get(Object key) {
-            synchronized(PersistentSortedMap.this) {
-                if (!(key instanceof PersistentByteBuffer))
-                    throw new IllegalArgumentException("Expecting a PersistentByteBuffer");
-                PersistentByteBuffer pbbKey = (PersistentByteBuffer)key;
-                if (inRange(pbbKey))
-                    return PersistentSortedMap.this.get(pbbKey);
+        public V get(Object key) {
+            synchronized(PersistentTreeMap.this) {
+                if (inRange(key))
+                    return PersistentTreeMap.this.get(key);
                 else
                     return null;
             }
         }
 
-        public Set<Map.Entry<PersistentByteBuffer, PersistentByteBuffer>> entrySet() {
-            synchronized(PersistentSortedMap.this) {
+        public Set<Map.Entry<K, V>> entrySet() {
+            synchronized(PersistentTreeMap.this) {
                 return new EntrySet(firstKey(), lastKey());
             }
         }
 
-        public PersistentByteBuffer firstKey() {
-            synchronized(PersistentSortedMap.this) {
-                PersistentByteBuffer firstEntryKey = PersistentSortedMap.this.getFirstEntry().getKey();
+        public K firstKey() {
+            synchronized(PersistentTreeMap.this) {
+                K firstEntryKey = PersistentTreeMap.this.getFirstEntry().getKey();
                 if (fromStart) {
                     return inRange(firstEntryKey) ? firstEntryKey : null;
                 } else {
-                    PersistentSortedMap.Entry e = PersistentSortedMap.this.getCeilingEntry(firstKey, loInclusive);
+                    Map.Entry<K, V> e = PersistentTreeMap.this.getCeilingEntry(firstKey, loInclusive);
                     return (e != null && inRange(e.getKey())) ? e.getKey() : null;
                 }
             }
         }
 
-        public PersistentByteBuffer lastKey() {
-            synchronized(PersistentSortedMap.this) {
-                PersistentByteBuffer lastEntryKey = PersistentSortedMap.this.getLastEntry().getKey();
+        public K lastKey() {
+            synchronized(PersistentTreeMap.this) {
+                K lastEntryKey = PersistentTreeMap.this.getLastEntry().getKey();
                 if (toEnd) {
                     return inRange(lastEntryKey) ? lastEntryKey : null;
                 } else {
-                    PersistentSortedMap.Entry e = PersistentSortedMap.this.getFloorEntry(lastKey, hiInclusive);
+                    Map.Entry<K, V> e = PersistentTreeMap.this.getFloorEntry(lastKey, hiInclusive);
                     return (e != null && inRange(e.getKey())) ? e.getKey() : null;
                 }
             }
         }
 
-        public Comparator<? super PersistentByteBuffer> comparator() {
-            synchronized(PersistentSortedMap.this) {
+        public Comparator<? super K> comparator() {
+            synchronized(PersistentTreeMap.this) {
                 return null;
             }
         }
 
-        public SortedMap<PersistentByteBuffer, PersistentByteBuffer> headMap(PersistentByteBuffer toKey) {
-            synchronized(PersistentSortedMap.this) {
+        public SortedMap<K, V> headMap(K toKey) {
+            synchronized(PersistentTreeMap.this) {
                 if (toKey == null)
                     throw new NullPointerException();
                 if (inRange(toKey, true)) {
@@ -662,8 +671,8 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
             }
         }
 
-        public SortedMap<PersistentByteBuffer, PersistentByteBuffer> subMap(PersistentByteBuffer fromKey, PersistentByteBuffer toKey) {
-            synchronized(PersistentSortedMap.this) {
+        public SortedMap<K, V> subMap(K fromKey, K toKey) {
+            synchronized(PersistentTreeMap.this) {
                 if (toKey == null || fromKey == null)
                     throw new NullPointerException();
                 if (inRange(toKey, true) && inRange(fromKey, true)) {
@@ -674,8 +683,8 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
             }
         }
 
-        public SortedMap<PersistentByteBuffer, PersistentByteBuffer> tailMap(PersistentByteBuffer fromKey) {
-            synchronized(PersistentSortedMap.this) {
+        public SortedMap<K, V> tailMap(K fromKey) {
+            synchronized(PersistentTreeMap.this) {
                 if (fromKey == null)
                     throw new NullPointerException();
                 if (inRange(fromKey, true)) {
@@ -688,177 +697,177 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
 
         @Override
         public String toString() {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 return super.toString();
             }
         }
 
         @Override
         public void clear() {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 int size = size();
                 long[] keys = new long[size];
                 int i = 0;
-                for (Map.Entry<? extends PersistentByteBuffer, ? extends PersistentByteBuffer> e : entrySet()) {
+                for (Map.Entry<? extends K, ? extends V> e : entrySet()) {
                     keys[i] = e.getKey().getOffset();
                     i++;
                 }
-                PersistentSortedMap.this.nativeRemoveAll(getOffset(), keys, size);
+                PersistentTreeMap.this.nativeRemoveAll(getOffset(), keys, size);
             }
         }
 
         @Override
-        public Set<PersistentByteBuffer> keySet() {
-            synchronized(PersistentSortedMap.this) {
+        public Set<K> keySet() {
+            synchronized(PersistentTreeMap.this) {
                 return super.keySet();
             }
         }
 
         @Override
-        public Collection<PersistentByteBuffer> values() {
-            synchronized(PersistentSortedMap.this) {
+        public Collection<V> values() {
+            synchronized(PersistentTreeMap.this) {
                 return super.values();
             }
         }
 
         @Override
-        public PersistentByteBuffer compute(PersistentByteBuffer key, BiFunction<? super PersistentByteBuffer, ? super PersistentByteBuffer, ? extends PersistentByteBuffer> remappingFunction) {
-            synchronized(PersistentSortedMap.this) {
+        public V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+            synchronized(PersistentTreeMap.this) {
                 return super.compute(key, remappingFunction);
             }
         }
 
         @Override
-        public PersistentByteBuffer computeIfAbsent(PersistentByteBuffer key, Function<? super PersistentByteBuffer, ? extends PersistentByteBuffer> mappingFunction) {
-            synchronized(PersistentSortedMap.this) {
+        public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+            synchronized(PersistentTreeMap.this) {
                 return super.computeIfAbsent(key, mappingFunction);
             }
         }
 
         @Override
-        public PersistentByteBuffer computeIfPresent(PersistentByteBuffer key, BiFunction<? super PersistentByteBuffer, ? super PersistentByteBuffer, ? extends PersistentByteBuffer> remappingFunction) {
-            synchronized(PersistentSortedMap.this) {
+        public V computeIfPresent(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+            synchronized(PersistentTreeMap.this) {
                 return super.computeIfPresent(key, remappingFunction);
             }
         }
 
         @Override
         public boolean containsKey(Object key) {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 return super.containsKey(key);
             }
         }
 
         @Override
         public boolean containsValue(Object value) {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 return super.containsValue(value);
             }
         }
 
         @Override
         public boolean equals(Object o) {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 return super.equals(o);
             }
         }
 
         @Override
-        public void forEach(BiConsumer<? super PersistentByteBuffer, ? super PersistentByteBuffer> action) {
-            synchronized(PersistentSortedMap.this) {
+        public void forEach(BiConsumer<? super K, ? super V> action) {
+            synchronized(PersistentTreeMap.this) {
                 super.forEach(action);
             }
         }
 
         @Override
-        public PersistentByteBuffer getOrDefault(Object key, PersistentByteBuffer defaultValue) {
-            synchronized(PersistentSortedMap.this) {
+        public V getOrDefault(Object key, V defaultValue) {
+            synchronized(PersistentTreeMap.this) {
                 return super.getOrDefault(key, defaultValue);
             }
         }
 
         @Override
         public int hashCode() {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 return super.hashCode();
             }
         }
 
         @Override
         public boolean isEmpty() {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 return super.isEmpty();
             }
         }
 
         @Override
-        public PersistentByteBuffer merge(PersistentByteBuffer key, PersistentByteBuffer value, BiFunction<? super PersistentByteBuffer, ? super PersistentByteBuffer, ? extends PersistentByteBuffer> remappingFunction) {
-            synchronized(PersistentSortedMap.this) {
+        public V merge(K key, V value, BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+            synchronized(PersistentTreeMap.this) {
                 return super.merge(key, value, remappingFunction);
             }
         }
 
         @Override
-        public PersistentByteBuffer putIfAbsent(PersistentByteBuffer key, PersistentByteBuffer value) {
-            synchronized(PersistentSortedMap.this) {
+        public V putIfAbsent(K key, V value) {
+            synchronized(PersistentTreeMap.this) {
                 return super.putIfAbsent(key, value);
             }
         }
 
         @Override
-        public void putAll(Map<? extends PersistentByteBuffer, ? extends PersistentByteBuffer> m) {
-            synchronized(PersistentSortedMap.this) {
-                for (Map.Entry<? extends PersistentByteBuffer, ? extends PersistentByteBuffer> e : m.entrySet()) {
+        public void putAll(Map<? extends K, ? extends V> m) {
+            synchronized(PersistentTreeMap.this) {
+                for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
                     if (!inRange(e.getKey()))
                         throw new IllegalArgumentException("Key out of range");
                 }
-                PersistentSortedMap.this.putAll(m);
+                PersistentTreeMap.this.putAll(m);
             }
         }
 
         @Override
         public boolean remove(Object key, Object value) {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 return super.remove(key, value);
             }
         }
 
         @Override
-        public PersistentByteBuffer replace(PersistentByteBuffer key, PersistentByteBuffer value) {
-            synchronized(PersistentSortedMap.this) {
+        public V replace(K key, V value) {
+            synchronized(PersistentTreeMap.this) {
                 return super.replace(key, value);
             }
         }
 
         @Override
-        public boolean replace(PersistentByteBuffer key, PersistentByteBuffer oldValue, PersistentByteBuffer newValue) {
-            synchronized(PersistentSortedMap.this) {
+        public boolean replace(K key, V oldValue, V newValue) {
+            synchronized(PersistentTreeMap.this) {
                 return super.replace(key, oldValue, newValue);
             }
         }
 
         @Override
-        public void replaceAll(BiFunction<? super PersistentByteBuffer, ? super PersistentByteBuffer, ? extends PersistentByteBuffer> remappingFunction) {
-            synchronized(PersistentSortedMap.this) {
+        public void replaceAll(BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+            synchronized(PersistentTreeMap.this) {
                 throw new UnsupportedOperationException();
             }
         }
 
         @Override
         public int size() {
-            synchronized(PersistentSortedMap.this) {
+            synchronized(PersistentTreeMap.this) {
                 return super.size();
             }
         }
 
-        private boolean inRange(PersistentByteBuffer key) {
-            synchronized(PersistentSortedMap.this) {
+        private boolean inRange(Object key) {
+            synchronized(PersistentTreeMap.this) {
                 return inRange(key, false);
             }
         }
 
-        private boolean inRange(PersistentByteBuffer key, boolean alwaysInclusive) {
-            synchronized(PersistentSortedMap.this) {
+        private boolean inRange(Object key, boolean alwaysInclusive) {
+            synchronized(PersistentTreeMap.this) {
                 if (largerThanFirst(key, alwaysInclusive) && smallerThanLast(key, alwaysInclusive)) {
                     return true;
                 } else {
@@ -867,49 +876,53 @@ public class PersistentSortedMap extends AbstractMap<PersistentByteBuffer, Persi
             }
         }
 
-        private boolean largerThanFirst(PersistentByteBuffer key, boolean alwaysInclusive) {
-            synchronized(PersistentSortedMap.this) {
+        private boolean largerThanFirst(Object key, boolean alwaysInclusive) {
+            synchronized(PersistentTreeMap.this) {
+                @SuppressWarnings("unchecked") Comparable<? super K> k = (Comparable<? super K>)key;
                 if (fromStart)
                     return true;
-                if ((loInclusive || alwaysInclusive) && key.compareTo(firstKey) == 0)
+                if ((loInclusive || alwaysInclusive) && k.compareTo(firstKey) == 0)
                     return true;
-                if (key.compareTo(firstKey) > 0)
+                if (k.compareTo(firstKey) > 0)
                     return true;
                 return false;
             }
         }
 
-        private boolean smallerThanLast(PersistentByteBuffer key, boolean alwaysInclusive) {
-            synchronized(PersistentSortedMap.this) {
+        private boolean smallerThanLast(Object key, boolean alwaysInclusive) {
+            synchronized(PersistentTreeMap.this) {
+                @SuppressWarnings("unchecked") Comparable<? super K> k = (Comparable<? super K>)key;
                 if (toEnd)
                     return true;
-                if ((hiInclusive || alwaysInclusive) && key.compareTo(lastKey) == 0)
+                if ((hiInclusive || alwaysInclusive) && k.compareTo(lastKey) == 0)
                     return true;
-                if (key.compareTo(lastKey) < 0)
+                if (k.compareTo(lastKey) < 0)
                     return true;
                 return false;
             }
         }
 
-        private boolean smallerThanFirst(PersistentByteBuffer key) {
-            synchronized(PersistentSortedMap.this) {
+        private boolean smallerThanFirst(Object key) {
+            synchronized(PersistentTreeMap.this) {
+                @SuppressWarnings("unchecked") Comparable<? super K> k = (Comparable<? super K>)key;
                 if (fromStart)
                     return false;
-                if (key.compareTo(firstKey) == 0)
+                if (k.compareTo(firstKey) == 0)
                     return !loInclusive;
-                if (key.compareTo(firstKey) > 0)
+                if (k.compareTo(firstKey) > 0)
                     return false;
                 return true;
             }
         }
 
-        private boolean largerThanLast(PersistentByteBuffer key) {
-            synchronized(PersistentSortedMap.this) {
+        private boolean largerThanLast(Object key) {
+            synchronized(PersistentTreeMap.this) {
+                @SuppressWarnings("unchecked") Comparable<? super K> k = (Comparable<? super K>)key;
                 if (toEnd)
                     return false;
-                if (key.compareTo(lastKey) == 0)
+                if (k.compareTo(lastKey) == 0)
                     return !hiInclusive;
-                if (key.compareTo(lastKey) < 0)
+                if (k.compareTo(lastKey) < 0)
                     return false;
                 return true;
             }

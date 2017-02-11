@@ -29,6 +29,7 @@ import java.nio.InvalidMarkException;
 public class PersistentByteBufferTest {
 
     public static void main(String[] args) {
+        System.out.println("****************PersistentByteBuffer tests****************");
         testBufferPosition();
         testBufferLimit();
         testBufferClear();
@@ -50,7 +51,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferPosition() {
-        System.out.println("=======================================Testing buffer position=======================================");
+        System.out.println("****************Testing buffer position****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(10);
         buf.put("helloworld".getBytes());
@@ -65,7 +66,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferLimit() {
-        System.out.println("=======================================Testing buffer limit=======================================");
+        System.out.println("****************Testing buffer limit****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(10);
         buf.put("helloworld".getBytes());
@@ -80,7 +81,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferClear() {
-        System.out.println("=======================================Testing buffer clear=======================================");
+        System.out.println("****************Testing buffer clear****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
         buf.put("hellojavaworld!".getBytes());
@@ -131,7 +132,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferDuplicate() {
-        System.out.println("=======================================Testing buffer duplicate=======================================");
+        System.out.println("****************Testing buffer duplicate****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
         buf.put("hellojavaworld!".getBytes());
@@ -159,7 +160,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferSlice() {
-        System.out.println("=======================================Testing buffer slice======================================");
+        System.out.println("****************Testing buffer slice****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
         buf.put("hellojavaworld!".getBytes());
@@ -177,7 +178,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferMark() {
-        System.out.println("=======================================Testing buffer mark======================================");
+        System.out.println("****************Testing buffer mark****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
         buf.put("hellojavaworld!".getBytes());
@@ -209,7 +210,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferBasicPutsGets() {
-        System.out.println("=======================================Testing buffer basic puts/gets======================================");
+        System.out.println("****************Testing buffer basic puts/gets****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
         PersistentByteBuffer temp = PersistentByteBuffer.allocate(4);
@@ -267,7 +268,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferChar() {
-        System.out.println("=======================================Testing buffer putChar/getChar======================================");
+        System.out.println("****************Testing buffer putChar/getChar****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
 
@@ -282,7 +283,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferDouble() {
-        System.out.println("=======================================Testing buffer putDouble/getDouble======================================");
+        System.out.println("****************Testing buffer putDouble/getDouble****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
 
@@ -297,7 +298,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferFloat() {
-        System.out.println("=======================================Testing buffer putFloat/getFloat======================================");
+        System.out.println("****************Testing buffer putFloat/getFloat****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
 
@@ -312,7 +313,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferInt() {
-        System.out.println("=======================================Testing buffer putInt/getInt======================================");
+        System.out.println("****************Testing buffer putInt/getInt****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
 
@@ -327,7 +328,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferShort() {
-        System.out.println("=======================================Testing buffer putShort/getShort======================================");
+        System.out.println("****************Testing buffer putShort/getShort****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
 
@@ -342,7 +343,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferLong() {
-        System.out.println("=======================================Testing buffer putLong/getLong======================================");
+        System.out.println("****************Testing buffer putLong/getLong****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
 
@@ -357,7 +358,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferFlip() {
-        System.out.println("=======================================Testing buffer flip======================================");
+        System.out.println("****************Testing buffer flip****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(15);
 
@@ -384,7 +385,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testBufferComparison() {
-        System.out.println("=======================================Testing buffer comparison======================================");
+        System.out.println("****************Testing buffer comparison****************");
 
         PersistentByteBuffer buf1 = PersistentByteBuffer.allocate(15);
         PersistentByteBuffer buf2 = PersistentByteBuffer.allocate(10);
@@ -408,7 +409,7 @@ public class PersistentByteBufferTest {
     }
 
     public static void testEmptyBuffer() {
-        System.out.println("=======================================Testing buffer size 0======================================");
+        System.out.println("****************Testing buffer size 0****************");
 
         PersistentByteBuffer buf = PersistentByteBuffer.allocate(0);
         assert(buf.capacity() == 0);

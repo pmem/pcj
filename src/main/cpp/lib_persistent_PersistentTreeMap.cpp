@@ -19,33 +19,37 @@
  * Boston, MA  02110-1301, USA.
  */
 
-#include "lib_persistent_PersistentSortedMap.h"
+#include "lib_persistent_PersistentTreeMap.h"
 #include "util.h"
 #include "persistent_structs.h"
 #include "persistent_heap.h"
 #include "persistent_byte_buffer.h"
-#include "persistent_sorted_map.h"
+#include "persistent_tree_map.h"
 
-JNIEXPORT void JNICALL Java_lib_persistent_PersistentSortedMap_nativeOpenPool
-  (JNIEnv *env, jclass klass)
-{
-    get_or_create_pool();
-}
-
-JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeCreateSortedMap
-  (JNIEnv *env, jclass klass)
+JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentTreeMap_nativeCreateTreeMap
+  (JNIEnv *env, jobject obj)
 {
     TOID(struct rbtree_map) rbtree;
-    if (rbtree_map_new(pool, &rbtree, NULL) != 0) {
-        throw_persistent_object_exception(env, "NativeCreateSortedMap: Failed to create new backing tree structure; ");
-    }
-    //printf("new PSM created at offset %lu with header at %lu\n", rbtree.oid.off, D_RO(rbtree)->header.oid.off);
-    //fflush(stdout);
-    add_to_obj_list(rbtree.oid);
+
+    char class_name[128];
+    get_class_name(env, class_name, obj);
+
+    TX_BEGIN(pool) {
+        if (rbtree_map_new(pool, &rbtree, class_name, NULL) != 0) {
+            pmemobj_tx_abort(0);
+        }
+        //printf("new PSM created at offset %lu with header at %lu\n", rbtree.oid.off, D_RO(rbtree)->header.oid.off);
+        //fflush(stdout);
+        add_to_obj_list(rbtree.oid);
+    } TX_ONABORT {
+        throw_persistent_object_exception(env, "NativeCreateTreeMap: Failed to create new backing tree structure; ");
+        rbtree = TOID_NULL(struct rbtree_map);
+    } TX_END
+
     return rbtree.oid.off;
 }
 
-JNIEXPORT jboolean JNICALL Java_lib_persistent_PersistentSortedMap_nativeCheckSortedMapExists
+JNIEXPORT jboolean JNICALL Java_lib_persistent_PersistentTreeMap_nativeCheckTreeMapExists
   (JNIEnv *env, jclass klass, jlong offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)offset};
@@ -64,7 +68,7 @@ int check_map_existence(PMEMoid map)
     return 1;
 }
 
-JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativePut
+JNIEXPORT jobject JNICALL Java_lib_persistent_PersistentTreeMap_nativePut
   (JNIEnv *env, jobject obj, jlong map_offset, jlong key_offset, jlong value_offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
@@ -74,14 +78,21 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativePut
     TOID(struct rbtree_map) rbtree;
     TOID_ASSIGN(rbtree, map);
 
-    EPMEMoid item = put_common(rbtree, key_buf, value_buf, TOID_NULL(struct hashmap_tx), 0, 0);
-    if (EOID_IS_ERR(item)) {
+    jobject jobj = NULL;
+    TX_BEGIN(pool) {
+        EPMEMoid item = put_common(rbtree, key_buf, value_buf, TOID_NULL(struct hashmap_tx), 0, 0);
+        if (EOID_IS_ERR(item)) {
+            pmemobj_tx_abort(0);
+        }
+        jobj = create_object(env, item.oid);
+    } TX_ONABORT {
         throw_persistent_object_exception(env, "NativePut: Failed to insert key/value pair; ");
-    }
-    return item.oid.off;
+    } TX_END
+
+    return jobj;
 }
 
-JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGet
+JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentTreeMap_nativeGet
   (JNIEnv *env, jobject obj, jlong map_offset, jlong key_offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
@@ -98,7 +109,7 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGet
     }
 }
 
-JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeRemove
+JNIEXPORT jobject JNICALL Java_lib_persistent_PersistentTreeMap_nativeRemove
   (JNIEnv *env, jobject obj, jlong map_offset, jlong key_offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
@@ -108,15 +119,21 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeRemove
     TOID_ASSIGN(rbtree, map);
 
     TOID(struct tree_map_node) node = rbtree_map_get(pool, rbtree, key_buf);
-    EPMEMoid item = remove_common(rbtree, key_buf, node, TOID_NULL(struct hashmap_tx), 0, 0);
-    if (EOID_IS_ERR(item)) {
+    jobject jobj = NULL;
+    TX_BEGIN(pool) {
+        EPMEMoid item = remove_common(rbtree, key_buf, node, TOID_NULL(struct hashmap_tx), 0, 0);
+        if (EOID_IS_ERR(item)) {
+            pmemobj_tx_abort(0);
+        }
+        jobj = create_object(env, item.oid);
+    } TX_ONABORT {
         throw_persistent_object_exception(env, "NativePut: Failed to insert key/value pair; ");
-    }
+    } TX_END
 
-    return item.oid.off;
+    return jobj;
 }
 
-JNIEXPORT jint JNICALL Java_lib_persistent_PersistentSortedMap_nativeSize
+JNIEXPORT jint JNICALL Java_lib_persistent_PersistentTreeMap_nativeSize
   (JNIEnv *env, jobject obj, jlong map_offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
@@ -127,7 +144,7 @@ JNIEXPORT jint JNICALL Java_lib_persistent_PersistentSortedMap_nativeSize
     return rbtree_map_size(pool, rbtree);
 }
 
-JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetFirstNode
+JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentTreeMap_nativeGetFirstNode
   (JNIEnv *env, jobject obj, jlong map_offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
@@ -144,7 +161,7 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetFirstNo
     }
 }
 
-JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetLastNode
+JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentTreeMap_nativeGetLastNode
   (JNIEnv *env, jobject obj, jlong map_offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
@@ -161,7 +178,7 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetLastNod
     }
 }
 
-JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetSuccessor
+JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentTreeMap_nativeGetSuccessor
   (JNIEnv *env, jobject obj, jlong map_offset, jlong key_offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
@@ -169,7 +186,7 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetSuccess
     TOID(struct rbtree_map) rbtree;
     TOID_ASSIGN(rbtree, map);
 
-    jlong node_offset = Java_lib_persistent_PersistentSortedMap_nativeGet(env, obj, map_offset, key_offset);
+    jlong node_offset = Java_lib_persistent_PersistentTreeMap_nativeGet(env, obj, map_offset, key_offset);
 
     PMEMoid node_pmemoid = {get_uuid_lo(), (uint64_t)node_offset};
 
@@ -185,7 +202,7 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetSuccess
     }
 }
 
-JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetPredecessor
+JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentTreeMap_nativeGetPredecessor
   (JNIEnv *env, jobject obj, jlong map_offset, jlong key_offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
@@ -193,7 +210,7 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetPredece
     TOID(struct rbtree_map) rbtree;
     TOID_ASSIGN(rbtree, map);
 
-    jlong node_offset = Java_lib_persistent_PersistentSortedMap_nativeGet(env, obj, map_offset, key_offset);
+    jlong node_offset = Java_lib_persistent_PersistentTreeMap_nativeGet(env, obj, map_offset, key_offset);
 
     PMEMoid node_pmemoid = {get_uuid_lo(), (uint64_t)node_offset};
 
@@ -209,7 +226,7 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetPredece
     }
 }
 
-JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetNodeKey
+JNIEXPORT jobject JNICALL Java_lib_persistent_PersistentTreeMap_nativeGetNodeKey
   (JNIEnv *env, jobject obj, jlong map_offset, jlong node_offset)
 {
     PMEMoid node_pmemoid = {get_uuid_lo(), (uint64_t)node_offset};
@@ -219,11 +236,18 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetNodeKey
 
     PMEMoid key = D_RO(node)->key;
 
-    inc_ref(key, 1, 0);
-    return key.off;
+    jobject jobj = NULL;
+    TX_BEGIN(pool) {
+        inc_ref(key, 1, 0);
+        jobj = create_object(env, key);
+    } TX_ONABORT {
+        throw_persistent_object_exception(env, "NativeGetNodeKey");
+    } TX_END
+
+    return jobj;
 }
 
-JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetNodeValue
+JNIEXPORT jobject JNICALL Java_lib_persistent_PersistentTreeMap_nativeGetNodeValue
   (JNIEnv *env, jobject obj, jlong map_offset, jlong node_offset)
 {
     PMEMoid node_pmemoid = {get_uuid_lo(), (uint64_t)node_offset};
@@ -236,14 +260,23 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentSortedMap_nativeGetNodeVal
 
     TOID(struct persistent_byte_buffer) value_toid;
     TOID_ASSIGN(value_toid, value);
-    if (!OID_IS_NULL(value))
-        //printf("in getNodeValue, value's header's offset is %lu\n", D_RO(value_toid)->header.oid.off);
-    //fflush(stdout);
-    if (!OID_IS_NULL(value)) inc_ref(value, 1, 0);
-    return value.off;
+
+    jobject jobj = NULL;
+    TX_BEGIN(pool) {
+        if (!OID_IS_NULL(value)) {
+            //printf("in getNodeValue, value's header's offset is %lu\n", D_RO(value_toid)->header.oid.off);
+            //fflush(stdout);
+            inc_ref(value, 1, 0);
+        }
+        jobj = create_object(env, value);
+    } TX_ONABORT {
+        throw_persistent_object_exception(env, "NativeGetNodeValue");
+    } TX_END
+
+    return jobj;
 }
 
-JNIEXPORT void JNICALL Java_lib_persistent_PersistentSortedMap_nativeClear
+JNIEXPORT void JNICALL Java_lib_persistent_PersistentTreeMap_nativeClear
   (JNIEnv *env, jobject obj, jlong map_offset)
 {
     PMEMoid map = {get_uuid_lo(), (uint64_t)map_offset};
@@ -256,7 +289,7 @@ JNIEXPORT void JNICALL Java_lib_persistent_PersistentSortedMap_nativeClear
     }
 }
 
-JNIEXPORT void JNICALL Java_lib_persistent_PersistentSortedMap_nativePutAll
+JNIEXPORT void JNICALL Java_lib_persistent_PersistentTreeMap_nativePutAll
   (JNIEnv *env, jobject obj, jlong map_offset, jlongArray keys, jlongArray values, jint size)
 {
     jboolean is_copy_keys, is_copy_values;
@@ -292,7 +325,7 @@ JNIEXPORT void JNICALL Java_lib_persistent_PersistentSortedMap_nativePutAll
     } TX_END
 }
 
-JNIEXPORT void JNICALL Java_lib_persistent_PersistentSortedMap_nativeRemoveAll
+JNIEXPORT void JNICALL Java_lib_persistent_PersistentTreeMap_nativeRemoveAll
   (JNIEnv *env, jobject obj, jlong map_offset, jlongArray keys, jint size)
 {
     jboolean is_copy_keys;
@@ -330,25 +363,25 @@ EPMEMoid put_common(TOID(struct rbtree_map) map, PMEMoid key, PMEMoid value,
 {
     EPMEMoid item = EOID_NULL;
     TX_BEGIN(pool) {
+        //printf("put: inserting key at %lu and value at %lu into map at offset %lu\n", key.off, value.off, map.oid.off);
+        //fflush(stdout);
         if (TOID_IS_NULL(rbtree_map_get(pool, map, key))) {
-            //printf("put: incRef of key at offset %d\n", key.oid.off);
+            //printf("put: incRef of key at offset %d\n", key.off);
             //fflush(stdout);
             if (lock_key) {
-                lock_byte_buffer(locks, key, 1);
+                lock_objs(locks, key, 1);
             }
             inc_ref(key, 1, lock_key);
         }
-        //printf("put: incRef of value at offset %d\n", value.oid.off);
+        //printf("put: incRef of value at offset %d\n", value.off);
         //fflush(stdout);
         if (!OID_IS_NULL(value)) {
             if (lock_value) {
-                lock_byte_buffer(locks, value, 1);
+                lock_objs(locks, value, 1);
             }
             inc_ref(value, 1, lock_value);
         }
         item = rbtree_map_insert(pool, map, key, value);
-        //printf("in insert, value's offset is %lu\n", value_offset);
-        //fflush(stdout);
     } TX_ONABORT {
         printf("NativePut failed!\n");
         exit(-1);
@@ -371,12 +404,12 @@ EPMEMoid remove_common(TOID(struct rbtree_map) map, PMEMoid key, TOID(struct tre
                 //printf("remove: decRef of key at offset %lu\n", map_key.off);
                 //fflush(stdout);
                 if (lock_key) {
-                    lock_byte_buffer(locks, map_key, -1);
+                    lock_objs(locks, map_key, -1);
                 }
                 dec_ref(map_key, 1, lock_key);
                 if (!OID_IS_NULL(item.oid)) {
                     if (lock_value) {
-                        lock_byte_buffer(locks, item.oid, 0);
+                        lock_objs(locks, item.oid, 0);
                     }
                     inc_ref(item.oid, 1, lock_value);
                     dec_ref(item.oid, 1, lock_value);

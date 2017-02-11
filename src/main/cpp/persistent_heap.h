@@ -47,12 +47,14 @@ struct root_struct {
 extern PMEMobjpool* pool;
 extern TOID(struct root_struct) root;
 extern TOID(struct hashmap_tx) vm_offsets;
+extern JavaVM *jvm;
 
 POBJ_LAYOUT_BEGIN(persistent_heap);
 POBJ_LAYOUT_ROOT(persistent_heap, struct root_struct);
 POBJ_LAYOUT_END(persistent_heap);
 
 PMEMobjpool* get_or_create_pool();
+void close_pool();
 TOID(struct root_struct) get_root();
 uint64_t get_uuid_lo();
 void create_root(TOID(struct root_struct) rt);

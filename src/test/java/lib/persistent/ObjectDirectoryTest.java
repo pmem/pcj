@@ -24,13 +24,12 @@ package lib.persistent;
 public class ObjectDirectoryTest {
 
     public static void main(String[] args) {
+        System.out.println("****************ObjectDirectory Tests****************");
         ObjectDirectoryTest();
     }
 
     public static void ObjectDirectoryTest() {
-        System.out.println("=======================================Testing object directory=======================================");
-
-        PersistentSortedMap m1 = new PersistentSortedMap();
+        PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> m1 = new PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer>();
         ObjectDirectory.put("m1", m1);
 
         PersistentByteBuffer k = TestUtil.createByteBuffer(10, "hello");
@@ -38,11 +37,11 @@ public class ObjectDirectoryTest {
         m1.put(k, v);
 
         assert(m1.size() == 1);
-        assert(ObjectDirectory.get("m1", PersistentSortedMap.class).equals(m1));
-        assert(ObjectDirectory.get("m1", PersistentSortedMap.class).getOffset() == m1.getOffset());
+        assert(ObjectDirectory.get("m1", PersistentTreeMap.class).equals(m1));
+        assert(ObjectDirectory.get("m1", PersistentTreeMap.class).getOffset() == m1.getOffset());
 
-        ObjectDirectory.remove("m1", PersistentSortedMap.class);
+        ObjectDirectory.remove("m1", PersistentTreeMap.class);
 
-        assert(ObjectDirectory.get("m1", PersistentSortedMap.class) == null);
+        assert(ObjectDirectory.get("m1", PersistentTreeMap.class) == null);
     }
 }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2016  Intel Corporation
+/* Copyright (C) 2016-17  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,6 +38,9 @@
 #define ENTRY_TYPE_OFFSET 1023
 #define CHAR_TYPE_OFFSET 1024
 #define LOCKS_ENTRY_TYPE_OFFSET 1025
+#define AGGREGATE_FIELD_TYPE_OFFSET 1026
+#define AGGREGATE_TYPE_OFFSET 1027
+#define PERSISTENT_LONG_TYPE_OFFSET 1028
 
 struct rbtree_map;
 struct hashmap_tx;
@@ -47,11 +50,14 @@ TOID_DECLARE(struct rbtree_map, RBTREE_MAP_TYPE_OFFSET);
 TOID_DECLARE(struct tree_map_node, TREE_MAP_NODE_TYPE_OFFSET);
 TOID_DECLARE(struct persistent_byte_buffer, PERSISTENT_BYTE_BUFFER_TYPE_OFFSET);
 TOID_DECLARE(struct persistent_byte_array, PERSISTENT_BYTE_ARRAY_TYPE_OFFSET);
+TOID_DECLARE(struct persistent_long, PERSISTENT_LONG_TYPE_OFFSET);
 TOID_DECLARE(struct hashmap_tx, HASHMAP_TX_TYPE_OFFSET);
 TOID_DECLARE(struct buckets, BUCKETS_TYPE_OFFSET);
 TOID_DECLARE(struct entry, ENTRY_TYPE_OFFSET);
 TOID_DECLARE(char, CHAR_TYPE_OFFSET);
 TOID_DECLARE(struct locks_entry, LOCKS_ENTRY_TYPE_OFFSET);
+TOID_DECLARE(struct aggregate_field, AGGREGATE_FIELD_TYPE_OFFSET);
+TOID_DECLARE(struct aggregate, AGGREGATE_TYPE_OFFSET);
 
 // Special PMEMoid that supports addition of null & error code as metadata
 typedef struct pmemoid_ne {
@@ -88,10 +94,11 @@ struct header {
     int version;
     int refCount;
     int type;
-    int fieldCount;
-    ref_color color;
     int is_candidate;
+    uint64_t fieldCount;
+    ref_color color;
     PMEMmutex obj_mutex;
+    TOID(char) class_name;
     uint64_t prev_obj_offset;
     uint64_t next_obj_offset;
 };
@@ -99,6 +106,9 @@ struct header {
 struct persistent_byte_array {
     TOID(struct header) header;
     PMEMoid bytes;
+    uint64_t length;
+    int consistency;
+    int dirty;
 };
 
 struct persistent_byte_buffer {
@@ -109,6 +119,11 @@ struct persistent_byte_buffer {
     int capacity;
     int mark;
     int start;
+};
+
+struct persistent_long {
+    TOID(struct header) header;
+    int64_t value;
 };
 
 enum rb_color {
@@ -179,8 +194,18 @@ struct locks_entry {
     POBJ_LIST_ENTRY(struct locks_entry) list;
 };
 
+struct aggregate_field {
+    PMEMoid field;
+};
+
+struct aggregate {
+    TOID(struct header) header;
+    TOID(struct aggregate_field) fields[];
+};
+
 #define PERSISTENT_BYTE_ARRAY_FIELD_COUNT 0
-#define PERSISTENT_BYTE_BUFFER_FIELD_COUNT 1
+#define PERSISTENT_BYTE_BUFFER_FIELD_COUNT 0
 #define RBTREE_MAP_FIELD_COUNT 0
+#define PERSISTENT_LONG_FIELD_COUNT 0
 
 #endif /* PERSISTENT_STRUCTS_H */

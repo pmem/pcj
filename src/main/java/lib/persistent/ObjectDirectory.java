@@ -1,4 +1,4 @@
-/* Copyright (C) 2016  Intel Corporation
+/* Copyright (C) 2016-17  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,9 +24,10 @@ package lib.persistent;
 import java.lang.reflect.*;
 import java.util.Map;
 
+@SuppressWarnings("unchecked")
 public class ObjectDirectory {
 
-    static PersistentSortedMap map;
+    static PersistentTreeMap<PersistentByteBuffer, Persistent> map;
     static PhantomQueue<Persistent> pq;
 
     static {
@@ -40,45 +41,22 @@ public class ObjectDirectory {
                 System.exit(-1);
             }
         });
-        map = PersistentSortedMap.fromOffset(Util.getRoot());
+        map = PersistentTreeMap.fromOffset(Util.getRoot());
     }
 
-    @SuppressWarnings("unchecked")
     public synchronized static <T extends Persistent> T put(String key, T value) {
         PersistentByteBuffer k = makeKey(key, value.getClass());
-        PersistentByteBuffer v = PersistentByteBuffer.allocate(8).putLong(value.getOffset()).rewind();
-        Util.incRef(value.getOffset());
-        PersistentByteBuffer prev = map.put(k, v);
-        if (prev == null) {
-            return null;
-        } else {
-            T ans = fromOffset(prev.rewind().getLong(), (Class<T>)value.getClass());
-            Util.decRef(ans.getOffset());
-            return ans;
-        }
+        return (T)(map.put(k, value));
     }
 
     public synchronized static <T extends Persistent> T get(String key, Class<T> cls) {
         PersistentByteBuffer k = makeKey(key, cls);
-        PersistentByteBuffer v = map.get(k);
-        if (v == null) {
-            return null;
-        } else {
-            T ans = fromOffset(v.rewind().getLong(), cls);
-            return ans;
-        }
+        return (T)(map.get(k));
     }
 
     public synchronized static <T extends Persistent> T remove(String key, Class<T> cls) {
         PersistentByteBuffer k = makeKey(key, cls);
-        PersistentByteBuffer v = map.remove(k);
-        if (v == null) {
-            return null;
-        } else {
-            T ans = fromOffset(v.rewind().getLong(), cls);
-            Util.decRef(ans.getOffset());
-            return ans;
-        }
+        return (T)(map.remove(k));
     }
 
     private synchronized static PersistentByteBuffer makeKey(String s, Class<?> cls) {
@@ -88,16 +66,6 @@ public class ObjectDirectory {
         ans.put(s.getBytes());
         ans.put(clsName.getBytes());
         ans.rewind();
-        return ans;
-    }
-
-    private synchronized static <T extends Persistent> T fromOffset(long offset, Class<T> cls) {
-        T ans = null;
-        try {
-            Method m = cls.getDeclaredMethod("fromOffset", long.class);
-            ans = cls.cast(m.invoke(cls, offset));
-            Util.incRef(ans.getOffset());
-        } catch(Exception e) { e.printStackTrace(); }
         return ans;
     }
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2016  Intel Corporation
+/* Copyright (C) 2016-17  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,12 +25,6 @@
 #include "persistent_byte_buffer.h"
 #include "persistent_heap.h"
 
-JNIEXPORT void JNICALL Java_lib_persistent_PersistentByteBuffer_nativeOpenPool
-  (JNIEnv *env, jclass klass)
-{
-    get_or_create_pool();
-}
-
 JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentByteBuffer_nativeReserveByteBufferMemory
   (JNIEnv *env, jobject obj, jint capacity)
 {
@@ -38,6 +32,9 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentByteBuffer_nativeReserveBy
     TOID(struct persistent_byte_array) arr;
     TOID(struct header) pbb_header, arr_header;
     TOID(char) bytes;
+
+    char class_name[128];
+    get_class_name(env, class_name, obj);
 
     TX_BEGIN (pool) {
         pbb = TX_ZNEW(struct persistent_byte_buffer);
@@ -54,6 +51,7 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentByteBuffer_nativeReserveBy
         }
 
         D_RW(arr)->bytes = bytes.oid;
+        D_RW(arr)->length = capacity;
 
         D_RW(pbb)->capacity = capacity;
         D_RW(pbb)->arr = arr.oid;
@@ -67,10 +65,17 @@ JNIEXPORT jlong JNICALL Java_lib_persistent_PersistentByteBuffer_nativeReserveBy
         D_RW(D_RW(pbb)->header)->type = TOID_TYPE_NUM(struct persistent_byte_buffer);
         D_RW(D_RW(pbb)->header)->fieldCount = PERSISTENT_BYTE_BUFFER_FIELD_COUNT;
         D_RW(D_RW(pbb)->header)->color = BLACK;
+
+        TOID(char) pbb_class_name = TX_ZALLOC(char, strlen(class_name));
+        TX_MEMCPY(pmemobj_direct(pbb_class_name.oid), class_name, strlen(class_name));
+        D_RW(D_RW(pbb)->header)->class_name = pbb_class_name;
+
         D_RW(D_RW(arr)->header)->refCount = 1;
         D_RW(D_RW(arr)->header)->type = TOID_TYPE_NUM(struct persistent_byte_array);
         D_RW(D_RW(arr)->header)->fieldCount = PERSISTENT_BYTE_ARRAY_FIELD_COUNT;
         D_RW(D_RW(arr)->header)->color = BLACK;
+        D_RW(D_RW(arr)->header)->class_name = TOID_NULL(char);
+
         add_to_obj_list(pbb.oid);
         add_to_obj_list(arr.oid);
     } TX_ONABORT {
@@ -389,14 +394,15 @@ void free_buffer(TOID(struct persistent_byte_buffer) pbb, int already_locked)
     TX_BEGIN(pool) {
         TX_ADD(pbb);
         TX_ADD_FIELD(pbb, arr);
+        TX_ADD_FIELD(pbb, header);
 
         if (!OID_IS_NULL(D_RO(pbb)->arr)) {
             dec_ref(D_RO(pbb)->arr, 1, already_locked);
         }
 
-        TX_MEMSET(pmemobj_direct(D_RO(pbb)->header.oid), 0, sizeof(struct header));
+        free_header(pbb.oid);
+
         TX_MEMSET(pmemobj_direct(pbb.oid), 0, sizeof(struct persistent_byte_buffer));
-        TX_FREE(D_RW(pbb)->header);
         TX_FREE(pbb);
     } TX_ONABORT {
         printf("Freeing buffer at offset %lu failed!\n", pbb.oid.off);
@@ -407,14 +413,14 @@ void free_buffer(TOID(struct persistent_byte_buffer) pbb, int already_locked)
 void free_array(TOID(struct persistent_byte_array) arr)
 {
     TX_BEGIN(pool) {
-        TOID(char) bytes;
-        TOID_ASSIGN(bytes, D_RO(arr)->bytes);
+        TX_ADD(arr);
+        TX_ADD_FIELD(arr, header);
+        TX_ADD_FIELD(arr, bytes);
 
-        TX_MEMSET(pmemobj_direct((D_RO(arr)->header).oid), 0, sizeof(struct header));
-        TX_FREE(D_RW(arr)->header);
+        free_header(arr.oid);
 
-        //TX_FREE(bytes);
-        //TX_MEMSET(pmemobj_direct(bytes.oid), 0, D_RO(pbb)->capacity);
+        pmemobj_memset_persist(pool, pmemobj_direct(D_RO(arr)->bytes), 0, D_RO(arr)->length);
+        pmemobj_tx_free(D_RO(arr)->bytes);
 
         TX_MEMSET(pmemobj_direct(arr.oid), 0, sizeof(struct persistent_byte_array));
         TX_FREE(arr);
@@ -487,27 +493,4 @@ void get_num_bufs()
     }
     printf("There are %d buffers in pool\n", count);
     fflush(stdout);
-}
-
-void lock_byte_buffer(TOID(struct hashmap_tx) locks, PMEMoid buf, int ref_count_change)
-{
-    PMEMoid arr_oid = *(PMEMoid*)((long)pmemobj_direct(buf) + sizeof(TOID(struct header)));
-    TOID(struct persistent_byte_array) arr;
-    TOID(struct persistent_byte_buffer) pbb;
-    TOID_ASSIGN(arr, arr_oid);
-    TOID_ASSIGN(pbb, buf);
-
-    if (add_to_locks(buf, locks) == 0) lock(buf);
-    if (add_to_locks(arr_oid, locks) == 0) lock(arr_oid);
-
-    if (!(TOID_IS_NULL(pbb)) && !(TOID_IS_NULL(D_RO(pbb)->header))) {
-        if (D_RO(D_RO(pbb)->header)->refCount + ref_count_change == 0) {
-            hm_tx_remove(pool, locks, buf.off);
-            if (!(TOID_IS_NULL(arr)) && !(TOID_IS_NULL(D_RO(arr)->header))) {
-                if (D_RO(D_RO(arr)->header)->refCount + ref_count_change == 0) {
-                    hm_tx_remove(pool, locks, arr_oid.off);
-                }
-            }
-        }
-    }
 }

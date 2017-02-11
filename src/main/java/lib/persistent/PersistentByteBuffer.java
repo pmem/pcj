@@ -1,4 +1,4 @@
-/* Copyright (C) 2016  Intel Corporation
+/* Copyright (C) 2016-17  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,8 +31,8 @@ public class PersistentByteBuffer implements Comparable, Persistent {
     private long offset;
 
     static {
-        System.loadLibrary("PersistentByteBuffer");
-        nativeOpenPool();
+        System.loadLibrary("Persistent");
+        Util.openPool();
     }
 
     public synchronized static PersistentByteBuffer allocate(int size) {
@@ -446,9 +446,10 @@ public class PersistentByteBuffer implements Comparable, Persistent {
         return true;
     }
 
+    @Override
     public synchronized int compareTo(Object o) {
         if (!(o instanceof PersistentByteBuffer))
-            throw new IllegalArgumentException();
+            throw new ClassCastException(o.getClass().getName() + " cannot be cast to PersistentByteBuffer");
         PersistentByteBuffer that = (PersistentByteBuffer)o;
         return nativeCompareTo(this.offset, that.getOffset());
     }
@@ -462,7 +463,6 @@ public class PersistentByteBuffer implements Comparable, Persistent {
         return h;
     }
 
-    private synchronized static native void nativeOpenPool();
     private synchronized native long nativeReserveByteBufferMemory(int size);
     private synchronized native long nativeGetByteBufferAddress(ByteBuffer bb);
     private synchronized native ByteBuffer nativeCreateByteBuffer(long offset);

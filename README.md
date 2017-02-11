@@ -8,17 +8,23 @@ seem to map well to the use of collections.  One of this project's goals is to m
 with persistent objects feel natural to a Java developer, for example, by using familiar Java 
 constructs when incorporating persistence elements such as data consistency and object lifetime.  
 
-The breadth of persistent types is currently very limited and the code is not performance-optimized.
+The breadth of persistent types is currently limited and the code is not performance-optimized.
 We are making the code available because we believe it can be useful in experiments to retrofit 
 existing Java code to use persistent memory and to explore persistent Java programming in general. 
 
-This library currently provides 3 Java classes whose instances can persist (i.e. remain reachable)
+This library currently provides 8 Java classes whose instances can persist (i.e. remain reachable)
 beyond the life of a Java VM instance.
 
 1. ```PersistentByteBuffer```: very similar to ```java.nio.ByteBuffer```.
-2. ```PersistentSortedMap```: a ```java.util.SortedMap``` whose keys and values are ```PersistentByteBuffers```.
-3. ```ObjectDirectory```: a map between ```String``` keys and persistent object values; value types are 
-   currently limited to the two classes above.
+2. ```PersistentTreeMap```: a ```java.util.SortedMap``` whose keys and values are persistent objects.
+3. ```PersistentString```: stores immutable string data.
+4. ```PersistentLong```: a boxed long object.
+5. ```PersistentArray```: an array of persistent objects.
+6. ```PersistentTuples```: tuples of possibly mixed-type persistent objects.
+7. ```ObjectDirectory```: a statically reachable map between ```String``` keys and persistent objects. 
+8. ```MemoryRegionObject```: a persistent object offering low level getters and setters for primitive 
+   integral types.
+9. ```Transaction```: a construct for atomic grouping of operations on persistent data. 
   
 This Java library uses the libpmemobj library from the Non-Volatile Memory Library (NVML). 
 For more information on NVML, please visit http://pmem.io and https://github.com/pmem/nvml.
@@ -88,26 +94,19 @@ directory in your Java classpath and the project's ```target/cppbuild``` directo
 3. By default, the path to the NVML pool is ```/mnt/mem``` directory. To modify this path, you can change
    the value for ```PATH``` in ```pcj/src/main/cpp/persistent_heap.cpp```.
 
-4. The ```PersistentSortedMap``` provided by this library only allows ```PersistentByteBuffers``` for keys and 
-   values; should other types need to be stored within the map, they should be stored inside 
-   ```PersistentByteBuffers``` first.
+4. The ```PersistentTreeMap``` does not allow for any comparator other than natural ordering of the keys.
 
-5. The ```PersistentSortedMap``` does not allow for any comparator other than natural ordering of the 
-   ```PersistentByteBuffers```, which is the same as the natural ordering of ```java.nio.ByteBuffers```.
-
-6. An ```Iterator``` on the ```PersistentSortedMap``` can be obtained via the map's ```EntrySet```. Modifications via 
+5. An ```Iterator``` on the ```PersistentTreeMap``` can be obtained via the map's ```EntrySet```. Modifications via 
    either the ```Iterator``` or the ```EntrySet``` are not allowed (the ```Iterator``` does not support the ```remove()``` 
    method and the ```EntrySet``` does not support ```add()/addAll()/clear()/remove()/removeAll()/retainAll()``` 
    methods).
 
-7. If the ```PersistentSortedMap``` is modified while an iteration over its ```EntrySet``` is in progress, the 
+6. If the ```PersistentTreeMap``` is modified while an iteration over its ```EntrySet``` is in progress, the 
    results of the iteration are undefined.
 
-8. The ```PersistentSortedMap``` does not support the ```replaceAll()``` method.
+7. The ```PersistentTreeMap``` does not support the ```replaceAll()``` method.
 
-9. Interrupting opening of the heap as indicated in the console with "Opening heap... Cleaning up heap... Done." can result in a subsequent crash.  This is being investigated and will be fixed.
-
-10. The project includes an ```XMemory``` directory that provides an API for volatile ByteBuffer construction on external memory.
+8. ```PersistentString``` objects are backed by a byte array and only supports ASCII characters.
 
 ##Contacts##
 

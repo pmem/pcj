@@ -30,4 +30,3 @@ void put_common(JNIEnv *env, jobject obj, TOID(struct persistent_byte_buffer) pb
 void get_common(JNIEnv *env, jobject obj, TOID(struct persistent_byte_buffer) pbb, jbyteArray dest, int arrOffset, int index, int length, int from_position);
 void free_buffer(TOID(struct persistent_byte_buffer) pbb, int already_locked);
 void free_array(TOID(struct persistent_byte_array) arr);
-void lock_byte_buffer(TOID(struct hashmap_tx) locks, PMEMoid buf, int ref_count_change);

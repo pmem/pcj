@@ -6,15 +6,15 @@
  * This file has been designated as subject to the "Classpath"
  * exception as provided in the LICENSE file that accompanied
  * this code.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License version 2 for more details (a copy
  * is included in the LICENSE file that accompanied this code).
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; if not, write to the Free 
+ * version 2 along with this program; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA  02110-1301, USA.
  */
@@ -22,7 +22,7 @@
 package examples.putget;
 
 import lib.persistent.PersistentByteBuffer;
-import lib.persistent.PersistentSortedMap;
+import lib.persistent.PersistentTreeMap;
 import lib.persistent.ObjectDirectory;
 
 public class PutGet {
@@ -33,7 +33,7 @@ public class PutGet {
 	}
 
 	public static void doPut() {
-		PersistentSortedMap employees = new PersistentSortedMap();
+		PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> employees = new PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer>();
 		ObjectDirectory.put("employees", employees);
 
 		PersistentByteBuffer id = PersistentByteBuffer.allocate(8);
@@ -47,22 +47,23 @@ public class PutGet {
 		employees.put(id, data);
 	}
 
+	@SuppressWarnings("unchecked")
 	public static void doGet() {
-		PersistentSortedMap employees = ObjectDirectory.get("employees", PersistentSortedMap.class);
+		PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> employees = ObjectDirectory.get("employees", PersistentTreeMap.class);
 
 		long empId = 1457;
 		PersistentByteBuffer id = PersistentByteBuffer.allocate(8);
 		id.putLong(empId);
 
 		PersistentByteBuffer data = employees.get(id);
-		
+
 		int len = data.rewind().getInt();
 		byte[] bytes = new byte[len];
 		data.get(bytes);
 		String name = new String(bytes);
-		
+
 		int salary = data.getInt();
-		
+
 		System.out.println("Employee id" + "\t" + "Name" + "\t" + "Salary");
 		System.out.println(empId + "\t" + name + "\t" + salary);
 	}

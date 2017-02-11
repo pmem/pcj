@@ -23,9 +23,10 @@ package lib.persistent;
 
 import java.util.*;
 
-public class PersistentSortedMapTest {
+public class PersistentTreeMapTest {
 
     public static void main(String[] args) {
+        System.out.println("****************PersistentTreeMap Tests****************");
         testInsertion();
         testRemoval();
         testIteration();
@@ -36,9 +37,9 @@ public class PersistentSortedMapTest {
     }
 
     public static void testInsertion() {
-        System.out.println("=======================================Testing insertion=======================================");
+        System.out.println("****************Testing insertion****************");
 
-        PersistentSortedMap map = TestUtil.getOrCreateMap("m1");
+        PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> map = TestUtil.getOrCreateMap("m1");
         map.clear();
         assert(map.size() == 0);
 
@@ -73,9 +74,9 @@ public class PersistentSortedMapTest {
     }
 
     public static void testRemoval() {
-        System.out.println("=======================================Testing removal=======================================");
+        System.out.println("****************Testing removal****************");
 
-        PersistentSortedMap map = TestUtil.getOrCreateMap("m1");
+        PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> map = TestUtil.getOrCreateMap("m1");
         assert(map.size() == 0);
 
         PersistentByteBuffer key = TestUtil.createByteBuffer(5, "hello");
@@ -103,9 +104,9 @@ public class PersistentSortedMapTest {
     }
 
     public static void testIteration() {
-        System.out.println("=======================================Testing iteration=======================================");
+        System.out.println("****************Testing iteration****************");
 
-        PersistentSortedMap map = TestUtil.getOrCreateMap("m2");
+        PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> map = TestUtil.getOrCreateMap("m2");
         map.clear();
         assert(map.size() == 0);
 
@@ -212,8 +213,8 @@ public class PersistentSortedMapTest {
     }
 
     public static void testSubMap() {
-        System.out.println("=======================================Testing submap=======================================");
-        PersistentSortedMap map = TestUtil.getOrCreateMap("m3");
+        System.out.println("****************Testing submap****************");
+        PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> map = TestUtil.getOrCreateMap("m3");
         TreeMap<PersistentByteBuffer, PersistentByteBuffer> staging = new TreeMap<PersistentByteBuffer, PersistentByteBuffer>();
 
         assert(map.size() == 0);
@@ -234,19 +235,19 @@ public class PersistentSortedMapTest {
 
         map.putAll(staging);
 
-        System.out.println("=======================================Testing headmap=======================================");
+        System.out.println("****************Testing headmap****************");
         headMapTests(map, val);
 
         map.clear();
         map.putAll(staging);
 
-        System.out.println("=======================================Testing tailmap=======================================");
+        System.out.println("****************Testing tailmap****************");
         tailMapTests(map, val);
 
         map.clear();
         map.putAll(staging);
 
-        System.out.println("=======================================Testing submap=======================================");
+        System.out.println("****************Testing submap****************");
         subMapTests(map, val);
 
         map.clear();
@@ -261,7 +262,7 @@ public class PersistentSortedMapTest {
      * Similar cases for tailmap (larger than all existing keys for case 1, etc.) and submap.
      */
 
-    private static void headMapTests(PersistentSortedMap map, PersistentByteBuffer val) {
+    private static void headMapTests(PersistentTreeMap map, PersistentByteBuffer val) {
 
         PersistentByteBuffer headKey = TestUtil.createByteBuffer(1, "Z");
         SortedMap<PersistentByteBuffer, PersistentByteBuffer> hm = map.headMap(headKey);   // Z < a, case 1
@@ -342,7 +343,7 @@ public class PersistentSortedMapTest {
         assert(caught);
     }
 
-    private static void tailMapTests(PersistentSortedMap map, PersistentByteBuffer val) {
+    private static void tailMapTests(PersistentTreeMap map, PersistentByteBuffer val) {
 
         PersistentByteBuffer tailKey = TestUtil.createByteBuffer(1, "w");
         SortedMap<PersistentByteBuffer, PersistentByteBuffer> tm = map.tailMap(tailKey);  // w > u, case 1
@@ -428,7 +429,7 @@ public class PersistentSortedMapTest {
         assert(tttm.size() == 2);
     }
 
-    private static void subMapTests(PersistentSortedMap map, PersistentByteBuffer val) {
+    private static void subMapTests(PersistentTreeMap map, PersistentByteBuffer val) {
 
         PersistentByteBuffer startKey1 = TestUtil.createByteBuffer(1, "f");
         PersistentByteBuffer endKey1 = TestUtil.createByteBuffer(1, "z");
@@ -507,8 +508,8 @@ public class PersistentSortedMapTest {
     }
 
     public static void testPutAll() {
-        System.out.println("=======================================Testing putAll=======================================");
-        PersistentSortedMap map = TestUtil.getOrCreateMap("m4");
+        System.out.println("****************Testing putAll****************");
+        PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> map = TestUtil.getOrCreateMap("m4");
 
         assert(map.size() == 0);
 
@@ -539,9 +540,9 @@ public class PersistentSortedMapTest {
     }
 
     public static void testNullValue() {
-        System.out.println("=======================================Testing null value=======================================");
+        System.out.println("****************Testing null value****************");
 
-        PersistentSortedMap map = TestUtil.getOrCreateMap("m5");
+        PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> map = TestUtil.getOrCreateMap("m5");
         map.clear();
         assert(map.size() == 0);
 
@@ -553,9 +554,9 @@ public class PersistentSortedMapTest {
     }
 
     public static void testSubmapOthers() {
-        System.out.println("=======================================Testing Submap Other Functions=======================================");
+        System.out.println("****************Testing Submap Other Functions****************");
 
-        PersistentSortedMap map = TestUtil.getOrCreateMap("m4");
+        PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> map = TestUtil.getOrCreateMap("m4");
 
         assert(map.size() == 0);
 

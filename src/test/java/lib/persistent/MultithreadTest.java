@@ -29,15 +29,16 @@ public class MultithreadTest {
     static final int NUM_ITERATIONS = 5000;
 
     public static void main(String[] args) {
+        System.out.println("****************Multithread Tests***************");
         testBasic();
     }
 
     public static void testBasic() {
-        System.out.println("=======================================Testing " + (NUM_THREADS * NUM_ITERATIONS) + " insertions======================================");
+        System.out.println("****************Testing " + (NUM_THREADS * NUM_ITERATIONS) + " insertions****************");
 
         for (int k = 0; k < 1; k++) {
             Thread[] threads = new Thread[NUM_THREADS];
-            PersistentSortedMap m1 = TestUtil.getOrCreateMap("m1");
+            PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> m1 = TestUtil.getOrCreateMap("m1");
             m1.clear();
             long start = System.nanoTime();
             for (int i = 0; i < threads.length; i++) {
@@ -61,8 +62,8 @@ public class MultithreadTest {
                 }
             }
             long end = System.nanoTime();
-            System.out.println("Total time " + (end - start));
-            System.out.println("size is " + m1.size());
+            //System.out.println("Total time " + (end - start));
+            //System.out.println("size is " + m1.size());
             assert(m1.size() == NUM_ITERATIONS);
             m1.clear();
         }

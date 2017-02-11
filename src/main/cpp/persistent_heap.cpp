@@ -1,4 +1,4 @@
-/* Copyright (C) 2016  Intel Corporation
+/* Copyright (C) 2016-17  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,8 +22,10 @@
 #include "persistent_heap.h"
 #include "util.h"
 #include "persistent_structs.h"
+#include "persistent_long.h"
 #include "persistent_byte_buffer.h"
-#include "persistent_sorted_map.h"
+#include "persistent_tree_map.h"
+#include "aggregate.h"
 #include <pthread.h>
 
 PMEMobjpool *pool = NULL;
@@ -93,7 +95,16 @@ PMEMobjpool* get_or_create_pool()
 
     printf("Done.\n");
     fflush(stdout);
+    //print_all_objects(1);
     return pool;
+}
+
+void close_pool() {
+    pool_refs--;
+    if (pool_refs == 0) {
+        pmemobj_close(pool);
+        pool = NULL;
+    }
 }
 
 void create_root(TOID(struct root_struct) rt)
@@ -101,7 +112,7 @@ void create_root(TOID(struct root_struct) rt)
     TX_BEGIN(pool) {
         if (rbtree_map_check(pool, D_RW(rt)->root_map) != 0) {
             TX_ADD_FIELD(rt, root_map);
-            if (rbtree_map_new(pool, &D_RW(rt)->root_map, NULL) != 0) {
+            if (rbtree_map_new(pool, &D_RW(rt)->root_map, NULL, NULL) != 0) {
                 pmemobj_tx_abort(0);
             }
         }
@@ -111,6 +122,9 @@ void create_root(TOID(struct root_struct) rt)
                 pmemobj_tx_abort(0);
             }
         }
+    } TX_ONABORT {
+        printf("Failed to create root object!\n");
+        exit(-1);
     } TX_END
 }
 
@@ -244,6 +258,8 @@ int inc_ref(PMEMoid oid, int amount, int already_locked)
         release_lock(hdr_off, 1);
     }*/
 
+    //printf("incref: end of incref, refcount on offset %lu is now %d\n", oid.off, D_RO(*hdr)->refCount);
+    //fflush(stdout);
     return ret;
 }
 
@@ -257,8 +273,8 @@ int dec_ref(PMEMoid oid, int amount, int already_locked)
     //printf("in decref, getting lock on %lu\n", (*hdr).oid.off);
     //fflush(stdout);
     /*int already_locked = get_lock(*hdr);
-    uint64_t hdr_off = (*hdr).oid.off;
-    int destroyed = 0;*/
+    uint64_t hdr_off = (*hdr).oid.off;*/
+    int destroyed = 0;
     if (already_locked) {
         //printf("not getting lock again in dec_ref\n");
         //fflush(stdout);
@@ -271,7 +287,7 @@ int dec_ref(PMEMoid oid, int amount, int already_locked)
                 delete_struct(oid, already_locked);
                 //printf("object at offset %lu deleted\n", oid.off);
                 //fflush(stdout);
-                //destroyed = 1;
+                destroyed = 1;
             } else {
                 add_candidate(oid);
             }
@@ -293,7 +309,7 @@ int dec_ref(PMEMoid oid, int amount, int already_locked)
                 delete_struct(oid, already_locked);
                 //printf("object at offset %lu deleted\n", oid.off);
                 //fflush(stdout);
-                //destroyed = 1;
+                destroyed = 1;
             } else {
                 add_candidate(oid);
             }
@@ -314,6 +330,13 @@ int dec_ref(PMEMoid oid, int amount, int already_locked)
         //printf("not first time to lock %llu on thread %llu, not unlocking\n");
         //fflush(stdout);
     }*/
+    /*if (destroyed == 0) {
+        printf("decref: end of decref, refcount on offset %lu is now %d\n", oid.off, D_RO(*hdr)->refCount);
+        fflush(stdout);
+    } else {
+        printf("decref: end of decref, object at offset %lu is deleted\n", oid.off);
+        fflush(stdout);
+    }*/
 
     return ret;
 }
@@ -333,6 +356,7 @@ int delete_struct(PMEMoid oid, int already_locked)
         TOID(struct rbtree_map) map;
         TOID(struct persistent_byte_buffer) buf;
         TOID(struct persistent_byte_array) arr;
+        TOID(struct persistent_long) lng;
         switch(D_RO(*hdr)->type) {
             case RBTREE_MAP_TYPE_OFFSET:
                 //printf("Deleting PSM at offset %lu\n", oid.off);
@@ -351,6 +375,17 @@ int delete_struct(PMEMoid oid, int already_locked)
                 //fflush(stdout);
                 TOID_ASSIGN(arr, oid);
                 free_array(arr);
+                break;
+            case PERSISTENT_LONG_TYPE_OFFSET:
+                //printf("Deleting PBA at offset %lu\n", oid.off);
+                //fflush(stdout);
+                TOID_ASSIGN(lng, oid);
+                free_long(lng);
+                break;
+            case AGGREGATE_TYPE_OFFSET:
+                //printf("Deleting aggregate at offset %lu\n", oid.off);
+                //fflush(stdout);
+                free_aggregate(oid, already_locked);
                 break;
             default:
                 printf("Received unknown type: %d\n", D_RO(*hdr)->type);
@@ -479,7 +514,7 @@ void mark_gray(PMEMoid oid)
             D_RW(*hdr)->color = GRAY;
 
             PMEMoid child;
-            for (int i = 0; i < D_RO(*hdr)->fieldCount; i++) {
+            for (uint64_t i = 0; i < D_RO(*hdr)->fieldCount; i++) {
                 child = *(PMEMoid*)((long)pmemobj_direct(oid) + sizeof(TOID(struct header)) + i*sizeof(PMEMoid));
 
                 TOID(struct header) *child_hdr = (TOID(struct header)*)(pmemobj_direct(child));
@@ -509,7 +544,7 @@ void scan(PMEMoid oid)
                 D_RW(*hdr)->color = WHITE;
 
                 PMEMoid child;
-                for (int i = 0; i < D_RO(*hdr)->fieldCount; i++) {
+                for (uint64_t i = 0; i < D_RO(*hdr)->fieldCount; i++) {
                     child = *(PMEMoid*)((long)pmemobj_direct(oid) + sizeof(TOID(struct header)) + i*sizeof(PMEMoid));
                     scan(child);
                 }
@@ -531,7 +566,7 @@ void scan_black(PMEMoid oid)
         D_RW(*hdr)->color = BLACK;
 
         PMEMoid child;
-        for (int i = 0; i < D_RO(*hdr)->fieldCount; i++) {
+        for (uint64_t i = 0; i < D_RO(*hdr)->fieldCount; i++) {
             child = *(PMEMoid*)((long)pmemobj_direct(oid) + sizeof(TOID(struct header)) + i*sizeof(PMEMoid));
 
             TOID(struct header) *child_hdr = (TOID(struct header)*)(pmemobj_direct(child));
@@ -559,7 +594,7 @@ void collect_white(PMEMoid oid)
             D_RW(*hdr)->color = BLACK;
 
             PMEMoid child;
-            for (int i = 0; i < D_RO(*hdr)->fieldCount; i++) {
+            for (uint64_t i = 0; i < D_RO(*hdr)->fieldCount; i++) {
                 child = *(PMEMoid*)((long)pmemobj_direct(oid) + sizeof(TOID(struct header)) + i*sizeof(PMEMoid));
                 collect_white(child);
             }
@@ -619,7 +654,7 @@ int delete_from_obj_list(PMEMoid oid)
     this_hdr = (TOID(struct header)*)(pmemobj_direct(oid));
 
     int ret = 0;
-    //printf("in delete_from_obj_list, getting lock on %lu\n", (*this_hdr).oid.off);
+    //printf("in delete_from_obj_list, offset is %lu\n", oid.off);
     //fflush(stdout);
     //int already_locked = get_lock(*this_hdr);
     //uint64_t hdr_off = (*this_hdr).oid.off;
@@ -664,13 +699,8 @@ int delete_from_obj_list(PMEMoid oid)
         exit(-1);
         //ret = 1;
     } TX_END
-    //printf("in delete_from_obj_list, maybe releasing lock on %lu\n", (*this_hdr).oid.off);
+    //printf("in delete_from_obj_list, done with offset %lu\n", oid.off);
     //fflush(stdout);
-    /*if (!already_locked) {
-        //printf("in delete_from_obj_list, releasing lock on %lu\n", (*this_hdr).oid.off);
-        //fflush(stdout);
-        release_lock(hdr_off, 1);
-    }*/
 
     return ret;
 }

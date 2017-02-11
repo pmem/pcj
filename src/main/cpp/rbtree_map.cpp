@@ -29,6 +29,8 @@
 #include "rbtree_map.h"
 #include "hashmap_tx.h"
 #include "persistent_byte_buffer.h"
+#include "persistent_byte_array.h"
+#include "persistent_long.h"
 #include "persistent_heap.h"
 #include "util.h"
 
@@ -66,13 +68,40 @@ TOID_EQUALS(_n, s)
  * returns 1 if first > second
  */
 static int rbtree_key_compare(PMEMoid first, PMEMoid second) {
-    return compare_persistent_bytebuffers(first.off, second.off);
+    TOID(struct header) *hdr1 = (TOID(struct header)*)(pmemobj_direct(first));
+    TOID(struct header) *hdr2 = (TOID(struct header)*)(pmemobj_direct(second));
+
+    if (D_RO(*hdr1)->type != D_RO(*hdr2)->type) {
+        printf("Comparing two keys of different types: %d vs. %d!\n", D_RO(*hdr1)->type, D_RO(*hdr2)->type);
+        exit(-1);
+    }
+
+    int ret;
+    switch(D_RO(*hdr1)->type) {
+        case PERSISTENT_BYTE_BUFFER_TYPE_OFFSET:
+            ret = compare_persistent_bytebuffers(first.off, second.off);
+            break;
+        case PERSISTENT_BYTE_ARRAY_TYPE_OFFSET:
+            ret = compare_persistent_bytearrays(first.off, second.off);
+            break;
+        case PERSISTENT_LONG_TYPE_OFFSET:
+            ret = compare_persistent_longs(first.off, second.off);
+            break;
+        case AGGREGATE_TYPE_OFFSET:
+            ret = call_comparator(first, second);
+            break;
+        default:
+            printf("Does not know how to compare keys of type %d!\n", D_RO(*hdr1)->type);
+            exit(-1);
+    }
+
+    return ret;
 }
 
 /*
  * rbtree_map_new -- allocates a new red-black tree instance
  */
-int rbtree_map_new(PMEMobjpool *pop, TOID(struct rbtree_map) *map, void *arg)
+int rbtree_map_new(PMEMobjpool *pop, TOID(struct rbtree_map) *map, char* class_name, void *arg)
 {
     int ret = 0;
     TX_BEGIN(pop) {
@@ -100,6 +129,14 @@ int rbtree_map_new(PMEMobjpool *pop, TOID(struct rbtree_map) *map, void *arg)
         D_RW(D_RW(*map)->header)->type = TOID_TYPE_NUM(struct rbtree_map);
         D_RW(D_RW(*map)->header)->fieldCount = RBTREE_MAP_FIELD_COUNT;
         D_RW(D_RW(*map)->header)->color = BLACK;
+
+        if (class_name == NULL) {
+            D_RW(D_RW(*map)->header)->class_name = TOID_NULL(char);
+        } else {
+            TOID(char) ptm_class_name = TX_ZALLOC(char, strlen(class_name));
+            TX_MEMCPY(pmemobj_direct(ptm_class_name.oid), class_name, strlen(class_name));
+            D_RW(D_RW(*map)->header)->class_name = ptm_class_name;
+        }
     } TX_ONABORT {
         printf("rbtree_map_new aborted\n");
         fflush(stdout);
@@ -123,13 +160,12 @@ static void rbtree_map_clear_node(TOID(struct rbtree_map) map, TOID(struct tree_
     if (!NODE_IS_NULL(D_RO(p)->slots[RB_RIGHT]))
         rbtree_map_clear_node(map, D_RO(p)->slots[RB_RIGHT], locks);
 
-
     if (!(OID_IS_NULL(D_RO(p)->key))) {
-        lock_byte_buffer(locks, D_RO(p)->key, -1);
+        lock_objs(locks, D_RO(p)->key, -1);
         dec_ref(D_RW(p)->key, 1, 1);
     }
     if (!(OID_IS_NULL(D_RO(p)->value))) {
-        lock_byte_buffer(locks, D_RO(p)->value, -1);
+        lock_objs(locks, D_RO(p)->value, -1);
         dec_ref(D_RW(p)->value, 1, 1);
     }
 
@@ -192,9 +228,10 @@ int rbtree_map_delete(PMEMobjpool *pop, TOID(struct rbtree_map) *map)
 {
     int ret = 0;
     TX_BEGIN(pop) {
+        TX_ADD(*map);
         rbtree_map_clear(pop, *map);
+        free_header((*map).oid);
         TX_MEMSET(pmemobj_direct((*map).oid), 0, sizeof(struct rbtree_map));
-        TX_FREE(D_RO(*map)->header);
         TX_FREE(*map);
         *map = TOID_NULL(struct rbtree_map);
     } TX_ONABORT {
@@ -443,7 +480,7 @@ static TOID(struct tree_map_node) rbtree_map_find_node
             return dst;
 
         int key_comp = rbtree_key_compare(key, D_RO(dst)->key);
-        dst = D_RW(dst)->slots[(key_comp > 0) ? RB_RIGHT : RB_LEFT];
+        dst = D_RO(dst)->slots[(key_comp > 0) ? RB_RIGHT : RB_LEFT];
     }
 
     return TOID_NULL(struct tree_map_node);

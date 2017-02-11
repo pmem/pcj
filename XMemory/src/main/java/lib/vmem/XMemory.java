@@ -122,6 +122,9 @@ public class XMemory implements Memory {
         }
     }
 
+    /* (non-Javadoc)
+     * @see com.intel.memory.Memory#allocateByteBuffer(int)
+     */
     public ByteBuffer allocateByteBuffer(int size) {
         long offset = nativeReserveByteBufferMemory(size);
         ByteBuffer bb = nativeCreateByteBuffer(offset, size);

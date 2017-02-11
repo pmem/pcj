@@ -19,18 +19,19 @@
 # Boston, MA  02110-1301, USA.
 
 CC = g++
-JAVAC = javac
+JAVAC = javac 
 JAVA = java
 
 JNI_INCLUDES = $(JAVA_HOME)/include $(JAVA_HOME)/include/linux
 
 CFLAGS = -O3 -DNDEBUG -fPIC
-JAVAFLAGS = 
+JAVAFLAGS = -Xlint:unchecked
 LINK_FLAGS = -fPIC -O3 -DNDEBUG -shared -lpmem -lpmemobj -Wl,-rpath,/usr/local/lib:/usr/local/lib64
 
 CPP_SOURCE_DIR = src/main/cpp
 JAVA_SOURCE_DIR = src/main/java
 PACKAGE_NAME = lib/persistent
+XPACKAGE_NAME = lib/xpersistent
 
 TEST_DIR = src/test/java/$(PACKAGE_NAME)
 
@@ -40,16 +41,17 @@ CLASSES_DIR = $(TARGET_DIR)/classes
 TEST_CLASSES_DIR = $(TARGET_DIR)/test_classes
 
 ALL_CPP_SOURCES = $(wildcard $(CPP_SOURCE_DIR)/*.cpp)
-ALL_JAVA_SOURCES = $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*.java)
+ALL_JAVA_SOURCES = $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*.java) $(wildcard $(JAVA_SOURCE_DIR)/$(XPACKAGE_NAME)/*.java) $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*/*.java)
 ALL_OBJ = $(addprefix $(CPP_BUILD_DIR)/, $(notdir $(ALL_CPP_SOURCES:.cpp=.o)))
 
-ALL_TEST_SOURCES = $(addprefix $(TEST_DIR)/, TestUtil.java MultithreadTest.java ObjectDirectoryTest.java PersistentByteBufferTest.java PersistentSortedMapTest.java)
+ALL_TEST_SOURCES = $(addprefix $(TEST_DIR)/, TestUtil.java PersistentStringTest.java PersistentLongTest.java MultithreadTest.java ObjectDirectoryTest.java PersistentByteBufferTest.java PersistentTreeMapTest.java PersistentArrayTest.java MemoryRegionObjectTest.java TestTool.java)
 ALL_TEST_CLASSES = $(addprefix $(TEST_CLASSES_DIR)/, $(notdir $(ALL_TEST_SOURCES:.java=.class)))
 
-LIBRARIES = $(addprefix $(CPP_BUILD_DIR)/, libPersistentSortedMap.so libPersistentByteBuffer.so libPoolUtility.so)
+LIBRARIES = $(addprefix $(CPP_BUILD_DIR)/, libPersistent.so)
 
 EXAMPLES_DIR = src/examples
 ALL_EXAMPLE_DIRS = $(wildcard $(EXAMPLES_DIR)/*)
+#$(addprefix $(EXAMPLES_DIR)/, reservations employees)
 
 all: sources examples tests
 sources: cpp java
@@ -57,7 +59,7 @@ cpp: $(LIBRARIES)
 java: classes
 
 examples: sources
-	$(foreach example_dir,$(ALL_EXAMPLE_DIRS), $(JAVAC) -cp $(CLASSES_DIR):$(example_dir) $(example_dir)/*.java;)
+	$(foreach example_dir,$(ALL_EXAMPLE_DIRS), $(JAVAC) $(JAVAFLAGS) -cp $(CLASSES_DIR):$(example_dir) $(example_dir)/*.java;)
 
 clean: cleanex
 	rm -rf target
@@ -73,7 +75,7 @@ $(ALL_OBJ): | $(CPP_BUILD_DIR)
 $(ALL_TEST_CLASSES): | $(TEST_CLASSES_DIR)
 
 classes: | $(CLASSES_DIR)
-	$(JAVAC) -d $(CLASSES_DIR) $(ALL_JAVA_SOURCES)
+	$(JAVAC) $(JAVAFLAGS) -d $(CLASSES_DIR) $(ALL_JAVA_SOURCES)
 
 $(TEST_CLASSES_DIR)/%.class: $(TEST_DIR)/%.java
 	$(JAVAC) -cp $(CLASSES_DIR):$(TEST_CLASSES_DIR) -d $(TEST_CLASSES_DIR) $<

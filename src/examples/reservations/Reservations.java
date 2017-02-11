@@ -6,15 +6,15 @@
  * This file has been designated as subject to the "Classpath"
  * exception as provided in the LICENSE file that accompanied
  * this code.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License version 2 for more details (a copy
  * is included in the LICENSE file that accompanied this code).
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; if not, write to the Free 
+ * version 2 along with this program; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA  02110-1301, USA.
  */
@@ -22,22 +22,23 @@
 package examples.reservations;
 
 import lib.persistent.PersistentByteBuffer;
-import lib.persistent.PersistentSortedMap;
+import lib.persistent.PersistentTreeMap;
 import lib.persistent.ObjectDirectory;
 import java.time.Instant;
 
-public class Reservations 
+@SuppressWarnings("unchecked")
+public class Reservations
 {
-	static PersistentSortedMap data;
+	static PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer> data;
 
 	static {
-		data = ObjectDirectory.get("ReservationsData", PersistentSortedMap.class);
-		if (data == null) ObjectDirectory.put("ReservationsData", data = new PersistentSortedMap());
-	} 
+		data = ObjectDirectory.get("ReservationsData", PersistentTreeMap.class);
+		if (data == null) ObjectDirectory.put("ReservationsData", data = new PersistentTreeMap<PersistentByteBuffer, PersistentByteBuffer>());
+	}
 
 	public static Reservation addReservation(String name, String time, String issue) {
 		Reservation ans = new Reservation(name, Instant.parse(time), issue);
-		data.put(makeKey(name, time), ans.toBuffer());	
+		data.put(makeKey(name, time), ans.toBuffer());
 		return ans;
 	}
 

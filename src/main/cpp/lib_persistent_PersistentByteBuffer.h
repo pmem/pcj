@@ -30,14 +30,6 @@ extern "C" {
 #endif
 /*
  * Class:     lib_persistent_PersistentByteBuffer
- * Method:    nativeOpenPool
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_lib_persistent_PersistentByteBuffer_nativeOpenPool
-  (JNIEnv *, jclass);
-
-/*
- * Class:     lib_persistent_PersistentByteBuffer
  * Method:    nativeReserveByteBufferMemory
  * Signature: (I)J
  */
