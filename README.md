@@ -94,19 +94,17 @@ directory in your Java classpath and the project's ```target/cppbuild``` directo
 3. By default, the path to the NVML pool is ```/mnt/mem``` directory. To modify this path, you can change
    the value for ```PATH``` in ```pcj/src/main/cpp/persistent_heap.cpp```.
 
-4. The ```PersistentTreeMap``` does not allow for any comparator other than natural ordering of the keys.
-
-5. An ```Iterator``` on the ```PersistentTreeMap``` can be obtained via the map's ```EntrySet```. Modifications via 
+4. An ```Iterator``` on the ```PersistentTreeMap``` can be obtained via the map's ```EntrySet```. Modifications via 
    either the ```Iterator``` or the ```EntrySet``` are not allowed (the ```Iterator``` does not support the ```remove()``` 
    method and the ```EntrySet``` does not support ```add()/addAll()/clear()/remove()/removeAll()/retainAll()``` 
    methods).
 
-6. If the ```PersistentTreeMap``` is modified while an iteration over its ```EntrySet``` is in progress, the 
+5. If the ```PersistentTreeMap``` is modified while an iteration over its ```EntrySet``` is in progress, the 
    results of the iteration are undefined.
 
-7. The ```PersistentTreeMap``` does not support the ```replaceAll()``` method.
+6. The ```PersistentTreeMap``` does not support the ```replaceAll()``` method.
 
-8. ```PersistentString``` objects are backed by a byte array and only supports ASCII characters.
+7. ```PersistentString``` objects are backed by a byte array and only supports ASCII characters.
 
 ##Contacts##
 
