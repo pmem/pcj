@@ -21,23 +21,47 @@
 
 package examples.database;
 
-import lib.persistent.*;
+import lib.util.persistent.*;
+import lib.util.persistent.types.*;
 
-public class Value extends PersistentArray<Cell> {
-    public Value(long size) {
-        super(size);
+public class Value extends PersistentObject {
+    private static final ObjectField<PersistentArray> CELLS = new ObjectField<>(PersistentArray.class);
+    public static final ObjectType<Value> TYPE = ObjectType.fromFields(Value.class, CELLS);
+
+    public Value(int size) {
+        super(TYPE);
+        Transaction.run(() -> {
+            setObjectField(CELLS, new PersistentArray<Cell>(size));
+        });
+    }
+
+    public Value(ObjectPointer<? extends Value> p) { super(p); }
+
+    public Value(ObjectType<? extends Value> type) { super(type); }
+
+    @SuppressWarnings("unchecked")
+    private PersistentArray<Cell> cells() {
+        return getObjectField(CELLS);
+    }
+
+    public void set(int index, Cell c) {
+        cells().set(index, c);
+    }
+
+    public Cell get(int index) {
+        return (Cell)(cells().get(index));
     }
 
     @Override
     public String toString() {
-        long iMax = this.size() - 1L;
+        int iMax = cells().length() - 1;
         if (iMax == -1) return "[]";
 
         StringBuilder b = new StringBuilder();
         b.append('[');
-        for (long i = 0; ; i++) {
-            if (this.get(i) != null)
-                b.append(Database.decode(this.get(i).val()));
+        for (int i = 0; ; i++) {
+            if (cells().get(i) != null)
+                b.append(((Cell)(cells().get(i))).val().toString());
             else
                 b.append("NULL");
             if (i == iMax)

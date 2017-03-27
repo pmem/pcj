@@ -21,23 +21,30 @@
 
 package lib.xpersistent;
 
-import lib.persistent.Transaction;
-import lib.persistent.spi.PersistentMemoryProvider;
-//import lib.persistent.Heap;
+import lib.util.persistent.Transaction;
+import lib.util.persistent.spi.PersistentMemoryProvider;
+import lib.util.persistent.PersistentHeap;
 
 public class XPersistentMemory extends PersistentMemoryProvider {
-	@Override
-	public String name() {
-		return "XPersistentMemory";
-	}
+    private PersistentHeap heap;
 
-	@Override
-	public Transaction newTransaction() {
-		return new XTransaction();
-	}
+    public XPersistentMemory() {}
 
-    /*@Override
-    public Heap getHeap() {
-        return new XHeap();
-    }*/
+    @Override
+    public String getName() {
+        return "XPersistentMemory";
+    }
+
+    @Override
+    public Transaction newTransaction() {
+        return new XTransaction();
+    }
+
+    @Override
+    public synchronized PersistentHeap getHeap() {
+        if (this.heap == null) {
+            this.heap = new XHeap(this);
+        }
+        return heap;
+    }
 }

@@ -21,8 +21,8 @@
 
 package lib.xpersistent;
 
-import lib.persistent.Persistent;
+import lib.util.persistent.Persistent;
 
 public interface XPersistent extends Persistent {
-	public long getOffset();
+    public long getOffset();
 }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2016-17  Intel Corporation
+/* Copyright (C) 2017  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,36 +28,17 @@
 #define PERSISTENT_TYPE_OFFSET 1016
 #endif
 
-#define HEADER_TYPE_OFFSET 1015
-#define RBTREE_MAP_TYPE_OFFSET 1017
-#define TREE_MAP_NODE_TYPE_OFFSET 1018
-#define PERSISTENT_BYTE_BUFFER_TYPE_OFFSET 1019
-#define PERSISTENT_BYTE_ARRAY_TYPE_OFFSET 1020
-#define HASHMAP_TX_TYPE_OFFSET 1021
-#define BUCKETS_TYPE_OFFSET 1022
-#define ENTRY_TYPE_OFFSET 1023
-#define CHAR_TYPE_OFFSET 1024
-#define LOCKS_ENTRY_TYPE_OFFSET 1025
-#define AGGREGATE_FIELD_TYPE_OFFSET 1026
-#define AGGREGATE_TYPE_OFFSET 1027
-#define PERSISTENT_LONG_TYPE_OFFSET 1028
+#define CHAR_TYPE_OFFSET 1017
+#define HASHMAP_TX_TYPE_OFFSET 1018
+#define BUCKETS_TYPE_OFFSET 1019
+#define ENTRY_TYPE_OFFSET 1020
 
-struct rbtree_map;
 struct hashmap_tx;
 
-TOID_DECLARE(struct header, HEADER_TYPE_OFFSET);
-TOID_DECLARE(struct rbtree_map, RBTREE_MAP_TYPE_OFFSET);
-TOID_DECLARE(struct tree_map_node, TREE_MAP_NODE_TYPE_OFFSET);
-TOID_DECLARE(struct persistent_byte_buffer, PERSISTENT_BYTE_BUFFER_TYPE_OFFSET);
-TOID_DECLARE(struct persistent_byte_array, PERSISTENT_BYTE_ARRAY_TYPE_OFFSET);
-TOID_DECLARE(struct persistent_long, PERSISTENT_LONG_TYPE_OFFSET);
+TOID_DECLARE(char, CHAR_TYPE_OFFSET);
 TOID_DECLARE(struct hashmap_tx, HASHMAP_TX_TYPE_OFFSET);
 TOID_DECLARE(struct buckets, BUCKETS_TYPE_OFFSET);
 TOID_DECLARE(struct entry, ENTRY_TYPE_OFFSET);
-TOID_DECLARE(char, CHAR_TYPE_OFFSET);
-TOID_DECLARE(struct locks_entry, LOCKS_ENTRY_TYPE_OFFSET);
-TOID_DECLARE(struct aggregate_field, AGGREGATE_FIELD_TYPE_OFFSET);
-TOID_DECLARE(struct aggregate, AGGREGATE_TYPE_OFFSET);
 
 // Special PMEMoid that supports addition of null & error code as metadata
 typedef struct pmemoid_ne {
@@ -82,78 +63,6 @@ static const EPMEMoid EOID_NULL = { { 0, 0 }, 0 };
 static const EPMEMoid EOID_ERR = { { 0, 0 }, 1 };
 
 #define EOID_IS_ERR(e) ((e).error != 0)
-
-enum ref_color {
-    PURPLE,
-    GRAY,
-    BLACK,
-    WHITE
-};
-
-struct header {
-    int version;
-    int refCount;
-    int type;
-    int is_candidate;
-    uint64_t fieldCount;
-    ref_color color;
-    PMEMmutex obj_mutex;
-    TOID(char) class_name;
-    uint64_t prev_obj_offset;
-    uint64_t next_obj_offset;
-};
-
-struct persistent_byte_array {
-    TOID(struct header) header;
-    PMEMoid bytes;
-    uint64_t length;
-    int consistency;
-    int dirty;
-};
-
-struct persistent_byte_buffer {
-    TOID(struct header) header;
-    PMEMoid arr;
-    int position;
-    int limit;
-    int capacity;
-    int mark;
-    int start;
-};
-
-struct persistent_long {
-    TOID(struct header) header;
-    int64_t value;
-};
-
-enum rb_color {
-	COLOR_BLACK,
-	COLOR_RED,
-
-	MAX_COLOR
-};
-
-enum rb_children {
-	RB_LEFT,
-	RB_RIGHT,
-
-	MAX_RB
-};
-
-struct rbtree_map {
-    TOID(struct header) header;
-    TOID(struct tree_map_node) sentinel;
-    TOID(struct tree_map_node) root;
-    int size;
-};
-
-struct tree_map_node {
-	TOID(struct tree_map_node) parent;
-	TOID(struct tree_map_node) slots[MAX_RB];
-	PMEMoid key;
-	PMEMoid value;
-	enum rb_color color;
-};
 
 struct entry {
 	uint64_t key;
@@ -188,24 +97,5 @@ struct hashmap_tx {
     int init_size;
     int resize_allowed;
 };
-
-struct locks_entry {
-    TOID(struct hashmap_tx) locks;
-    POBJ_LIST_ENTRY(struct locks_entry) list;
-};
-
-struct aggregate_field {
-    PMEMoid field;
-};
-
-struct aggregate {
-    TOID(struct header) header;
-    TOID(struct aggregate_field) fields[];
-};
-
-#define PERSISTENT_BYTE_ARRAY_FIELD_COUNT 0
-#define PERSISTENT_BYTE_BUFFER_FIELD_COUNT 0
-#define RBTREE_MAP_FIELD_COUNT 0
-#define PERSISTENT_LONG_FIELD_COUNT 0
 
 #endif /* PERSISTENT_STRUCTS_H */

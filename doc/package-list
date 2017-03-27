@@ -1,1 +1,5 @@
-lib.persistent.spi
+lib.util.persistent
+lib.util.persistent.front
+lib.util.persistent.spi
+lib.util.persistent.types
+lib.xpersistent

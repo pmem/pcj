@@ -21,42 +21,35 @@
 
 package examples.database;
 
-import lib.persistent.*;
+import lib.util.persistent.*;
+import lib.util.persistent.types.*;
 
-public class Key extends PersistentTuple2<PersistentByteBuffer, PersistentLong> implements Comparable {
+public class Key extends PersistentObject implements Comparable<Key> {
+    private static final ObjectField<PersistentString> KEY = new ObjectField<>(PersistentString.class);
+    public static final ObjectType<Key> TYPE = ObjectType.fromFields(Key.class, KEY);
+
     public Key(String key) {
+        super(TYPE);
         Transaction.run(() -> {
-            _1(PersistentByteBuffer.allocate(key.length()).put(key.getBytes()).rewind());
-            _2(new PersistentLong(key.hashCode()));
+            setObjectField(KEY, new PersistentString(key));
         });
     }
 
-    public PersistentByteBuffer key() {
-        return _1();
-    }
+    public Key(ObjectType<? extends Key> type) { super(type); }
 
-    public PersistentLong token() {
-        return _2();
-    }
+    public Key(ObjectPointer<? extends Key> p) { super(p); }
 
-    public void key(PersistentByteBuffer key) {
-        _1(key);
-    }
-
-    public void token(PersistentLong token) {
-        _2(token);
+    public PersistentString key() {
+        return getObjectField(KEY);
     }
 
     @Override
-    public int compareTo(Object o) {
-        if (!(o instanceof Key))
-            throw new ClassCastException();
-        Key that = (Key)o;
+    public int compareTo(Key that) {
         return this.key().compareTo(that.key());
     }
 
     @Override
     public String toString() {
-        return Database.decode(key());
+        return key().toString();
     }
 }

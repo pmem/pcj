@@ -1,4 +1,4 @@
-/* Copyright (C) 2016  Intel Corporation
+/* Copyright (C) 2016-17  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,23 +21,10 @@
 
 #include <jni.h>
 #include <libpmemobj.h>
-#include "persistent_structs.h"
 
-void print_all_objects(int verbosity);
 void call_JNI_method(JNIEnv *env, jobject obj, const char* method_name, const char* method_sig);
 void call_JNI_method_with_int(JNIEnv *env, jobject obj, const char* method_name, const char* method_sig, int arg);
 void call_JNI_method_with_string(JNIEnv *env, jobject obj, const char* method_name, const char* method_sig, const char* arg);
 void call_JNI_static_method_with_string(JNIEnv *env, jclass klass, const char* method_name, const char* method_sig, const char* arg);
 jmethodID find_JNI_method(JNIEnv *env, jobject obj, const char* method_name, const char* method_sig);
-void throw_persistent_object_exception(JNIEnv *env, const char* arg);
-int create_locks_entry(PMEMobjpool *pop, void *ptr, void *arg);
-void lock(PMEMoid oid);
-int add_to_locks(PMEMoid oid, TOID(struct hashmap_tx) locks);
-int unlock_from_locks(uint64_t key, uint64_t value, void* arg);
-void clear_locks(TOID(struct locks_entry) locks);
-jobject create_object(JNIEnv *env, PMEMoid oid);
-int call_comparator(PMEMoid first_oid, PMEMoid second_oid);
-void fix_class_name(char *str);
-void get_class_name(JNIEnv *env, char* arr, jobject obj);
-void free_header(PMEMoid oid);
-void lock_objs(TOID(struct hashmap_tx) locks, PMEMoid obj, int ref_count_change);
+void throw_persistence_exception(JNIEnv *env, const char* arg);

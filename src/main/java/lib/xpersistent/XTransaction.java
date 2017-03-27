@@ -21,36 +21,35 @@
 
 package lib.xpersistent;
 
-import lib.persistent.Util;
-import lib.persistent.Transaction;
-import lib.persistent.TransactionError;
-import lib.persistent.spi.PersistentMemoryProvider;
+import lib.util.persistent.*;
+import lib.util.persistent.spi.PersistentMemoryProvider;
 
 public class XTransaction implements Transaction {
 
     static {
         System.loadLibrary("Persistent");
-        Util.openPool();
     }
 
-    private static ThreadLocal<Transaction.State> state = null;
-    private static ThreadLocal<Integer> depth = null;
+    private static ThreadLocal<Transaction.State> state = new ThreadLocal<>();
+    private static ThreadLocal<Integer> depth = new ThreadLocal<>();
 
     XTransaction() {
-        if (state == null) {
-            state = new ThreadLocal<>();
+        if (state.get() == null) {
+            state.set(Transaction.State.None);
         }
-        if (depth == null) {
-            depth = new ThreadLocal<>();
+        if (depth.get() == null) {
             depth.set(0);
         }
-        if (depth.get() == 0)
+        if (depth.get() == 0) {
             state.set(Transaction.State.None);
+        }
         depth.set(depth.get() + 1);
     }
 
     public Transaction update(Transaction.Update update) {
-        if (state.get() != Transaction.State.Active) throw new TransactionError("In update: transaction not active");
+        if (state.get() != Transaction.State.Active) {
+            throw new TransactionError("In update: transaction not active");
+        }
         update.run();
         // System.out.println("ran update " + update);
         return this;
@@ -66,8 +65,9 @@ public class XTransaction implements Transaction {
 
     public void commit() {
         if (depth.get() == 1) {
-            if (state.get() == Transaction.State.None)
+            if (state.get() == Transaction.State.None) {
                 throw new TransactionError("In commit: transaction not active");
+            }
             if (state.get() == Transaction.State.Aborted) {
                 depth.set(depth.get() - 1);
                 return;

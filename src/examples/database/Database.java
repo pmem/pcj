@@ -25,26 +25,51 @@ import java.util.*;
 import java.io.*;
 import java.nio.file.*;
 import java.util.stream.*;
-import lib.persistent.*;
+import lib.util.persistent.*;
+import lib.util.persistent.spi.*;
 
 @SuppressWarnings("unchecked")
 public class Database {
 
-    static PersistentTreeMap<PersistentString, ColumnFamily> keyspace;
+    static PersistentSkipListMap<PersistentString, ColumnFamily> keyspace;
 
     public static void main(String[] args) {
-        if (ObjectDirectory.get("keyspace", PersistentTreeMap.class) == null) {
-            keyspace = new PersistentTreeMap<>();
+        PersistentMemoryProvider.getDefaultProvider().getHeap().open();
+        if (ObjectDirectory.get("keyspace", PersistentSkipListMap.class) == null) {
+            keyspace = new PersistentSkipListMap<>();
             ObjectDirectory.put("keyspace", keyspace);
         } else {
-            keyspace = ObjectDirectory.get("keyspace", PersistentTreeMap.class);
+            keyspace = ObjectDirectory.get("keyspace", PersistentSkipListMap.class);
         }
 
+        int numThreads = 0;
         if (args.length != 0) {
-            try (Stream<String> stream = Files.lines(Paths.get(args[0]))) {
-                stream.forEach(examples.database.Database::handleCommand);
-            } catch (Exception e) {
-                e.printStackTrace();
+            numThreads = Integer.parseInt(args[0]);
+        } else {
+            System.out.println("usage: Database <number of threads>");
+            return;
+        }
+
+        if (args.length >= 2) {
+            Thread[] threads = new Thread[numThreads];
+            for (int i = 0; i < numThreads; i++) {
+                final int ii = i;
+                threads[i] = new Thread( () -> {
+                    try (Stream<String> stream = Files.lines(Paths.get(args[1]))) {
+                        stream.forEach(examples.database.Database::handleCommand);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+                threads[i].start();
+            }
+            for (int i = 0; i < numThreads; i++) {
+                try {
+                    threads[i].join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                    System.exit(-1);
+                }
             }
             return;
         }
@@ -140,7 +165,7 @@ public class Database {
             System.out.println("Column family " + args[2] + " does not exist.");
             return;
         }
-        if (args.length > (3 + cf.colCount().toLong())) {
+        if (args.length > (3 + cf.colCount())) {
             System.out.println("Too many columns in INSERT");
             return;
         }
@@ -149,7 +174,7 @@ public class Database {
         if (args.length == 3) return;   // do nothing
         Transaction.run(() -> {
             Key key = new Key(args[3]);
-            Value value = new Value(cf.colCount().toLong()-1);
+            Value value = new Value(cf.colCount()-1);
             long ts = System.currentTimeMillis();
             // example: INSERT INTO <tableName> <key> <vals>
             // i starts at the 4th element, where vals start
@@ -203,7 +228,7 @@ public class Database {
 
     static void printCells(ColumnFamily cf, String[] cols) {
         if (cols[0].equals("*")) {
-            for (Map.Entry<Key, Value> e: cf.cf().entrySet()) {
+            for (Map.Entry<Key, Value> e: cf.table().entrySet()) {
                 System.out.println(e.getKey() + ", " + e.getValue());
             }
         } else {
@@ -243,7 +268,7 @@ public class Database {
             String fieldValue = args[4];
             Cell newCell = new Cell(fieldName, fieldValue, ts);
             Value val = cf.get(key);
-            for (int i = 1; i < cf.colNames().size(); i++) {
+            for (int i = 1; i < cf.colNames().length(); i++) {
                 if (cf.colNames().get(i).equals(fieldName)) {
                     val.set(i-1, newCell);
                     return;
@@ -292,15 +317,6 @@ public class Database {
         }
     }
 
-    static String decode(PersistentByteBuffer buf) {
-        if (buf == null) return "NULL";
-        byte[] value = new byte[buf.remaining()];
-        buf.mark();
-        buf.get(value);
-        buf.reset();
-        return new String(value);
-    }
-
     static void handlebulkInsert(String[] args){
         if (args.length < 3) {
             System.out.println("usage: BULK INSERT <table name> [num]");
@@ -331,20 +347,20 @@ public class Database {
         }
         final int iterations = iteration;
         // ignore 0th ("INSERT") and 1st ("INTO")
-        Transaction.run(() -> {
+        //Transaction.run(() -> {
             for (int i = 0; i < iterations; i++) {
                 final long ts = System.currentTimeMillis();
                 Key key = new Key("key_"+i);
-                Value value = new Value(cf.colCount().toLong()-1);
+                Value value = new Value(cf.colCount()-1);
                 // example: INSERT INTO <tableName> <key> <vals>
                 // i starts at the 4th element, where vals start
                 // i-3 because colNames() include key column name, so start counting at 1
-                for (int j = 1; j < cf.colCount().toLong(); j++) {
+                for (int j = 1; j < cf.colCount(); j++) {
                     Cell c = new Cell(cf.colNames().get(j), "Column"+j+"_"+ts, ts);
                     value.set(j-1, c);
                 }
                 cf.put(key, value);
             }
-        });
+        //});
     }
 }

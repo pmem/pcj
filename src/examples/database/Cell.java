@@ -21,38 +21,49 @@
 
 package examples.database;
 
-import lib.persistent.*;
+import lib.util.persistent.*;
+import lib.util.persistent.types.*;
 
-public class Cell extends PersistentTuple3<PersistentString, PersistentByteBuffer, PersistentLong> {
+public class Cell extends PersistentObject {
+    private static final ObjectField<PersistentString> COLNAME = new ObjectField<>(PersistentString.class);
+    private static final ObjectField<PersistentString> VAL = new ObjectField<>(PersistentString.class);
+    private static final LongField TIMESTAMP = new LongField();
+    public static final ObjectType<Cell> TYPE = ObjectType.fromFields(Cell.class, COLNAME, VAL, TIMESTAMP);
+
     public Cell(PersistentString colName, String val, long ts) {
+        super(TYPE);
         Transaction.run(() -> {
-            _1(colName);
-            _2(PersistentByteBuffer.allocate(val.length()).put(val.getBytes()).rewind());
-            _3(new PersistentLong(ts));
+            colName(colName);
+            val(new PersistentString(val));
+            ts(ts);
         });
     }
 
-    public PersistentString colName() {
-        return _1();
+    public Cell(ObjectPointer<? extends Cell> p) { super(p); }
+
+    protected Cell(ObjectType<? extends Cell> type) { super(type); }
+
+    public synchronized PersistentString colName() {
+        return getObjectField(COLNAME);
     }
 
-    public PersistentByteBuffer val() {
-        return _2();
+    public synchronized PersistentString val() {
+        return getObjectField(VAL);
     }
 
-    public PersistentLong ts() {
-        return _3();
+    public synchronized long ts() {
+        return getLongField(TIMESTAMP);
     }
 
-    public void colName(PersistentString colName) {
-        _1(colName);
+    protected synchronized void colName(PersistentString colName) {
+        setObjectField(COLNAME, colName);
     }
 
-    public void val(PersistentByteBuffer val) {
-        _2(val);
+    public synchronized void val(PersistentString val) {
+        setObjectField(VAL, val);
     }
 
-    public void ts(PersistentLong ts) {
-        _3(ts);
+    protected synchronized void ts(long ts) {
+        setLongField(TIMESTAMP, ts);
     }
 }

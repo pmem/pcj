@@ -21,43 +21,57 @@
 
 package examples.database;
 
-import lib.persistent.*;
+import lib.util.persistent.*;
+import lib.util.persistent.types.*;
 
-class ColumnFamily extends PersistentTuple3<PersistentTreeMap<Key, Value>, PersistentLong, PersistentArray<PersistentString>> {
+public final class ColumnFamily extends PersistentObject {
+    private static final ObjectField<PersistentSkipListMap> TABLE = new ObjectField<>(PersistentSkipListMap.class);
+    private static final IntField COLCOUNT = new IntField();
+    private static final ObjectField<PersistentArray> COLNAMES = new ObjectField<>(PersistentArray.class);
+    public static final ObjectType<ColumnFamily> TYPE = ObjectType.fromFields(ColumnFamily.class, TABLE, COLCOUNT, COLNAMES);
 
     public ColumnFamily(String[] colNames) {
+        super(TYPE);
         Transaction.run(() -> {
-            _1(new PersistentTreeMap<Key, Value>());
-            _2(new PersistentLong(colNames.length));
+            setObjectField(TABLE, new PersistentSkipListMap<Key, Value>());
+            setIntField(COLCOUNT, colNames.length);
             PersistentArray<PersistentString> pColNames = new PersistentArray<>(colNames.length);
             for (int i = 0; i < colNames.length; i++) {
                 pColNames.set(i, new PersistentString(colNames[i]));
             }
-            _3(pColNames);
+            setObjectField(COLNAMES, pColNames);
         });
     }
 
-    public PersistentTreeMap<Key, Value> cf() {
-        return _1();
+    public ColumnFamily(ObjectPointer<ColumnFamily> p) { super(p); }
+
+    @SuppressWarnings("unchecked")
+    public PersistentSkipListMap<Key, Value> table() {
+        return (PersistentSkipListMap<Key, Value>)getObjectField(TABLE);
     }
 
-    public PersistentLong colCount() {
-        return _2();
+    public int colCount() {
+        return getIntField(COLCOUNT);
     }
 
+    @SuppressWarnings("unchecked")
     public PersistentArray<PersistentString> colNames() {
-        return _3();
+        return (PersistentArray<PersistentString>)getObjectField(COLNAMES);
     }
 
     public void put(Key k, Value v) {
-        _1().put(k, v);
+        table().put(k, v);
     }
 
     public Value get(Key k) {
-        return _1().get(k);
+        return table().get(k);
     }
 
     public Value remove(Key k) {
-        return _1().remove(k);
+        return table().remove(k);
+    }
+
+    public Value putIfAbsent(Key k, Value v) {
+        return table().putIfAbsent(k, v);
     }
 }

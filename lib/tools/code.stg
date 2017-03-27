@@ -1,0 +1,386 @@
+/* Copyright (C) 2017  Intel Corporation
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 only, as published by the Free Software Foundation.
+ * This file has been designated as subject to the "Classpath"
+ * exception as provided in the LICENSE file that accompanied
+ * this code.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License version 2 for more details (a copy
+ * is included in the LICENSE file that accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 2 along with this program; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301, USA.
+ */
+
+primitives_class(class, identifier, field, smallcaps, byte, short, char, int, long, bool, double, float) ::= <<
+/* Copyright (C) 2017  Intel Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 only, as published by the Free Software Foundation.
+ * This file has been designated as subject to the "Classpath"
+ * exception as provided in the LICENSE file that accompanied
+ * this code.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License version 2 for more details (a copy
+ * is included in the LICENSE file that accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 2 along with this program; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301, USA.
+ */
+
+
+package lib.util.persistent;
+
+import lib.util.persistent.types.*;
+import lib.util.persistent.types.ObjectType;
+import lib.util.persistent.types.Types;
+
+public final class Persistent<class> extends PersistentObject implements Comparable\<Persistent<class>\> { 
+    private static final <identifier>Field <field> = new <identifier>Field();
+    private static final ObjectType\<Persistent<class>\> TYPE = ObjectType.fromFields(Persistent<class>.class, <field>);
+
+    public Persistent<class>(<smallcaps> x) {
+        super(TYPE);
+        set<identifier>Field(<field>, x);
+    }
+
+    private Persistent<class>(ObjectPointer\<Persistent<class>\> p) {
+        super(p);
+    }
+
+    public <smallcaps> <smallcaps>Value() {
+        return get<identifier>Field(<field>);
+    }
+
+    @Override
+    public String toString() {
+        <if(bool)>return <smallcaps>Value() ? "true" : "false";
+        <elseif(byte||short)>return Integer.toString((int)<smallcaps>Value(), 10);
+        <elseif(char)>return String.valueOf(<smallcaps>Value());
+        <else>return <class>.toString(<smallcaps>Value());<endif>
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof Persistent<class>) {
+            <if(double||float)>return ((<class>)this.<smallcaps>Value()).equals((<class>)(((Persistent<class>)o).<smallcaps>Value()));
+            <else>return this.<smallcaps>Value() == ((Persistent<class>)o).<smallcaps>Value();<endif>  
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        <if(byte||char||short)>
+        return (int) <smallcaps>Value();
+        <elseif(int)>
+        return <smallcaps>Value();
+        <elseif(bool)>
+        return <smallcaps>Value() ? 1231 : 1237;
+        <elseif(long)>
+        return (int)(<smallcaps>Value() ^ (<smallcaps>Value() >\>> 32));
+        <else>
+        return <identifier>.hashCode(<smallcaps>Value());<endif>
+    }
+
+    public int compareTo(Persistent<class> o) {
+        <smallcaps> x = this.<smallcaps>Value();
+        <smallcaps> y = o.<smallcaps>Value();
+        <if(bool)>
+        return (x == y) ? 0 : (x ? 1 : -1);
+        <elseif(long)>
+        return (x \< y) ? -1 : ((x == y) ? 0 : 1);
+        <elseif(int)>
+        return (x \< y) ? -1 : ((x == y) ? 0 : 1);
+        <elseif(double||float)>
+        return <identifier>.compare(x, y);
+        <else>
+        return (x - y);
+        <endif>
+    }
+}
+>>
+
+immutable_arrays(field, smallcaps, identifier) ::=<<
+/* Copyright (C) 2017  Intel Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 only, as published by the Free Software Foundation.
+ * This file has been designated as subject to the "Classpath"
+ * exception as provided in the LICENSE file that accompanied
+ * this code.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License version 2 for more details (a copy
+ * is included in the LICENSE file that accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 2 along with this program; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301, USA.
+ */
+
+
+package lib.util.persistent;
+
+import lib.util.persistent.types.Types;
+import lib.util.persistent.types.ArrayType;
+
+public final class PersistentImmutable<identifier>Array extends AbstractPersistentImmutableArray {
+    private static final ArrayType\<PersistentImmutable<identifier>Array> TYPE = new ArrayType\<>(PersistentImmutable<identifier>Array.class, Types.<field>);
+
+    public PersistentImmutable<identifier>Array(<smallcaps>[] array) {
+        super(TYPE, array.length, array);
+    }
+
+    private PersistentImmutable<identifier>Array(ObjectPointer\<PersistentImmutable<identifier>Array> pointer) {
+        super(pointer);
+    }
+
+    public <smallcaps> get(int index) {
+        return get<identifier>Element(index);
+    }
+
+    public <smallcaps>[] toArray() {
+        <smallcaps>[] ans = new <smallcaps>[length()];
+        int len = length();
+        for (int i = 0; i \< len; i++) ans[i] = get<identifier>Element(i);
+        return ans;
+    }
+}
+>>
+
+mutable_arrays(field, identifier, smallcaps) ::=<<
+/* Copyright (C) 2017  Intel Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 only, as published by the Free Software Foundation.
+ * This file has been designated as subject to the "Classpath"
+ * exception as provided in the LICENSE file that accompanied
+ * this code.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License version 2 for more details (a copy
+ * is included in the LICENSE file that accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 2 along with this program; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301, USA.
+ */
+
+
+package lib.util.persistent;
+
+import lib.util.persistent.types.Types;
+import lib.util.persistent.types.ArrayType;
+
+public final class Persistent<identifier>Array extends AbstractPersistentArray {
+    private static final ArrayType\<Persistent<identifier>Array> TYPE = new ArrayType\<>(Persistent<identifier>Array.class, Types.<field>);
+
+    public Persistent<identifier>Array(int size) {
+        super(TYPE, size);
+    }
+
+    public Persistent<identifier>Array(<smallcaps>[] array) {
+        this(array.length);
+        for (int i = 0; i \< array.length; i++) set<identifier>Element(i, array[i]);
+    }
+
+    private Persistent<identifier>Array(ObjectPointer\<Persistent<identifier>Array> pointer) {
+        super(pointer);
+    }
+
+    public synchronized  <smallcaps> get(int index) {
+        return get<identifier>Element(index);
+    }
+
+    public synchronized void set(int index, <smallcaps> value) {
+        set<identifier>Element(index, value);
+    }
+
+    public synchronized <smallcaps>[] toArray() {
+        <smallcaps>[] ans = new <smallcaps>[length()];
+        int len = length();
+        for (int i = 0; i \< len; i++) ans[i] = get<identifier>Element(i);
+        return ans;
+    }
+}
+>>
+
+mjstuple_class(class_prefix, n, range) ::= <<
+/* Copyright (C) 2017  Intel Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 only, as published by the Free Software Foundation.
+ * This file has been designated as subject to the "Classpath"
+ * exception as provided in the LICENSE file that accompanied
+ * this code.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License version 2 for more details (a copy
+ * is included in the LICENSE file that accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 2 along with this program; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301, USA.
+ */
+
+
+
+package lib.util.persistent;
+
+import lib.util.persistent.types.Types;
+import lib.util.persistent.types.ObjectType;
+import lib.util.persistent.types.ObjectField;
+
+public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\> extends PersistentObject {
+    <range:{ x | private static final ObjectField\<PersistentObject> FIELD<x> = new ObjectField\<>();};separator="\n"> 
+    public static final ObjectType\<<class_prefix>Tuple<n>\> TYPE = ObjectType.fromFields(<class_prefix>Tuple<n>.class, <range:{x | FIELD<x>};separator=", ">);
+
+    public <class_prefix>Tuple<n>() {
+        super(TYPE);
+    }
+
+    public <class_prefix>Tuple<n>(<range:{ x | T<x> t<x>};separator=", ">) {
+        this(TYPE, <range:{ x | t<x>};separator=", ">);
+    }
+
+    protected <class_prefix>Tuple<n>(ObjectType\<? extends <class_prefix>Tuple<n>\> type, <range:{ x | T<x> t<x>};separator=", ">) {
+        super(type);
+        Transaction.run(() -> {
+            <range:{ x | _<x>(t<x>);};separator="\n"> 
+        });
+    }
+
+    protected <class_prefix>Tuple<n>(ObjectPointer\<? extends <class_prefix>Tuple<n>\> p) {super(p);}
+
+    <range:{ x | @SuppressWarnings("unchecked")
+    public synchronized T<x> _<x>() {
+        return (T<x>)getObjectField(FIELD<x>);
+    \}};separator="\n\n">
+
+    <range:{x | public synchronized void _<x>(T<x> t<x>) {
+        setObjectField(FIELD<x>, t<x>);
+    \}};separator="\n\n">
+
+    public String toString() {
+        return "Tuple<n>(" + <range:{x | _<x>()};separator=" + \", \" + "> + ")";
+    }
+
+    public synchronized int hashCode() {
+        return <range:{x | _<x>().hashCode()};separator=" + ">;
+    }
+
+    public synchronized boolean equals(Object obj) {
+        if (!(obj instanceof <class_prefix>Tuple<n>)) return false;
+
+        <class_prefix>Tuple<n> that = (<class_prefix>Tuple<n>)obj;
+<! Needed to split the ! operator to get the space characters recognized in separator !>
+        if (!<range:{x | (this._<x>().equals(that._<x>()))};separator=" ||\n            !">)
+            return false;
+
+        return true;
+    } 
+}
+>>
+
+mjsimmutabletuple_class(class_prefix, n, range) ::= <<
+/* Copyright (C) 2017  Intel Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 only, as published by the Free Software Foundation.
+ * This file has been designated as subject to the "Classpath"
+ * exception as provided in the LICENSE file that accompanied
+ * this code.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License version 2 for more details (a copy
+ * is included in the LICENSE file that accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 2 along with this program; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301, USA.
+ */
+
+
+
+package lib.util.persistent;
+
+import lib.util.persistent.types.Types;
+import lib.util.persistent.types.ObjectType;
+import lib.util.persistent.types.ObjectField;
+
+public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\> extends PersistentObject {
+    <range:{ x | private static final ObjectField\<PersistentObject> FIELD<x> = new ObjectField\<>();};separator="\n">
+    public static final ObjectType\<<class_prefix>Tuple<n>\> TYPE = ObjectType.fromFields(<class_prefix>Tuple<n>.class, <range:{x | FIELD<x>};separator=", ">);
+
+    public <class_prefix>Tuple<n>(<range:{ x | T<x> t<x>};separator=", ">) {
+        this(TYPE, <range:{ x | t<x>};separator=", ">);
+    }
+
+    protected <class_prefix>Tuple<n>(ObjectType\<? extends <class_prefix>Tuple<n>\> type, <range:{ x | T<x> t<x>};separator=", ">) {
+        super(type);
+        Transaction.run(() -> {
+            <range:{ x | _<x>(t<x>);};separator="\n"> 
+        });
+    }
+
+    protected <class_prefix>Tuple<n>(ObjectPointer\<? extends <class_prefix>Tuple<n>\> p) {super(p);}
+
+    <range:{ x | @SuppressWarnings("unchecked")
+    public T<x> _<x>() {
+        return (T<x>)getObjectField(FIELD<x>);
+    \}};separator="\n\n">
+
+    <range:{x | private void _<x>(T<x> t<x>) {
+        setObjectField(FIELD<x>, t<x>);
+    \}};separator="\n\n">
+
+    public String toString() {
+        return "Tuple<n>(" + <range:{x | _<x>()};separator=" + \", \" + "> + ")";
+    }
+
+    public int hashCode() {
+        return <range:{x | _<x>().hashCode()};separator=" + ">;
+    }
+
+    public boolean equals(Object obj) {
+        if (!(obj instanceof <class_prefix>Tuple<n>)) return false;
+
+        <class_prefix>Tuple<n> that = (<class_prefix>Tuple<n>)obj;
+<! Needed to split the ! operator to get the space characters recognized in separator !>
+        if (!<range:{x | (this._<x>().equals(that._<x>()))};separator=" ||\n            !">)
+            return false;
+
+        return true;
+    } 
+}
+>>
