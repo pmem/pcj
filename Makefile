@@ -55,14 +55,15 @@ EXAMPLES_DIR = src/examples
 ALL_EXAMPLE_DIRS = $(wildcard $(EXAMPLES_DIR)/*)
 
 all: sources examples tests
+	$(JAVA) -ea -cp $(BASE_CLASSPATH):src -Djava.library.path=$(CPP_BUILD_DIR) examples.misc.TestCases
+	$(JAVA) -ea -cp $(BASE_CLASSPATH):src -Djava.library.path=$(CPP_BUILD_DIR) examples.misc.TestCases
+
 sources: cpp java
 cpp: $(LIBRARIES)
 java: classes
 
 examples: sources
 	$(foreach example_dir,$(ALL_EXAMPLE_DIRS), $(JAVAC) $(JAVAFLAGS) -cp $(BASE_CLASSPATH):$(example_dir) $(example_dir)/*.java;)
-	$(JAVA) -ea -cp $(BASE_CLASSPATH):src -Djava.library.path=$(CPP_BUILD_DIR) examples.misc.TestCases
-	$(JAVA) -ea -cp $(BASE_CLASSPATH):src -Djava.library.path=$(CPP_BUILD_DIR) examples.misc.TestCases
 
 clean: cleanex
 	rm -rf target
