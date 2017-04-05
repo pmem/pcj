@@ -66,6 +66,23 @@ public final class PersistentArray<T extends PersistentObject> extends AbstractP
         return ans;
     }
 
+    public synchronized String toString() {
+        int iMax = this.length() - 1;
+        if (iMax == -1) return "[]";
+
+        StringBuilder b = new StringBuilder();
+        b.append('[');
+        for (int i = 0; ; i++) {
+            if (this.get(i) != null)
+                b.append(this.get(i).toString());
+            else
+                b.append("NULL");
+            if (i == iMax)
+                return b.append(']').toString();
+            b.append(", ");
+        }
+    }
+
     /*@SuppressWarnings("unchecked")
     public static synchronized void ArrayCopy(PersistentObject src, int srcPos, PersistentObject dest, int destPos, int length){
         if (src.equals(null) || dest.equals(null)) 

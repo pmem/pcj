@@ -75,37 +75,37 @@ public class PersistentLinkedQueue <E extends PersistentObject> extends Persiste
 			setTail(new PersistentAtomicReference<PersistentNode<E>>(t));
 		});
 	}
-	public void setHead(PersistentAtomicReference<PersistentNode<E>> first) {
+	private void setHead(PersistentAtomicReference<PersistentNode<E>> first) {
 		setObjectField(HEAD, first);
 	}
 
-	public void setTail(PersistentAtomicReference<PersistentNode<E>> last) {
+	private void setTail(PersistentAtomicReference<PersistentNode<E>> last) {
 		setObjectField(TAIL, last);
 	}
 
 	@SuppressWarnings("unchecked")
-	public PersistentNode<E> getHead() {
+	private PersistentNode<E> getHead() {
 		return (PersistentNode<E>)getObjectField(HEAD).get();
 	}
 
 	@SuppressWarnings("unchecked")
-	public PersistentAtomicReference<PersistentNode<E>> getHeadRef() {
+	private PersistentAtomicReference<PersistentNode<E>> getHeadRef() {
 		return getObjectField(HEAD);
 	}
 
 
 	@SuppressWarnings("unchecked")
-	public PersistentNode<E> getTail() {
+	private PersistentNode<E> getTail() {
 		return (PersistentNode<E>)getObjectField(TAIL).get();
 	}
 
 	@SuppressWarnings("unchecked")
-	public boolean casHead(PersistentNode<E> expect, PersistentNode<E> update) {
+	private boolean casHead(PersistentNode<E> expect, PersistentNode<E> update) {
 		return getObjectField(HEAD).compareAndSet(expect, update);
 	}
 
 	@SuppressWarnings("unchecked")
-	public boolean casTail(PersistentNode<E> expect, PersistentNode<E> update) {
+	private boolean casTail(PersistentNode<E> expect, PersistentNode<E> update) {
 		return getObjectField(TAIL).compareAndSet(expect, update);
 	}
 

@@ -45,7 +45,9 @@ public class Runner {
                         System.out.println(String.format("\n======================== ThreadId %d run #%d ========================", Thread.currentThread().getId(), n + 1));
                         mainMethod.invoke(null, (Object)callArgs);
                     }
-                } catch (Exception e) {System.out.println(e); throw new RuntimeException(e.getMessage());}
+                } 
+                catch (IllegalAccessException e) {e.printStackTrace(); throw new RuntimeException(e.getMessage());}
+                catch (java.lang.reflect.InvocationTargetException e) {e.printStackTrace(); throw new RuntimeException(e.getMessage());}
             });
             ts[i].start();
             System.out.println("started thread " + ts[i].getId());

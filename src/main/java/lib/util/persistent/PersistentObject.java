@@ -40,6 +40,8 @@ import lib.util.persistent.types.ValueField;
 import lib.util.persistent.types.PersistentField;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
+import java.lang.reflect.Constructor;
 
 import lib.xpersistent.XHeap;
 import lib.xpersistent.XRoot;
@@ -49,13 +51,14 @@ public class PersistentObject implements Persistent<PersistentObject> {
     static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
 
     private final ObjectPointer<? extends PersistentObject> pointer;
+    public final ReentrantLock lock = new ReentrantLock();
 
     public PersistentObject(ObjectType<? extends PersistentObject> type) {
         this(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize()));
     }
 
     <T extends PersistentObject> PersistentObject(ObjectType<T> type, MemoryRegion region) {
-        //System.out.println("Creating object of type " + type.getName() + " at address " + region.addr());
+        // System.out.println("Creating object of type " + type.getName() + " at address " + region.addr());
         this.pointer = new ObjectPointer<T>(type, region);
         List<PersistentType> ts = type.getTypes();
         for (int i = 0; i < ts.size(); i++) initializeField(i, ts.get(i));
@@ -64,14 +67,13 @@ public class PersistentObject implements Persistent<PersistentObject> {
             setVersion(99);
             initForGC();
         });
-        ObjectDirectory.addReference(this);
+        ObjectCache.addReference(this);
     }
 
     protected PersistentObject(ObjectPointer<? extends PersistentObject> p) {
         this.pointer = p;
         if (weakConstruction.get()) weakConstruction.set(false);
         else initForGC();
-        ObjectDirectory.addReference(this);
     }
 
     private void initForGC() {
@@ -84,45 +86,54 @@ public class PersistentObject implements Persistent<PersistentObject> {
         });
     }
 
-    // the following 3 static functions should satisfy all "special" paths
-    // make this one package private
+    // only called by Root during bootstrap of Object directory PersistentHashMap
+    @SuppressWarnings("unchecked")
     public static <T extends PersistentObject> T weakFromPointer(ObjectPointer<T> p) {
         weakConstruction.set(true);
-        return p.deref();
+        try {
+            Class<T> cls = p.type().cls();
+            Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
+            ctor.setAccessible(true);
+            T obj = (T)ctor.newInstance(p);
+            return obj;
+        }
+        catch (Exception e) {e.printStackTrace();}
+        weakConstruction.set(false);
+        return null;
     }
 
     @SuppressWarnings("unchecked")
-    static PersistentObject weakGetObjectAtAddress(long addr) {
-        PersistentObject obj = (PersistentObject)ObjectDirectory.getReference(addr);
-        if (obj != null) {
-            return obj;
-        }
-        MemoryRegion region = heap.regionFromAddress(addr);
-        long typeNameAddr = region.getLong(0);
-        MemoryRegion typeNameRegion = heap.regionFromAddress(typeNameAddr);
-        String typeName = typeNameFromRegion(typeNameRegion);
-        ObjectType<? extends PersistentObject> type = Types.typeForName(typeName);
-        return weakFromPointer(new ObjectPointer<>(type, region));
+    public static PersistentObject getObjectAtAddress(long addr) {
+        assert(addr != 0);
+        PersistentObject obj = ObjectCache.getReference(addr);
+        return obj;
     }
 
-    // needed by GC code, restrict visibility later
-    static int decRefCountAtAddressBy(long addr, int n) {
-        return weakGetObjectAtAddress(addr).decRefCountBy(n);
+    static synchronized int decRefCountAtAddressBy(long addr, int n) {
+        // System.out.format("decRefCountAtAddressBy(%d, %d)\n", addr, n);
+        PersistentObject obj = getObjectAtAddress(addr);
+        return (obj == null) ? 0 : obj.decRefCountBy(n);
     }
     // end special path functions
 
     @SuppressWarnings("unchecked")
     void delete() {
         long addr = pointer.region().addr();
-        // System.out.println(String.format("delete called on object (%s) at address %d", getPointer().type().cls(), addr));
+        // System.out.format("delete called on object (%s) at address %d\n", getPointer().type().cls(), addr);
         List<PersistentType> ts = types();
+        List<PersistentObject> children = new java.util.ArrayList<>();
+        for (int i = 0; i < ts.size(); i++) {
+            if ((ts.get(i) instanceof ObjectType || ts.get(i) == Types.OBJECT) && getLong(getPointer().type().getOffset(i)) != 0) {
+                long childAddress = getLong(getPointer().type().getOffset(i));
+                PersistentObject obj = getObjectAtAddress(childAddress);
+                children.add(obj);
+                obj.lock.lock();
+            }
+        }
         Transaction.run(() -> {
-            for (int i = 0; i < ts.size(); i++) {
-                if ((ts.get(i) instanceof ObjectType || ts.get(i) == Types.OBJECT) && getLong(getPointer().type().getOffset(i)) != 0) {
-                    long childAddress = getLong(getPointer().type().getOffset(i));
-                    // System.out.println(String.format("child address for decRef = %d, parent is %s at address = %d", childAddress, getPointer().type().cls(), addr));
-                    decRefCountAtAddressBy(childAddress, 1);
-                }
+            for (PersistentObject obj : children) {
+                obj.decRefCount();
+                obj.lock.unlock();
             }
             refColor(CycleCollector.BLACK);
             //if (!CycleCollector.isCandidate(addr)) {
@@ -133,7 +144,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
     }
 
     synchronized void free() {
-        ObjectDirectory.removeReference(pointer.region().addr());
+        ObjectCache.removeReference(pointer.region().addr());
         PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
         MemoryRegion nameRegion = heap.regionFromAddress(getLongField(Header.TYPE_NAME));
         synchronized(nameRegion) {
@@ -166,24 +177,16 @@ public class PersistentObject implements Persistent<PersistentObject> {
     synchronized <T extends PersistentObject> T getObject(long offset) {
         long valueAddr = getLong(offset);
         if (valueAddr == 0) return null;
-        T ref = (T)ObjectDirectory.getReference(valueAddr);
-        if (ref != null) {
-            return ref;
-        }
-        MemoryRegion valueRegion = heap.regionFromAddress(valueAddr);
-        long typeNameAddr = valueRegion.getLong(0);
-        MemoryRegion typeNameRegion = heap.regionFromAddress(typeNameAddr);
-        String typeName = typeNameFromRegion(typeNameRegion);
-        return new ObjectPointer<T>(Types.typeForName(typeName), valueRegion).deref();
+        return (T)ObjectCache.getReference(valueAddr);
     }
 
     synchronized void setObject(long offset, PersistentObject value) {
+        PersistentObject old = getObject(offset);
         Transaction.run(() -> {
-            PersistentObject old = getObject(offset);
             if (value != null) value.incRefCount();
             if (old != null) old.decRefCount();
             setLong(offset, value == null ? 0 : value.getPointer().region().addr());
-        });
+        }, value, old);
     }
 
     byte getByteField(int index) {return getByte(offset(check(index, Types.BYTE)));}
@@ -221,7 +224,11 @@ public class PersistentObject implements Persistent<PersistentObject> {
         MemoryRegion srcRegion = heap.regionFromAddress(getPointer().region().addr());
         MemoryRegion dstRegion = heap.allocateRegion(f.getType().getSize());
         // System.out.println(String.format("getValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr(), f.getType().getSize()));
-        ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, offset(f.getIndex()), dstRegion, 0, f.getType().getSize());
+        synchronized(srcRegion) {
+            synchronized(dstRegion) {
+                ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, offset(f.getIndex()), dstRegion, 0, f.getType().getSize());
+            }
+        }
         return (T)new ValuePointer((ValueType)f.getType(), dstRegion, f.cls()).deref();
     }
 
@@ -285,7 +292,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
         else if (t instanceof ObjectType) setObjectField(index, null);
     }
 
-    // we can turn this off after debug since only Field-based getters and setters are public 
+    // we can turn this off after debug since only Field-based getters and setters are public
     // and those provide static type safety and internally assigned indexes
     private int check(int index, PersistentType testType) {
         boolean result = true;
@@ -332,7 +339,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
     }
 
     synchronized void incRefCountBy(int n) {
-            // System.out.println(String.format("incRefCountBy %s @ %d by %d (%d -> %d)", getPointer().type().cls(), getPointer().addr(), n, getRefCount(), getRefCount() + n));
+        // System.out.println(String.format("incRefCountBy %s @ %d by %d (%d -> %d)", getPointer().type().cls(), getPointer().addr(), n, getRefCount(), getRefCount() + n));
         Transaction.run(() -> {
             setIntField(Header.REF_COUNT, getRefCount() + n);
             CycleCollector.markBlack(this);
@@ -349,8 +356,11 @@ public class PersistentObject implements Persistent<PersistentObject> {
     }
 
     private synchronized int decRefCountBy(int n) {
-        // System.out.println(String.format("decRefCountBy %s @ %d by %d (%d -> %d)", getPointer().type().cls(), getPointer().addr(), n, getRefCount(), getRefCount() - n));
-        assert(getRefCount() > 0);
+        // System.out.format("decRefCountBy %s @ %d by %d (%d -> %d)\n", getPointer().type().cls(), getPointer().addr(), n, getRefCount(), getRefCount() - n);
+        if (getRefCount() <= 0) {
+            System.out.println(String.format("decRefCountBy %s @ %d by %d (%d -> %d)", getPointer().type().cls(), getPointer().addr(), n, getRefCount(), getRefCount() - n));
+            assert(false);
+        }
         int newCount = getRefCount() - n;
         if (newCount < 0) {
             System.out.println("DEBUG: decRef by " + n + ", newCount = " + newCount + ", obj = " + this);

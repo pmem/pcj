@@ -48,7 +48,7 @@ public class CycleCollector {
         root = ((XRoot)(heap.getRoot()));
         markCandidates();
         for (Long l : candidatesSet) {
-            scan(PersistentObject.weakGetObjectAtAddress(l));
+            scan(PersistentObject.getObjectAtAddress(l));
         }
         collectCandidates();
         root.clearCandidates();
@@ -58,7 +58,7 @@ public class CycleCollector {
         Iterator<Long> it = candidatesSet.iterator();
         while (it.hasNext()) {
             Long l = it.next();
-            PersistentObject ref = PersistentObject.weakGetObjectAtAddress(l);
+            PersistentObject ref = PersistentObject.getObjectAtAddress(l);
             if (ref.refColor() == PURPLE) {
                 markGrey(ref);
             } else {
@@ -105,7 +105,7 @@ public class CycleCollector {
     private static void collectCandidates() {
         Iterator<Long> it = candidatesSet.iterator();
         while (it.hasNext()) {
-            PersistentObject ref = PersistentObject.weakGetObjectAtAddress(it.next());
+            PersistentObject ref = PersistentObject.getObjectAtAddress(it.next());
             it.remove();
             collectWhite(ref);
         }
@@ -145,7 +145,7 @@ public class CycleCollector {
             for (int i = 0; i < ref.getPointer().type().fieldCount(); i++) {
                 if (!(((ObjectType<?>)(ref.getPointer().type())).getTypes().get(i) instanceof ObjectType || ((ObjectType<?>)(ref.getPointer().type())).getTypes().get(i) == Types.OBJECT)) continue;
                 if (ref.getLong(ref.getPointer().type().getOffset(i)) == 0) continue;
-                PersistentObject child = PersistentObject.weakGetObjectAtAddress(ref.getLong(ref.getPointer().type().getOffset(i)));
+                PersistentObject child = PersistentObject.getObjectAtAddress(ref.getLong(ref.getPointer().type().getOffset(i)));
                 if (child != null) {
                     update.run(child);
                 }
@@ -156,7 +156,7 @@ public class CycleCollector {
                 for (int j = 0; j < arr.length(); j++) {
                     long target = arr.getLong(arr.elementOffset(j));
                     if (target != 0) {
-                        PersistentObject child = PersistentObject.weakGetObjectAtAddress(target);
+                        PersistentObject child = PersistentObject.getObjectAtAddress(target);
                         if (child != null) {
                             update.run(child);
                         }

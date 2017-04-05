@@ -137,7 +137,7 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
                 for (int i = 0; i < length(); i++) {
                     long target = getLong(elementOffset(i));
                     if (target != 0) {
-                        PersistentObject obj = PersistentObject.weakGetObjectAtAddress(target);
+                        PersistentObject obj = PersistentObject.getObjectAtAddress(target);
                         obj.decRefCount();
                     }
                 }

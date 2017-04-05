@@ -326,7 +326,7 @@ public class TestCases {
 		if(plqPmem == null) {
 			//plq2.clear();
 			ConcurrentLinkedQueue<PersistentInteger> clq = new ConcurrentLinkedQueue<>();
-			for(int i = 0; i <= 5; i++)clq.add(new PersistentInteger(i));
+			for(int i = 0; i <= 5; i++) clq.add(new PersistentInteger(i));
 			plq2.addAll(clq);
 			assert(plq2.contains(new PersistentInteger(5)));
 
@@ -340,6 +340,41 @@ public class TestCases {
 			assert(plqPmem.peek().toString().equals("-5") && plqPmem.size() == 11);
 		}
 
+		//test PersistentLinkedQueue
+		System.out.println("****************Testing PersistentLinkedList ****************");
+		
+		PersistentLinkedList<PersistentInteger> list = new PersistentLinkedList<>();
+		for(int i = 0; i < 5; i++) list.add(new PersistentInteger(i));
+		assert(list.get(2).toString().equals("2"));
+		list.set(2, new PersistentInteger(22));
+		assert(list.get(2).toString().equals("22"));
+		list.insert(0, new PersistentInteger(-1));
+		list.insert(3, new PersistentInteger(2));
+		list.insert(list.size(), new PersistentInteger(9999));
+		assert(list.get(0).toString().equals("-1"));
+		assert(list.get(list.size()-1).toString().equals("9999"));
+		list.remove(4);
+		list.remove(0);
+		list.remove(list.size()-1);
+		assert(list.size() == 5);
+		list.clear();
+		assert(list.size() == 0);
+		
+		@SuppressWarnings("unchecked")
+		PersistentLinkedList<PersistentInteger> pllPmem = ObjectDirectory.get("pll", PersistentLinkedList.class);
+		if(pllPmem == null) {
+			
+			for(int i = 1; i <= 5; i++) list.add(new PersistentInteger(i));
+			ObjectDirectory.put("pll", list);
+			System.out.println("PersistentLinkedList doesn't exist...saving to pmem");
+			System.out.println(list);
+		}
+		else{
+			System.out.println("Retrieving PersistentLinkedList from pmem");
+			System.out.println(pllPmem);
+			assert(pllPmem.get(pllPmem.size()-1).toString().equals("5") && pllPmem.size() == 5);
+		}
+		
 		System.out.println("end of TestCases.main()");
 	} // END MAIN
 

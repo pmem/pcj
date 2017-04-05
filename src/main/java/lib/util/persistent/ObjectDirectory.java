@@ -29,7 +29,6 @@ import java.lang.ref.WeakReference;
 
 @SuppressWarnings("unchecked")
 public class ObjectDirectory {
-    static Map<Long, WeakReference<Persistent<?>>> refCache = new ConcurrentHashMap<>();
     static PersistentHashMap<PersistentString, PersistentObject> map;
     static PhantomQueue<Persistent<?>> pq;
 
@@ -76,22 +75,5 @@ public class ObjectDirectory {
 
     static synchronized void deregisterObject(long addr) {
         ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).deregisterObject(addr);
-    }
-
-    static Persistent<?> getReference(long address) {
-        WeakReference<Persistent<?>> ref = refCache.get(address);
-        return (ref == null) ? null : ref.get();
-    }
-
-    static void addReference(Persistent<?> ref) {
-        WeakReference<Persistent<?>> prevRef = refCache.get(ref.getPointer().region().addr());
-        if (prevRef != null && prevRef.get() != null) {
-            throw new PersistenceException("Old ref outstanding at addr " + prevRef.get().getPointer().region().addr() + " and type " + prevRef.get().getPointer().type());
-        }
-        refCache.putIfAbsent(ref.getPointer().region().addr(), new WeakReference<>(ref));
-    }
-
-    static void removeReference(long addr) {
-        refCache.remove(addr);
     }
 }

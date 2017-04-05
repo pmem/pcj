@@ -30,8 +30,14 @@ public interface Transaction extends AutoCloseable {
 
 	public enum State {None, Active, Committed, Aborted}
 
-    public static void run(PersistentMemoryProvider provider, Update update) {
+    public static void run(PersistentMemoryProvider provider, Update update, PersistentObject... toLock) { 
         Transaction t = provider.newTransaction();
+        for (PersistentObject obj : toLock) {
+            if (obj != null) {
+                obj.lock.lock();
+                // System.out.println("locked " + obj);
+            }
+        }
         try {
             t.start();
             t.update(update);
@@ -41,12 +47,22 @@ public interface Transaction extends AutoCloseable {
             throw e;
         } finally {
             t.commit();
+            for (PersistentObject obj : toLock) {
+                if (obj != null) {
+                    obj.lock.unlock();
+                    // System.out.println("unlocked " + obj);
+                }
+            }
         }
     }
 
-	public static void run(Update update) {
-		run(PersistentMemoryProvider.getDefaultProvider(), update);
-	}
+    public static void run(Update update) {
+        run(PersistentMemoryProvider.getDefaultProvider(), update);
+    }
+
+    public static void run(Update update, PersistentObject... toLock) {
+        run(PersistentMemoryProvider.getDefaultProvider(), update, toLock);
+    }
 
 	public static Transaction newInstance() {
 		return PersistentMemoryProvider.getDefaultProvider().newTransaction();

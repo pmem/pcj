@@ -51,21 +51,8 @@ public final class ObjectPointer<T extends PersistentObject> extends Pointer<T>
     }
 
     @SuppressWarnings("unchecked")
-    T deref()
-    {
-        try {
-            T obj = (T)ObjectDirectory.getReference(addr());
-            if (obj != null) {
-                return obj;
-            }
-            Class<T> cls = type.cls();
-            Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class); 
-            ctor.setAccessible(true);
-            obj = (T)ctor.newInstance(this);
-            return obj;
-        }
-        catch (Exception e) {e.printStackTrace();}
-        return null;
+    T deref() {
+        return (T)ObjectCache.getReference(addr()); 
     }
 
     public String toString() {

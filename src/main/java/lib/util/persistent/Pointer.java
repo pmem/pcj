@@ -28,4 +28,5 @@ abstract class Pointer<T>
     abstract PersistentType type();
     abstract MemoryRegion region();
     abstract long addr();
+    abstract T deref();
 }
