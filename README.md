@@ -31,13 +31,15 @@ life of a Java VM instance. Persistent classes include:
 This Java library uses the libpmemobj library from the Non-Volatile Memory Library (NVML). 
 For more information on NVML, please visit http://pmem.io and https://github.com/pmem/nvml.
 
+For a brief introduction on use of the library, please see [Introduction.txt](Introduction.txt).
+
 ## HOW TO BUILD & RUN ##
 
 ### PREREQUISITES TO BUILD ###
 The following are the prerequisites for building this Java library:
 
 1. Linux operating system (tested on CentOS 7.2 and Ubuntu 16.04)
-2. Non-Volatile Memory Library (NVML) -- to install it, please visit https://github.com/pmem/nvml
+2. Non-Volatile Memory Library (NVML) (must be version 1.2: https://github.com/pmem/nvml/releases/tag/1.2)
 3. Java 8 or above
 4. Build tools - g++ compiler and make
 
@@ -86,17 +88,16 @@ directory in your Java classpath and the project's ```target/cppbuild``` directo
    - extensive use of synchronized methods for thread safety
    - use of reference counting for automatic object deallocation
 
-2. By default, the size of the NVML pool (and hence the maximum aggregate size of all persistent 
-   objects created with this library) is 2GB-1, which is the maximum pool size.  To modify the pool 
-   size, you can change the value for ```PM_POOL_SIZE``` in ```pcj/src/main/cpp/persistent_heap.cpp```.
-
-3. By default, the mount point to the NVML pool is ```/mnt/mem``` directory. To modify this path, you 
+2. By default, the mount point to the NVML pool is ```/mnt/mem``` directory. To modify this path, you 
    can change the value for ```PATH``` in ```pcj/src/main/cpp/persistent_heap.cpp```.
 
-4. ```PersistentString``` objects are backed by a byte array and only supports ASCII characters.
+3. ```PersistentString``` objects are backed by a byte array and only supports ASCII characters.
 
-5. Core dumps may occur if the emulated memory is not properly set up; for example, running with insufficient
+4. Core dumps may occur if the emulated memory is not properly set up; for example, running with insufficient
    privileges or with a nonexistent mount point.
+
+5. Allocations of large linked structures (>500 elements) may result in StackOverflowException when they
+   are garbage-collected; this will be fixed in a future update.
 
 ## Contacts ##
 
