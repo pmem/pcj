@@ -29,6 +29,8 @@ import lib.xpersistent.XRoot;
 import lib.xpersistent.XHeap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Deque;
+import java.util.ArrayDeque;
 
 public class CycleCollector {
 
@@ -48,7 +50,9 @@ public class CycleCollector {
         root = ((XRoot)(heap.getRoot()));
         markCandidates();
         for (Long l : candidatesSet) {
-            scan(PersistentObject.getObjectAtAddress(l));
+            Deque<PersistentObject> stack = new ArrayDeque<PersistentObject>();
+            stack.push(PersistentObject.getObjectAtAddress(l));
+            scan(stack);
         }
         collectCandidates();
         root.clearCandidates();
@@ -60,7 +64,9 @@ public class CycleCollector {
             Long l = it.next();
             PersistentObject ref = PersistentObject.getObjectAtAddress(l);
             if (ref.refColor() == PURPLE) {
-                markGrey(ref);
+                Deque<PersistentObject> stack = new ArrayDeque<PersistentObject>();
+                stack.push(ref);
+                markGrey(stack);
             } else {
                 it.remove();
                 if (ref.refColor() == BLACK && ref.getRefCount() == 0) {
@@ -71,35 +77,45 @@ public class CycleCollector {
         }
     }
 
-    private static void markGrey(PersistentObject ref) {
-        if (ref.refColor() != GREY) {
-            ref.refColor(GREY);
+    private static void markGrey(Deque<PersistentObject> stack) {
+        while (!stack.isEmpty()) {
+            PersistentObject ref = (PersistentObject)stack.pop();
+            if (ref.refColor() != GREY) {
+                forEachChild(ref, (PersistentObject child) -> {
+                    stack.push(child);
+                });
+                ref.refColor(GREY);
+            }
+        }
+    }
+
+    private static void scan(Deque<PersistentObject> stack) {
+        while (!stack.isEmpty()) {
+            PersistentObject ref = (PersistentObject)stack.pop();
+            if (ref.refColor() == GREY) {
+                if (ref.getRefCount() > 0) {
+                    Deque<PersistentObject> scanBlackStack = new ArrayDeque<PersistentObject>();
+                    scanBlackStack.push(ref);
+                    scanBlack(scanBlackStack);
+                } else {
+                    forEachChild(ref, (PersistentObject child) -> stack.push(child));
+                    ref.refColor(WHITE);
+                }
+            }
+        }
+    }
+
+    private static void scanBlack(Deque<PersistentObject> stack) {
+        while (!stack.isEmpty()) {
+            PersistentObject ref = stack.pop();
+            ref.refColor(BLACK);
             forEachChild(ref, (PersistentObject child) -> {
-                child.speculativeDecRefCountBy(1);
-                markGrey(child);
+                child.speculativeIncRefCountBy(1);
+                if (child.refColor() != BLACK) {
+                    stack.push(child);
+                }
             });
         }
-    }
-
-    private static void scan(PersistentObject ref) {
-        if (ref.refColor() == GREY) {
-            if (ref.getRefCount() > 0) {
-                scanBlack(ref);
-            } else {
-                ref.refColor(WHITE);
-                forEachChild(ref, (PersistentObject child) -> scan(child));
-            }
-        }
-    }
-
-    private static void scanBlack(PersistentObject ref) {
-        ref.refColor(BLACK);
-        forEachChild(ref, (PersistentObject child) -> {
-            child.speculativeIncRefCountBy(1);
-            if (child.refColor() != BLACK) {
-                scanBlack(child);
-            }
-        });
     }
 
     private static void collectCandidates() {
@@ -107,16 +123,21 @@ public class CycleCollector {
         while (it.hasNext()) {
             PersistentObject ref = PersistentObject.getObjectAtAddress(it.next());
             it.remove();
-            collectWhite(ref);
+            Deque<PersistentObject> stack = new ArrayDeque<PersistentObject>();
+            stack.push(ref);
+            collectWhite(stack);
         }
     }
 
-    private static void collectWhite(PersistentObject ref) {
-        if (ref.refColor() == WHITE && !candidatesSet.contains(new Long(ref.getPointer().region().addr()))) {
-            ref.refColor(BLACK);
-            forEachChild(ref, (PersistentObject child) -> collectWhite(child));
-            ref.free();
-            root.removeFromAllObjects(ref.getPointer().region().addr());
+    private static void collectWhite(Deque<PersistentObject> stack) {
+        while (!stack.isEmpty()) {
+            PersistentObject ref = stack.pop();
+            if (ref.refColor() == WHITE && !candidatesSet.contains(new Long(ref.getPointer().region().addr()))) {
+                ref.refColor(BLACK);
+                forEachChild(ref, (PersistentObject child) -> stack.push(child));
+                ref.free();
+                root.removeFromAllObjects(ref.getPointer().region().addr());
+            }
         }
     }
 

@@ -24,6 +24,7 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import lib.xpersistent.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
@@ -55,15 +56,15 @@ public final class PersistentArray<T extends PersistentObject> extends AbstractP
     
     @SafeVarargs
     public final void insert(int index, T... ts) {
-        for (int i = index; i < ts.length; i++) setObjectElement(i, ts[i]);
+        for (int i = index; i < index + ts.length; i++) setObjectElement(i, ts[i-index]);
     }
 
     @SuppressWarnings("unchecked")
     public T[] toArray(T[] a) {
-        T[] ans = (T[])new PersistentObject[length()];
         int len = length();
-        for (int i = 0; i < len; i++) ans[i] = get(i);
-        return ans;
+	if (a.length < len) a = Arrays.copyOf(a,len);
+        for (int i = 0; i < len; i++) a[i] = get(i);
+        return a;
     }
 
     public synchronized String toString() {

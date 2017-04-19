@@ -98,7 +98,7 @@ public class PersistentHashMap<K extends PersistentObject, V extends PersistentO
     }
 
     final class EntrySet extends AbstractSet<Map.Entry<K, V>> {
-        public synchronized final int size() { return size(); }
+        public synchronized final int size() { return PersistentHashMap.this.size(); }
         public final void clear() { /* NIY */ }
         public final Iterator<Map.Entry<K, V>> iterator() {
             return new EntryIterator();
@@ -133,7 +133,7 @@ public class PersistentHashMap<K extends PersistentObject, V extends PersistentO
     }
 
     final class Values extends AbstractCollection<V> {
-        public synchronized final int size() { return size(); }
+        public synchronized final int size() { return PersistentHashMap.this.size(); }
         public final void clear() { /* NIY */ }
         public final Iterator<V> iterator() { return new ValueIterator(); }
         public synchronized final boolean contains(Object o) { return containsValue(o); }
@@ -156,7 +156,7 @@ public class PersistentHashMap<K extends PersistentObject, V extends PersistentO
     }
 
     final class KeySet extends AbstractSet<K> {
-        public synchronized final int size() { return size(); }
+        public synchronized final int size() { return PersistentHashMap.this.size(); }
         public final void clear() { /* NIY */ }
         public final Iterator<K> iterator() { return new KeyIterator(); }
         public synchronized final boolean contains(Object o) { return containsKey(o); }
@@ -317,7 +317,7 @@ public class PersistentHashMap<K extends PersistentObject, V extends PersistentO
         return (ks = keySet) == null ? (keySet = new KeySet()) : ks;
     }
 
-    public Collection<V> value() {
+    public Collection<V> values() {
         Collection<V> vs;
         return (vs = values) == null ? (values = new Values()) : vs;
     }

@@ -76,7 +76,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
         else initForGC();
     }
 
-    private void initForGC() {
+    void initForGC() {
         Transaction.run(() -> {
             incRefCount();
             ObjectDirectory.registerObject(this);
@@ -102,16 +102,20 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return null;
     }
 
-    @SuppressWarnings("unchecked")
     public static PersistentObject getObjectAtAddress(long addr) {
+        return getObjectAtAddress(addr, ObjectCache.STRONG);
+    }
+
+    @SuppressWarnings("unchecked")
+    static PersistentObject getObjectAtAddress(long addr, boolean strength) {
         assert(addr != 0);
-        PersistentObject obj = ObjectCache.getReference(addr);
+        PersistentObject obj = ObjectCache.getReference(addr, strength);
         return obj;
     }
 
     static synchronized int decRefCountAtAddressBy(long addr, int n) {
         // System.out.format("decRefCountAtAddressBy(%d, %d)\n", addr, n);
-        PersistentObject obj = getObjectAtAddress(addr);
+        PersistentObject obj = getObjectAtAddress(addr, ObjectCache.WEAK);
         return (obj == null) ? 0 : obj.decRefCountBy(n);
     }
     // end special path functions
@@ -125,7 +129,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
         for (int i = 0; i < ts.size(); i++) {
             if ((ts.get(i) instanceof ObjectType || ts.get(i) == Types.OBJECT) && getLong(getPointer().type().getOffset(i)) != 0) {
                 long childAddress = getLong(getPointer().type().getOffset(i));
-                PersistentObject obj = getObjectAtAddress(childAddress);
+                PersistentObject obj = getObjectAtAddress(childAddress, ObjectCache.WEAK);
                 children.add(obj);
                 obj.lock.lock();
             }
@@ -133,14 +137,15 @@ public class PersistentObject implements Persistent<PersistentObject> {
         Transaction.run(() -> {
             for (PersistentObject obj : children) {
                 obj.decRefCount();
-                obj.lock.unlock();
             }
             refColor(CycleCollector.BLACK);
             //if (!CycleCollector.isCandidate(addr)) {
-                // System.out.println("freed region for address address " + addr);
                 free();
             //}
         });
+        for (PersistentObject obj : children) {
+            obj.lock.unlock();
+        }
     }
 
     synchronized void free() {

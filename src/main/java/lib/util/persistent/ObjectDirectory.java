@@ -34,7 +34,7 @@ public class ObjectDirectory {
 
     static {
         pq = new PhantomQueue<Persistent<?>>((Pointer pointer, String name) -> {
-            //System.out.println("enqueued: Ref(\"" + name + "\", " + pointer.addr() + ")");
+            // System.out.println("enqueued: Ref(\"" + name + "\", " + pointer.addr() + ")");
             if (pointer instanceof ObjectPointer) {
                 synchronized(ObjectDirectory.class) {
                     Transaction.run(() -> {
@@ -49,16 +49,16 @@ public class ObjectDirectory {
         });
     }
 
-    public static <T extends PersistentObject> T get(String s, Class<T> cls) { 
-        return (T)map.get(new PersistentString(s + cls.getName())); 
+    public static <T extends PersistentObject> T get(String s, Class<T> cls) {
+        return (T)map.get(new PersistentString(s + cls.getName()));
     }
 
     public static <T extends PersistentObject> void put(String s, T obj) {
-        map.put(new PersistentString(s + obj.getClass().getName()), obj); 
+        map.put(new PersistentString(s + obj.getClass().getName()), obj);
     }
 
     public static <T extends PersistentObject> T remove(String s, Class<T> cls) {
-        return (T)map.remove(new PersistentString(s + cls.getName())); 
+        return (T)map.remove(new PersistentString(s + cls.getName()));
     }
 
     public static void initialize() {

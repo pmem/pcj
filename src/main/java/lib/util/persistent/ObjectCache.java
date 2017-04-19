@@ -30,26 +30,57 @@ import lib.util.persistent.types.ObjectType;
 import java.lang.reflect.Constructor;
 
 class ObjectCache {
-    private static final Map<Long, SoftReference<? extends PersistentObject>> cache = new ConcurrentHashMap<>();
+    static final boolean WEAK = true;
+    static final boolean STRONG = false;
+
+    static class Ref<T extends PersistentObject> extends SoftReference<T> {
+        private boolean strength;
+
+        Ref(T obj, boolean strength) {
+            super(obj);
+            this.strength = strength;
+        }
+
+        void markWeak() { this.strength = WEAK; }
+        void markStrong() { this.strength = STRONG; }
+        boolean isWeak() { return this.strength == WEAK; }
+    }
+
+    private static final Map<Long, Ref<? extends PersistentObject>> cache = new ConcurrentHashMap<>();
     private static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
 
     @SuppressWarnings("unchecked")
-    static <T extends PersistentObject> T getReference(long address) {
+    static <T extends PersistentObject> T getReference(long address, boolean strength) {
         // System.out.format("thread id: %d, getReferece(%d)\n", Thread.currentThread().getId(), address);
         synchronized(ObjectCache.class) {
             if (address == 0) return null;
-            SoftReference<T> ref = (SoftReference<T>)cache.get(address);
-            PersistentObject obj = ref == null ? null : ref.get();
-            if (obj == null) {
-                obj = referenceForAddress(address);
-                cache.put(address, new SoftReference(obj));
+            Ref<T> ref = (Ref<T>)cache.get(address);
+            T obj = null;
+            if (ref == null) {           // no references exist
+                obj = referenceForAddress(address, strength);
+                cache.put(address, new Ref<T>(obj, strength));
+            } else {
+                obj = ref.get();
+                if (obj == null) {       // all previously existing volatile referencees have been collected
+                    obj = referenceForAddress(address, WEAK);
+                    cache.put(address, new Ref<T>(obj, WEAK));
+                } else {
+                    if (ref.isWeak() && strength == STRONG) {      // weak if formerly constructed by GC
+                        ref.markStrong();
+                        obj.initForGC();
+                    }
+                }
             }
             return (T)obj;
         }
     }
 
+    static <T extends PersistentObject> T getReference(long address) {
+        return getReference(address, STRONG);
+    }
+
     @SuppressWarnings("unchecked")
-    private static <T extends PersistentObject> T referenceForAddress(long address) {
+    private static <T extends PersistentObject> T referenceForAddress(long address, boolean strength) {
         // System.out.format("thread id: %d, referenceForAddress(%d)\n", Thread.currentThread().getId(), address);
         MemoryRegion valueRegion = heap.regionFromAddress(address);
         long typeNameAddr = valueRegion.getLong(0);
@@ -59,9 +90,13 @@ class ObjectCache {
         Class<T> cls = type.cls();
         T obj = null;
         try {
-            Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
-            ctor.setAccessible(true);
-            obj = (T)ctor.newInstance(new ObjectPointer<T>(type, valueRegion));
+            if (strength == WEAK) {
+               obj = (T)PersistentObject.weakFromPointer(new ObjectPointer<T>(type, valueRegion));
+            } else {
+               Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
+               ctor.setAccessible(true);
+               obj = (T)ctor.newInstance(new ObjectPointer<T>(type, valueRegion));
+            }
         }
         catch (Exception e) {e.printStackTrace();}
         return obj;
@@ -75,8 +110,7 @@ class ObjectCache {
     // only called from PersistentObject allocating constructor
     static synchronized <T extends PersistentObject>  void addReference(T obj) {
         assert(cache.get(obj.getPointer().addr()) == null);
-        SoftReference<T> ref = new SoftReference<>(obj);
+        Ref<T> ref = new Ref<>(obj, STRONG);
         cache.put(obj.getPointer().addr(), ref);
     }
 }
-

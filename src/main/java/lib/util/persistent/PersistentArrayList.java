@@ -34,7 +34,7 @@ import java.util.Objects;
 import java.util.*;
 import static lib.util.persistent.Persistent.*;
 
-public class PersistentArrayList<T extends PersistentObject> extends PersistentObject {
+public class PersistentArrayList<T extends PersistentObject> extends PersistentObject implements Iterable<T> {
     static final int DEFAULT_CAPACITY = 10;
     private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
     protected int modCount = 0;
@@ -245,6 +245,13 @@ public class PersistentArrayList<T extends PersistentObject> extends PersistentO
         return (T) getDataArray().get(index);
     }
 
+    
+    @SuppressWarnings("unchecked")
+    public synchronized T get(int index){
+        rangeCheck(index);
+        return elementData(index);
+    }
+
     @SuppressWarnings("unchecked")
     synchronized void setElementData(int index, T element){
         Transaction.run(() -> {
@@ -352,6 +359,7 @@ public class PersistentArrayList<T extends PersistentObject> extends PersistentO
             numNew.set(a.length);
             ensureCapacityInternal(size() + numNew.get());  // Increments modCount
             getDataArray().insert(size(), a);
+            size(size()+numNew.get());
         });
         return numNew.get() != 0;
     }

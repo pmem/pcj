@@ -21,6 +21,7 @@
 CC = g++
 JAVAC = javac 
 JAVA = java
+JAVADOC = $(JAVA_HOME)/bin/javadoc
 
 JNI_INCLUDES = $(JAVA_HOME)/include $(JAVA_HOME)/include/linux
 
@@ -33,7 +34,7 @@ JAVA_SOURCE_DIR = src/main/java
 PACKAGE_NAME = lib/util/persistent
 XPACKAGE_NAME = lib/xpersistent
 
-TEST_DIR = src/test/java/$(PACKAGE_NAME)
+TEST_DIR = src/test/java/tests
 
 TARGET_DIR = target
 CPP_BUILD_DIR = $(TARGET_DIR)/cppbuild
@@ -46,7 +47,7 @@ ALL_CPP_SOURCES = $(wildcard $(CPP_SOURCE_DIR)/*.cpp)
 ALL_JAVA_SOURCES = $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*.java) $(wildcard $(JAVA_SOURCE_DIR)/$(XPACKAGE_NAME)/*.java) $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*/*.java)
 ALL_OBJ = $(addprefix $(CPP_BUILD_DIR)/, $(notdir $(ALL_CPP_SOURCES:.cpp=.o)))
 
-ALL_TEST_SOURCES = $(addprefix $(TEST_DIR)/, )
+ALL_TEST_SOURCES = $(wildcard $(TEST_DIR)/*.java)
 ALL_TEST_CLASSES = $(addprefix $(TEST_CLASSES_DIR)/, $(notdir $(ALL_TEST_SOURCES:.java=.class)))
 
 LIBRARIES = $(addprefix $(CPP_BUILD_DIR)/, libPersistent.so)
@@ -55,15 +56,15 @@ EXAMPLES_DIR = src/examples
 ALL_EXAMPLE_DIRS = $(wildcard $(EXAMPLES_DIR)/*)
 
 all: sources examples tests
-	$(JAVA) -ea -cp $(BASE_CLASSPATH):src -Djava.library.path=$(CPP_BUILD_DIR) examples.misc.TestCases
-	$(JAVA) -ea -cp $(BASE_CLASSPATH):src -Djava.library.path=$(CPP_BUILD_DIR) examples.misc.TestCases
-
 sources: cpp java
 cpp: $(LIBRARIES)
 java: classes
-
 examples: sources
 	$(foreach example_dir,$(ALL_EXAMPLE_DIRS), $(JAVAC) $(JAVAFLAGS) -cp $(BASE_CLASSPATH):$(example_dir) $(example_dir)/*.java;)
+
+docs:
+	rm -rf doc
+	$(JAVADOC) -cp target/classes/ -sourcepath src/main/java/ -protected -d ./doc -subpackages lib
 
 clean: cleanex
 	rm -rf target
@@ -72,6 +73,10 @@ cleanex:
 	$(foreach example_dir,$(ALL_EXAMPLE_DIRS), rm -rf $(example_dir)/*.class;)
 
 tests: $(ALL_TEST_CLASSES)
+	$(JAVAC) $(JAVAFLAGS) -d $(TEST_CLASSES_DIR) -cp $(BASE_CLASSPATH) $(ALL_TEST_SOURCES)
+	$(JAVA) -ea -cp $(BASE_CLASSPATH):src -Djava.library.path=$(CPP_BUILD_DIR) examples.misc.TestCases
+	$(JAVA) -ea -cp $(BASE_CLASSPATH):src -Djava.library.path=$(CPP_BUILD_DIR) examples.misc.TestCases
+	$(JAVA) -ea -cp $(BASE_CLASSPATH):$(TEST_CLASSES_DIR):src -Djava.library.path=$(CPP_BUILD_DIR) tests.PersistentTestRunner
 
 $(LIBRARIES): | $(CPP_BUILD_DIR)
 $(ALL_OBJ): | $(CPP_BUILD_DIR)
@@ -80,8 +85,8 @@ $(ALL_TEST_CLASSES): | $(TEST_CLASSES_DIR)
 classes: | $(CLASSES_DIR)
 	$(JAVAC) $(JAVAFLAGS) -d $(CLASSES_DIR) -cp $(BASE_CLASSPATH) $(ALL_JAVA_SOURCES)
 
-$(TEST_CLASSES_DIR)/%.class: $(TEST_DIR)/%.java
-	$(JAVAC) -cp $(BASE_CLASSPATH):$(TEST_CLASSES_DIR) -d $(TEST_CLASSES_DIR) $<
+#$(TEST_CLASSES_DIR)/%.class: $(TEST_DIR)/%.java
+#	$(JAVAC) -cp $(BASE_CLASSPATH):$(TEST_CLASSES_DIR) -d $(TEST_CLASSES_DIR) $<
 
 $(CPP_BUILD_DIR)/%.so: $(ALL_OBJ)
 	$(CC) -Wl,-soname,$@ -o $@ $(ALL_OBJ) $(LINK_FLAGS)

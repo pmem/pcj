@@ -361,11 +361,11 @@ public class TestCases {
 		assert(list.size() == 0);
 		
 		@SuppressWarnings("unchecked")
-		PersistentLinkedList<PersistentInteger> pllPmem = ObjectDirectory.get("pll", PersistentLinkedList.class);
+		PersistentLinkedList<PersistentInteger> pllPmem = ObjectDirectory.get("testcases_persistent_linked_list", PersistentLinkedList.class);
 		if(pllPmem == null) {
 			
 			for(int i = 1; i <= 5; i++) list.add(new PersistentInteger(i));
-			ObjectDirectory.put("pll", list);
+			ObjectDirectory.put("testcases_persistent_linked_list", list);
 			System.out.println("PersistentLinkedList doesn't exist...saving to pmem");
 			System.out.println(list);
 		}

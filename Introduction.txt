@@ -1,0 +1,251 @@
+
+Introduction to Persistent Collections for Java
+                                                                                                                               
+There are several ways to use the library:
+
+1. Use instances of built-in persistent classes in your applications
+2. Extend built-in persistent classes with new methods
+3. Declare new persistent classes, or extend built-in classes, with methods and persistent fields
+
+Examples of these 3 usages are shown below.
+
+1. Instances of built-in persistent classes can be contained in other objects.  Persistent objects act like normal Java 
+   objects except their lifetime can extend beyond the life of a VM instance and (if real persistent memory installed) 
+   machine restarts. 
+                                                                                                                               
+
+     PersistentIntArray a = new PersistentIntArray(1024);    // Ints are allocated on persistent heap, initialized to 0.
+     a.set(0, 123);                                          // 4-byte int value written directly to persistent heap.
+     a = null;                                               // Array is unreachable. Object including persistent state
+                                                             // will be garbage collected. 
+
+     PersistentArray<PersistentString> strings = new PersistentArray<>(100); // 100 object references, initialized to null, 
+                                                                             // are allocated on persistent heap.
+     ObjectDirectory.put("data", strings);                   // ObjectDirectory is an indefinitely reachable built-in map.
+                                                             // No serialization is done, only object references written.
+     strings.set(0, new PersistentString("hello"));          // Utility methods exist for creating persistent strings
+     strings.set(1, persistent("world"));                    // and (boxed) scalars. 
+                                                            
+
+     // restart
+
+     @SuppressWarnings("unchecked")
+     PersistentArray<PersistentString> strings1 = ObjectDirectory.get("data", PersistentArray.class); 
+                                                             // no deserialization done above, retrieves object reference
+     assert(strings1.get(1).equals(persistent("world")));
+                                                                                                                               
+     A useful idiom for retrieving references after a restart is:
+                                                                                                                               
+     class Application {
+         static PersistentIntArray data;
+ 
+         static {
+             data = ObjectDirectory.get("Application_data", PersistentIntArray.class);
+             if (data == null) ObjectDirectory.put("Application_data", data = new PersistentIntArray(1024));
+         }
+ 
+         // ...
+     }
+
+                                                                                                                               
+2. Non-final built-in persistent classes can be extended with new methods.  
+                                                                                                                               
+     class Employee extends PersistentTuple2<PersistentLong, PersistentString> {
+         public Employee(PersistentLong id, PersistentString name) {
+             _1(id);
+             _2(name);
+         }
+ 
+         private PersistentLong getId() {return _1();}
+         private PersistentString getName() {return _2();}
+     }
+                                                                                                                               
+3. There is a general API for declaring new persistent classes as well extending classes with both methods and persistent 
+   fields. Almost any kind of persistent class can be defined using this declaration API implementation scheme; for 
+   example it was is used to implement all the built-in persistent classes.
+
+   Since persistent fields have to be read and written to a different heap and this has to be done in a fail-safe way, 
+   persistent fields are declared with meta-fields objects -- constants which are used with PersistentObject base class 
+   accessor methods.  This meta-programming aspect is a consequence of this project code being implemented as a library.  
+
+   The first example below shows the differences between regular class declaration and persistent class declaration
+                                                                                                                               
+   Given a non-persistent class with long and String fields such as:                                                           
+                                                                                                                            
+     final class Employee {
+         private final long id;
+         private String name;
+ 
+         public Employee(int id, String name) {
+             this.id = id;
+             setName(name);
+         }
+ 
+         public void setName(String name) {
+             this.name = name;
+         }
+ 
+         public String getName() {
+             return name;
+         }
+ 
+         public long getId() {
+             return id;
+         }
+ 
+         // rest of code
+     }
+                                                                                                                               
+   The following implements an equivalent persistent class:  
+                                                                                                                               
+     final class Employee extends PersistentObject {
+         private static final LongField ID = new LongField();        
+         private static final StringField NAME = new StringField();
+         private static final ObjectType<Employee> TYPE = ObjectType.withFields(Employee.class, ID, NAME);
+ 
+         public Employee(int id, PersistentString name) {
+             super(TYPE);                                    // base class needs persistent fields specification
+             setLongField(ID, id);                           // setter in PersistentObject base class
+             setName(name);                                  // setObjectName(NAME, name) works too
+         }
+ 
+         private Employee(ObjectPointer<Employee> p) {       // Required boilerplate "reconstructor" passes opaque pointer
+             super(p);                                       // to base class. This is a non-allocating reconstruction path 
+         }                                                   // used e.g. after restart
+ 
+         public void setName(PersistentString name) {        // limiting the use of Field objects to constructors and 
+             setObjectField(NAME, name);                     // and accessors hides meta-programming aspect and can
+         }                                                   // make maintenance easier.
+ 
+         public PersistentString getName() {
+             return getObjectField(NAME);
+         }
+ 
+         public long getId() {
+             return getLongField(ID);
+         }
+ 
+         // rest of code
+     }                                                                                                                         
+
+   The rest of the code persistent class code must use accessor methods since there are no real persistent fields
+   Other than these things, the code need not be much different from the non-persistent code.  This makes 
+   "porting" code to create persistent versions possible. 
+    
+   Other things to note about persistent class code:
+       - Real fields declared in a persistent class will not persist across JVM instances.  When the persistent object
+         is retrieved after a restart (e.g. from the ObjectDirectory or from another persistent object), the 
+         non-persistent fields will be reinitialized to their default Java values.  This can be augmented by putting 
+         non-persistent field initialization code in the reconstructor shown above.
+       - If application logic requires that writes to multiple fields happen in a fail-safe atomic way, these writes
+         should be wrapped in a transaction.  Methods on built-in classes execute in this fail-safe atomic way so such
+         transactions are not required for single method calls.  Examples of transactions are shown later in this 
+         document.
+
+   Such developer-defined classes, as well as non-final built-in classes can be extended.
+
+   For example, given a non-final version of the Employee class from above:
+                                                                                                                               
+     class Employee extends PersistentObject {
+         private static final LongField ID = new LongField();        
+         private static final StringField NAME = new StringField();
+         public static final ObjectType<Employee> TYPE = ObjectType.withFields(Employee.class, ID, NAME); //TYPE is now public
+ 
+         public Employee(int id, PersistentString name) {    
+             this(TYPE, id, name);
+         }
+ 
+         // add a subclassing constructor that forwards type argument to base class
+         protected Employee(ObjectType<? extends Employee> type, int id, PersistentString name) {
+             super(type);                                    
+             setLongField(ID, id);                          
+             setName(name);                                  
+         }
+ 
+         private Employee(ObjectPointer<? extends Employee> p) {   // type bounds allow subtypes
+             super(p);                                       
+         }
+ 
+         public void setName(PersistentString name) {
+             setObjectField(NAME, name);
+         }
+ 
+         // rest of code                                                  
+     }
+                                                                                                                               
+   An (also non-final) Engineer class that extends Employee is:
+                                                                                                                               
+     class Engineer extends Employee {
+         private static final StringField PROJECT = new StringField();                                      // new field
+         public static final ObjectType<Engineer> TYPE = Employee.TYPE.extendWith(Engineer.class, PROJECT); // extend type
+ 
+         public Engineer(int id, PersistentString name, PersistentString project) {
+             this(TYPE, id, name, project);
+         }
+ 
+         protected Engineer(ObjectType<? extends Engineer> type, int id, PersistentString name, PersistentString project) {
+             super(type, id, name);
+             setProject(project);
+         }
+ 
+         protected Engineer(ObjectPointer<? extends Engineer> p) {
+             super(p);
+         }
+ 
+         public PersistentString getProject() {
+             return getObjectField(PROJECT);
+         }
+ 
+         public void setProject(PersistentString project) {
+             setObjectField(PROJECT, project);
+         }
+ 
+         // rest of code
+     }                                                                                                                    
+                                                                                                                               
+   Methods in built-in persistent classes, if they modify persistent state, execute in a fail-safe way.  The method 
+   will make all changes associated with the method or will make no changes.  Developer-authored classes can achieve 
+   this same fail-safety by wrapping multiple writes to persistent state in a Transaction.  For example, if adding 
+   a Movie to a collection requires updating another collection
+                                                                                                                               
+     PersistentArrayList<PersistentString> movies = new PersistentArrayList<>();
+     PersistentArrayList<PersistentString> movieIndex = new PersistentArrayList<>();
+                                                                                                                               
+     public void addMovie(PersistentString movie) {
+         Transaction.run(() -> {
+             movies.add(movie);
+             movieIndex.add(movie);
+         });
+     }                                                                                                                         
+                                                                                                                            
+   If something was to interrupt execution part way through the transaction body, upon restart, the persistent state 
+   will appear as if the addMovie method was never called.  On the other hand, once execution returns from the addMovie 
+   method, a developer can be sure both adds performed inside the method are complete and the data is persistent.
+
+   Methods in build-in classes are thread-safe but if the addMovie method might be called by multiple threads with  
+   overlapping writes, these transactions can be isolated to ensure always-consistent sets of data.  A Transaction may 
+   include a list of persistent objects.  Locks on objects in this list will be acquired prior to executing the body of 
+   the transaction. These locks will be released regardless of success or failure of the transaction.
+                                                                                                                               
+     public void addMovie(PersistentString movie) {
+         Transaction.run(() -> {
+             movies.add(movie);
+             movieIndex.add(movie);
+         }, movies, movieIndex);
+     }
+                                                                                                                               
+   Of course, other Java locking mechanisms (synchronized blocks) can be used instead.
+
+   To summarize, the "recipe" for declaring and implementing persistent versions of existing or imagined regular classes:
+
+   1. Inherit directly or indirectly from PersistentObject
+   2. Change field declarations to static Field constants
+   3. Aggregate these Field constants in a declared static ObjectType constant
+   4. Call the base class constructor passing the ObjectType 
+   5. Write accessor methods that call base class accessors using Field objects
+   6. Write "reconstructor" boilerplate, forwarding ObjectPointer argument to super()
+
+   An annotation processor is being developed to give static checking of these elements for classes declared with
+   the @PersistentClass annotation. Tolerating this recipe allows the creation of persistent classes whose instances 
+   act like regular, albeit long-lived, Java objects.
+                                                                                                                               
