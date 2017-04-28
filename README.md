@@ -69,7 +69,7 @@ Once all the prerequisites have been satisfied:
 Other available Makefile targets include:
 
    - `sources` - builds only sources
-   - `examples` - builds and runs the sources and a test example
+   - `examples` - builds the sources and examples
 
 ### USING THIS LIBRARY IN EXISTING JAVA APPLICATIONS ###
 To import this library into an existing Java application, include the project's target/classes 
@@ -95,9 +95,6 @@ directory in your Java classpath and the project's ```target/cppbuild``` directo
 
 4. Core dumps may occur if the emulated memory is not properly set up; for example, running with insufficient
    privileges or with a nonexistent mount point.
-
-5. Allocations of large linked structures (>500 elements) may result in StackOverflowException when they
-   are garbage-collected; this will be fixed in a future update.
 
 ## Contacts ##
 
