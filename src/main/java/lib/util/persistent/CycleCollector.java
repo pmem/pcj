@@ -50,8 +50,8 @@ public class CycleCollector {
         root = ((XRoot)(heap.getRoot()));
         markCandidates();
         for (Long l : candidatesSet) {
-            Deque<PersistentObject> stack = new ArrayDeque<PersistentObject>();
-            stack.push(PersistentObject.getObjectAtAddress(l));
+            Deque<Long> stack = new ArrayDeque<>();
+            stack.push(l);
             scan(stack);
         }
         collectCandidates();
@@ -62,128 +62,106 @@ public class CycleCollector {
         Iterator<Long> it = candidatesSet.iterator();
         while (it.hasNext()) {
             Long l = it.next();
-            PersistentObject ref = PersistentObject.getObjectAtAddress(l);
-            if (ref.refColor() == PURPLE) {
-                Deque<PersistentObject> stack = new ArrayDeque<PersistentObject>();
-                stack.push(ref);
+            if (PersistentObject.getColor(l) == PURPLE) {
+                Deque<Long> stack = new ArrayDeque<>();
+                stack.push(l);
                 markGrey(stack);
             } else {
                 it.remove();
-                if (ref.refColor() == BLACK && ref.getRefCount() == 0) {
-                    ref.free();
-                    root.removeFromAllObjects(ref.getPointer().region().addr());
+                if (PersistentObject.getColor(l) == BLACK && PersistentObject.getRefCount(l) == 0) {
+                    PersistentObject.free(l);
+                    root.removeFromAllObjects(l);
                 }
             }
         }
     }
 
-    private static void markGrey(Deque<PersistentObject> stack) {
+    private static void markGrey(Deque<Long> stack) {
         while (!stack.isEmpty()) {
-            PersistentObject ref = (PersistentObject)stack.pop();
-            if (ref.refColor() != GREY) {
-                forEachChild(ref, (PersistentObject child) -> {
-                    stack.push(child);
-                });
-                ref.refColor(GREY);
+            Long l = stack.pop();
+            if (PersistentObject.getColor(l) != GREY) {
+                Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(heap.regionFromAddress(l));
+                while (childAddresses.hasNext()) {
+                    long childAddr = childAddresses.next();
+                    PersistentObject.decRefCount(childAddr);
+                    stack.push(childAddr);
+                }
+                PersistentObject.setColor(l, GREY);
             }
         }
     }
 
-    private static void scan(Deque<PersistentObject> stack) {
+    private static void scan(Deque<Long> stack) {
         while (!stack.isEmpty()) {
-            PersistentObject ref = (PersistentObject)stack.pop();
-            if (ref.refColor() == GREY) {
-                if (ref.getRefCount() > 0) {
-                    Deque<PersistentObject> scanBlackStack = new ArrayDeque<PersistentObject>();
-                    scanBlackStack.push(ref);
+            Long l = stack.pop();
+            if (PersistentObject.getColor(l) == GREY) {
+                if (PersistentObject.getRefCount(l) > 0) {
+                    Deque<Long> scanBlackStack = new ArrayDeque<>();
+                    scanBlackStack.push(l);
                     scanBlack(scanBlackStack);
                 } else {
-                    forEachChild(ref, (PersistentObject child) -> stack.push(child));
-                    ref.refColor(WHITE);
+                    Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(heap.regionFromAddress(l));
+                    while (childAddresses.hasNext()) {
+                        long childAddr = childAddresses.next();
+                        stack.push(childAddr);
+                    }
+                    PersistentObject.setColor(l, WHITE);
                 }
             }
         }
     }
 
-    private static void scanBlack(Deque<PersistentObject> stack) {
+    private static void scanBlack(Deque<Long> stack) {
         while (!stack.isEmpty()) {
-            PersistentObject ref = stack.pop();
-            ref.refColor(BLACK);
-            forEachChild(ref, (PersistentObject child) -> {
-                child.speculativeIncRefCountBy(1);
-                if (child.refColor() != BLACK) {
-                    stack.push(child);
+            Long l = stack.pop();
+            PersistentObject.setColor(l, BLACK);
+            Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(heap.regionFromAddress(l));
+            while (childAddresses.hasNext()) {
+                long childAddr = childAddresses.next();
+                PersistentObject.incRefCount(childAddr);
+                if (PersistentObject.getColor(childAddr) != BLACK) {
+                    stack.push(childAddr);
                 }
-            });
+            }
         }
     }
 
     private static void collectCandidates() {
         Iterator<Long> it = candidatesSet.iterator();
         while (it.hasNext()) {
-            PersistentObject ref = PersistentObject.getObjectAtAddress(it.next());
+            Long l = it.next();
             it.remove();
-            Deque<PersistentObject> stack = new ArrayDeque<PersistentObject>();
-            stack.push(ref);
+            Deque<Long> stack = new ArrayDeque<>();
+            stack.push(l);
             collectWhite(stack);
         }
     }
 
-    private static void collectWhite(Deque<PersistentObject> stack) {
+    private static void collectWhite(Deque<Long> stack) {
         while (!stack.isEmpty()) {
-            PersistentObject ref = stack.pop();
-            if (ref.refColor() == WHITE && !candidatesSet.contains(new Long(ref.getPointer().region().addr()))) {
-                ref.refColor(BLACK);
-                forEachChild(ref, (PersistentObject child) -> stack.push(child));
-                ref.free();
-                root.removeFromAllObjects(ref.getPointer().region().addr());
+            Long l = stack.pop();
+            if (PersistentObject.getColor(l) == WHITE && !candidatesSet.contains(l)) {
+                PersistentObject.setColor(l, BLACK);
+                Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(heap.regionFromAddress(l));
+                while (childAddresses.hasNext()) {
+                    long childAddr = childAddresses.next();
+                    stack.push(childAddr);
+                }
+                PersistentObject.free(l);
+                root.removeFromAllObjects(l);
             }
         }
     }
 
-    static synchronized void candidate(PersistentObject ref) {
-        if (ref.refColor() != PURPLE) {
-            ref.refColor(PURPLE);
-            candidatesSet.add(ref.getPointer().region().addr());
-            ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).addToCandidates(ref.getPointer().region().addr());
+    static synchronized void addCandidate(long addr) {
+        if (PersistentObject.getColor(addr) != PURPLE) {
+            PersistentObject.setColor(addr, PURPLE);
+            candidatesSet.add(addr);
+            ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).addToCandidates(addr);
         }
     }
 
     static synchronized boolean isCandidate(long addr) {
         return candidatesSet.contains(new Long(addr));
-    }
-
-    static synchronized void markBlack(PersistentObject ref) {
-        ref.refColor(BLACK);
-    }
-
-    static interface Update {
-        public void run(PersistentObject child);
-    }
-
-    static synchronized void forEachChild(PersistentObject ref, Update update) {
-        if (!(ref.getPointer().type() instanceof ArrayType)) {
-            for (int i = 0; i < ref.getPointer().type().fieldCount(); i++) {
-                if (!(((ObjectType<?>)(ref.getPointer().type())).getTypes().get(i) instanceof ObjectType || ((ObjectType<?>)(ref.getPointer().type())).getTypes().get(i) == Types.OBJECT)) continue;
-                if (ref.getLong(ref.getPointer().type().getOffset(i)) == 0) continue;
-                PersistentObject child = PersistentObject.getObjectAtAddress(ref.getLong(ref.getPointer().type().getOffset(i)));
-                if (child != null) {
-                    update.run(child);
-                }
-            }
-        } else {
-            AbstractPersistentImmutableArray arr = (AbstractPersistentImmutableArray)ref;
-            if (((ArrayType)arr.getPointer().type()).getElementType() == Types.OBJECT) {
-                for (int j = 0; j < arr.length(); j++) {
-                    long target = arr.getLong(arr.elementOffset(j));
-                    if (target != 0) {
-                        PersistentObject child = PersistentObject.getObjectAtAddress(target);
-                        if (child != null) {
-                            update.run(child);
-                        }
-                    }
-                }
-            }
-        }
     }
 }

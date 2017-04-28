@@ -190,9 +190,9 @@ NEPMEMoid hm_tx_insert
     }
 
 	if (D_RO(hashmap)->resize_allowed == 1 &&
-	    num > MAX_HASHSET_THRESHOLD ||
+	    (num > MAX_HASHSET_THRESHOLD ||
 			(num > MIN_HASHSET_THRESHOLD &&
-			D_RO(hashmap)->count > 2 * D_RO(buckets)->nbuckets)) {
+			D_RO(hashmap)->count > 2 * D_RO(buckets)->nbuckets))) {
 		hm_tx_rebuild(pop, hashmap, D_RO(buckets)->nbuckets * 2);
     }
 

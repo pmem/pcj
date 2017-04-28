@@ -43,16 +43,20 @@ public class PersistentArrayListTest {
 		return testAdd() && testGetAndSet() && testRemove() && testAddAll() && testEnsureCapacity() && testIndexOf() && testToArray() && testPersistence();
 	}
 
+	private static String threadSafeId(String id) {
+  	 return id + "_" + Thread.currentThread().getId();
+   }
+	
 	@SuppressWarnings("unchecked")
 	private static PersistentArrayList<PersistentInteger> getList() {
-		PersistentArrayList<PersistentInteger> list = ObjectDirectory.get("persistent_array_list_test", PersistentArrayList.class);
-		if (list == null) {
+		String id = threadSafeId("tests.persistent_array_list");
+		PersistentArrayList<PersistentInteger> list = ObjectDirectory.get(id, PersistentArrayList.class);
+		if (list == null) { 
 			list = new PersistentArrayList<PersistentInteger>();
-			ObjectDirectory.put("persistent_array_list_test", list);
+			ObjectDirectory.put(id, list);
 		}
-		return list;
+		return list;		
 	}
-
 
 	public static boolean testAdd() {
 		if (verbose) System.out.println("PersistentArrayList: testing add()");
@@ -72,21 +76,24 @@ public class PersistentArrayListTest {
 		PersistentArrayList<PersistentInteger> list = getList();
 		list.clear();
 		assert(list.size() == 0 && list.isEmpty());
-		ArrayList<PersistentInteger> tmpList1 = new ArrayList<>();
+		ArrayList<PersistentInteger> tmpList1 = new ArrayList<>(); 
 		for(int i = 0; i < 5; i++) tmpList1.add(new PersistentInteger(i));
 		list.addAll(tmpList1);
 		assert(list.size() == 5);
-
+		
 		Vector<PersistentInteger> tmpList2 = new Vector<>(5);
-		for(int i = 0; i < 5; i++) tmpList2.add(new PersistentInteger(i+5));
+		for(int i = 0; i < 5; i++) tmpList2.add(new PersistentInteger(i+5));		
 		list.addAll(0, tmpList2);
 		assert(list.size() == 10);
-
+		
 		LinkedList<PersistentInteger> tmpList3 = new LinkedList<PersistentInteger>();
 		for(int i = 1; i <= 5; i++) tmpList3.add(new PersistentInteger(-i));
 		list.addAll(3, tmpList3);
 		assert(list.size() == 15);
-		if(verbose) for(PersistentInteger e: list) System.out.println(e.intValue());
+		if(verbose) {
+			for(PersistentInteger e: list) System.out.print(e.intValue() + " ");
+			System.out.println();
+		}
 		return true;
 	}
 
@@ -124,17 +131,16 @@ public class PersistentArrayListTest {
 		assert(list.size() == 6);
 		return true;
 	}
-
+	
 	public static boolean testEnsureCapacity() {
 		if (verbose) System.out.println("PersistentArrayList: testing ensureCapacity()");
 		PersistentArrayList<PersistentInteger> list = getList();
 		list.clear();
 		assert(list.size() == 0);
-
+		
 		list.ensureCapacity(15);
 		for(int i = 0; i < 25; i++) list.add(new PersistentInteger(i));
 		assert(list.size() == 25);
-		if (verbose) System.out.println(list);
 		return true;
 	}
 
@@ -143,7 +149,7 @@ public class PersistentArrayListTest {
 		PersistentArrayList<PersistentInteger> list = getList();
 		list.clear();
 		assert(list.size() == 0);
-
+		
 		for(int i = 0; i < 5; i++) list.add(new PersistentInteger(i));
 		for(int i = 0; i < 5; i++) list.add(new PersistentInteger(i));
 		assert(list.size() == 10);
@@ -153,8 +159,7 @@ public class PersistentArrayListTest {
 		assert(list.lastIndexOf(new PersistentInteger(4)) == 9);
 		return true;
 	}
-
-
+	
    public static boolean testToArray() {
        if (verbose) System.out.println("PersistentArrayList: testing toArray()");
        PersistentArrayList<PersistentInteger> list = getList();
@@ -172,14 +177,15 @@ public class PersistentArrayListTest {
        for(PersistentInteger e : arr2) assert(e.intValue() == num++);
        return true;
    }
-
+   
    @SuppressWarnings("unchecked")
-   public static boolean testPersistence() {
+   public static synchronized boolean testPersistence() {
        if (verbose) System.out.println("PersistentArrayList: testing persistence across vm runs...");
-       PersistentArrayList<PersistentInteger> list = ObjectDirectory.get("pal_test_persistence", PersistentArrayList.class);
+       String id = "tests.array_list_persistance";
+       PersistentArrayList<PersistentInteger> list = ObjectDirectory.get(id, PersistentArrayList.class);
        if (list == null) {
            list = new PersistentArrayList<PersistentInteger>();
-           ObjectDirectory.put("pal_test_persistence", list);
+           ObjectDirectory.put(id, list);
            if (verbose) System.out.println("saving to pmem");
            for(int i = 0; i < 5; i++) list.add(new PersistentInteger(i));
        }
@@ -187,8 +193,6 @@ public class PersistentArrayListTest {
        assert(list.size() == 5 && list.toString().equals("[0, 1, 2, 3, 4]"));
        return true;
    }
-
-
 }
 
 

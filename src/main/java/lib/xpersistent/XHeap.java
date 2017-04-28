@@ -59,8 +59,11 @@ public class XHeap implements PersistentHeap {
     public synchronized void open() {
         if (open) return;
         this.open = true;
+        System.out.print("Opening heap... ");
         nativeOpenHeap();
+        System.out.print("Cleaning up heap... ");
         cleanHeap();
+        System.out.println("Heap opened.");
     }
 
     public synchronized void close() {
@@ -115,9 +118,13 @@ public class XHeap implements PersistentHeap {
     }
     public boolean getDebugMode() { return this.debug; }
 
-    public void debug() {
+    public int debug() {
+        return debug(false);
+    }
+
+    public int debug(boolean verbose) {
         ((XRoot)root).printAllObjects();
-        nativeDebugPool();
+        return nativeDebugPool(verbose);
     }
 
     private void cleanHeap() {
@@ -125,7 +132,7 @@ public class XHeap implements PersistentHeap {
             XRoot rt = (XRoot)(getRoot());
             CycleCollector.getCandidates().addAll(rt.importCandidates());
             rt.cleanVMOffsets();
-            //CycleCollector.collect();
+            CycleCollector.collect();
         });
     }
 
@@ -134,5 +141,5 @@ public class XHeap implements PersistentHeap {
     private synchronized native long nativeGetMemoryRegion(long size);
     private synchronized native void nativeFree(long addr);
     private synchronized native void nativeMemoryRegionMemcpy(long srcRegion, long srcOffset, long destRegion, long destOffset, long length);
-    private synchronized native void nativeDebugPool();
+    private synchronized native int nativeDebugPool(boolean verbose);
 }

@@ -86,18 +86,24 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeMemoryRegionMemcpy
     } TX_END
 }
 
-JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
-  (JNIEnv *env, jobject obj)
+JNIEXPORT jint JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
+  (JNIEnv *env, jobject obj, jboolean verbose)
 {
     TOID(char) mr_toid;
     int mr_count = 0;
 
     POBJ_FOREACH_TYPE(pool, mr_toid) {
-        printf("MemoryRegion found at address %lu\n", mr_toid.oid.off);
-        fflush(stdout);
+        if (verbose == JNI_TRUE) {
+            printf("MemoryRegion found at address %lu\n", mr_toid.oid.off);
+            fflush(stdout);
+        }
         mr_count++;
     }
 
-    printf("Total number of MemoryRegions: %d\n", mr_count);
-    fflush(stdout);
+    if (verbose == JNI_TRUE) {
+        printf("Total number of MemoryRegions: %d\n", mr_count);
+        fflush(stdout);
+    }
+
+    return mr_count;
 }

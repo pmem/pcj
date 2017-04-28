@@ -29,7 +29,7 @@ TOID(struct root_struct) root;
 static uint64_t uuid_lo;
 static int pool_refs = 0;
 static const size_t PM_POOL_SIZE = 2147483648U;  // 2G
-static const char PATH[50] = "/mnt/mem/persistent_pool";
+static const char PATH[50] = "/dev/dax0.0";
 
 PMEMobjpool* get_or_create_pool()
 {

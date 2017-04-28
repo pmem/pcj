@@ -21,6 +21,8 @@
 
 package lib.util.persistent;
 
+import java.util.List;
+import java.util.ArrayList;
 import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.types.ValueType;
 import lib.util.persistent.types.Types;
@@ -128,22 +130,6 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
         else if (t == Types.BOOLEAN) setBooleanElement(index, false);
         else if (t instanceof ObjectType) setObjectElement(index, null);
         else if (t instanceof ArrayType) setObjectElement(index, null);
-    }
-
-    @Override synchronized void delete() {
-        // System.out.println(String.format("delete called on array (%s) at address %d", getPointer().type().cls(), getPointer().addr()));
-        if (((ArrayType)getPointer().type()).getElementType() == Types.OBJECT) {
-            Transaction.run(() -> {
-                for (int i = 0; i < length(); i++) {
-                    long target = getLong(elementOffset(i));
-                    if (target != 0) {
-                        PersistentObject obj = PersistentObject.getObjectAtAddress(target, ObjectCache.WEAK);
-                        obj.decRefCount();
-                    }
-                }
-            });
-        }
-        super.delete();
     }
 
     // only called during construction; thread-safe

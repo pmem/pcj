@@ -22,34 +22,41 @@
 package lib.xpersistent;
 
 import lib.util.persistent.MemoryRegion;
+import lib.util.persistent.Transaction;
+import java.util.concurrent.locks.ReentrantLock;
 
 class UncheckedPersistentMemoryRegion implements MemoryRegion {
     private long addr;
+    private final ReentrantLock lock = new ReentrantLock();
 
     static {
         System.loadLibrary("Persistent");
     }
 
     UncheckedPersistentMemoryRegion(long addr) {
-        synchronized(UncheckedPersistentMemoryRegion.class) {
-            this.addr = addr;
-        }
+        this.addr = addr;
     }
 
-    public synchronized long addr() {
+    public long addr() {
         return this.addr;
     }
 
-    public synchronized void checkAccess(int mode) throws IllegalAccessException {}
-    public synchronized void checkAlive() {}
-    public synchronized void checkBounds(long offset) throws IndexOutOfBoundsException {}
+    public void checkAccess(int mode) throws IllegalAccessException {}
+    public void checkAlive() {}
+    public void checkBounds(long offset) throws IndexOutOfBoundsException {}
 
-    public synchronized long getBits(long offset, long size, boolean isSigned) {
+    public long getBits(long offset, long size, boolean isSigned) {
         if (size < 0 || size > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid size: " + size);
         }
 
-        long bits = nativeGetLong(this.addr, offset, (int)size);
+        long bits = 0;
+        try {
+            lock.lock();
+            bits = nativeGetLong(this.addr, offset, (int)size);
+        } finally {
+            lock.unlock();
+        }
 
         switch ((int)size) {
         case 1:
@@ -66,7 +73,7 @@ class UncheckedPersistentMemoryRegion implements MemoryRegion {
         }
     }
 
-    public synchronized void putBits(long offset, long size, long value) {
+    public void putBits(long offset, long size, long value) {
         if (size < 0 || size > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid size: " + size);
         }
@@ -75,44 +82,53 @@ class UncheckedPersistentMemoryRegion implements MemoryRegion {
             throw new IllegalArgumentException("Invalid size: " + size);
         }
 
-        nativePutLong(this.addr, offset, value, (int)size);
+        try {
+            lock.lock();
+            nativePutLong(this.addr, offset, value, (int)size);
+        } finally {
+            lock.unlock();
+        }
     }
 
-    public synchronized byte getByte(long offset) {
+    public byte getByte(long offset) {
         return (byte)getBits(offset, 1, true);
     }
-    public synchronized void putByte(long offset, byte value) {
+    public void putByte(long offset, byte value) {
         putBits(offset, 1, value);
     }
 
-    public synchronized short getShort(long offset) {
+    public short getShort(long offset) {
         return (short)getBits(offset, 2, true);
     }
-    public synchronized void putShort(long offset, short value) {
+    public void putShort(long offset, short value) {
         putBits(offset, 2, value);
     }
 
-    public synchronized int getInt(long offset) {
+    public int getInt(long offset) {
         return (int)getBits(offset, 4, true);
     }
-    public synchronized void putInt(long offset, int value) {
+    public void putInt(long offset, int value) {
         putBits(offset, 4, value);
     }
 
-    public synchronized long getLong(long offset) {
+    public long getLong(long offset) {
         return getBits(offset, 8, true);
     }
-    public synchronized void putLong(long offset, long value) {
+    public void putLong(long offset, long value) {
         putBits(offset, 8, value);
     }
 
-    public synchronized long getAddress(long offset) {
+    public long getAddress(long offset) {
         return this.addr + offset;
     }
-    public synchronized void putAddress(long offset, long value) {
+    public void putAddress(long offset, long value) {
         putLong(offset, value);
     }
 
-    private synchronized native long nativeGetLong(long regionOffset, long offset, int size);
-    private synchronized native void nativePutLong(long regionOffset, long offset, long value, int size);
+    public ReentrantLock getLock() {
+        return lock;
+    }
+
+    private native long nativeGetLong(long regionOffset, long offset, int size);
+    private native void nativePutLong(long regionOffset, long offset, long value, int size);
 }

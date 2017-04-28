@@ -23,6 +23,8 @@ package lib.xpersistent;
 
 import lib.util.persistent.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
+import java.util.ArrayList;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class XTransaction implements Transaction {
 
@@ -32,6 +34,7 @@ public class XTransaction implements Transaction {
 
     private static ThreadLocal<Transaction.State> state = new ThreadLocal<>();
     private static ThreadLocal<Integer> depth = new ThreadLocal<>();
+    private static ThreadLocal<ArrayList<ReentrantLock>> locks = new ThreadLocal<>();
 
     XTransaction() {
         if (state.get() == null) {
@@ -42,6 +45,9 @@ public class XTransaction implements Transaction {
         }
         if (depth.get() == 0) {
             state.set(Transaction.State.None);
+        }
+        if (locks.get() == null) {
+            locks.set(new ArrayList<ReentrantLock>());
         }
         depth.set(depth.get() + 1);
     }
@@ -55,7 +61,14 @@ public class XTransaction implements Transaction {
         return this;
     }
 
-    public Transaction start() {
+    public Transaction start(ReentrantLock... txLocks) {
+        for (ReentrantLock lock : txLocks) {
+            if (lock != null) {
+                // System.out.println("tx start: thread " + Thread.currentThread().getId() + " is locking lock " + lock);
+                lock.lock();
+                locks.get().add(lock);
+            }
+        }
         if (depth.get() == 1 && state.get() == Transaction.State.None) {
             state.set(Transaction.State.Active);
             nativeStartTransaction();
@@ -74,6 +87,11 @@ public class XTransaction implements Transaction {
             }
             nativeEndTransaction();
             state.set(Transaction.State.Committed);
+            for (ReentrantLock lock : locks.get()) {
+                // System.out.println("tx commit: thread " + Thread.currentThread().getId() + " is unlocking lock " + lock);
+                lock.unlock();
+            }
+            locks.get().clear();
         }
         depth.set(depth.get() - 1);
     }

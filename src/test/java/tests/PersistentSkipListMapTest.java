@@ -49,12 +49,26 @@ static boolean verbose = false;
         testSubmapOthers();
     }
 
+    private static String threadSafeId(String id) {
+ 	  	 return id + "_" + Thread.currentThread().getId();
+ 	}
+ 	
+ 	@SuppressWarnings("unchecked")
+ 	private static PersistentSkipListMap<PersistentInteger, PersistentString> getSkipListMap() {
+ 		String id = threadSafeId("tests.persistent_skiplist_map");
+ 		PersistentSkipListMap<PersistentInteger, PersistentString> map = ObjectDirectory.get(id,PersistentSkipListMap.class); 
+ 		if(map == null) {
+ 			map = new PersistentSkipListMap<>();
+ 			ObjectDirectory.put(id, map);
+ 		}
+ 		return map;
+ 	}
+ 	
     @SuppressWarnings("unchecked")
     public static boolean testInsertion() {
         if (verbose) System.out.println("****************Testing insertion**********************");
 
-        PersistentSkipListMap<PersistentInteger, PersistentString> map = ObjectDirectory.get("persistent_skip_list_map_test_map",PersistentSkipListMap.class);
-        if (map == null) ObjectDirectory.put("persistent_skip_list_map_test_map", map = new PersistentSkipListMap<>());
+        PersistentSkipListMap<PersistentInteger, PersistentString> map = getSkipListMap();
         map.clear();
         assert(map.size() == 0);
 
@@ -83,9 +97,7 @@ static boolean verbose = false;
     public static boolean testRemoval() {
         if (verbose) System.out.println("****************Testing removal************************");
 
-        PersistentSkipListMap<PersistentInteger, PersistentString> map = ObjectDirectory.get("persistent_skip_list_map_test_map",PersistentSkipListMap.class);
-        if (map == null) ObjectDirectory.put("persistent_skip_list_map_test_map", map = new PersistentSkipListMap<>());
-
+        PersistentSkipListMap<PersistentInteger, PersistentString> map = getSkipListMap();
         assert(map.size() == 1);
         map.clear();
 
@@ -117,8 +129,7 @@ static boolean verbose = false;
     public static boolean testIteration() {
         if (verbose) System.out.println("****************Testing iteration**********************");
 
-        PersistentSkipListMap<PersistentInteger, PersistentString> map = ObjectDirectory.get("persistent_skip_list_map_test_map",PersistentSkipListMap.class);
-        if (map == null) ObjectDirectory.put("persistent_skip_list_map_test_map", map = new PersistentSkipListMap<>());
+        PersistentSkipListMap<PersistentInteger, PersistentString> map = getSkipListMap();
         //map.clear();
         assert(map.size() == 0);
 
@@ -230,8 +241,7 @@ static boolean verbose = false;
     @SuppressWarnings("unchecked")
     public static boolean testSubMap() {
         if (verbose) System.out.println("****************Testing submap*************************");
-        PersistentSkipListMap<PersistentInteger, PersistentString> map = ObjectDirectory.get("persistent_skip_list_map_test_map",PersistentSkipListMap.class);
-        if (map == null) ObjectDirectory.put("persistent_skip_list_map_test_map", map = new PersistentSkipListMap<>());
+        PersistentSkipListMap<PersistentInteger, PersistentString> map = getSkipListMap();
         TreeMap<PersistentInteger, PersistentString> staging = new TreeMap<PersistentInteger, PersistentString>();
 
         assert(map.size() == 5);
@@ -536,9 +546,7 @@ static boolean verbose = false;
     @SuppressWarnings("unchecked")
     public static boolean testPutAll() {
         if (verbose) System.out.println("****************Testing putAll*************************");
-        PersistentSkipListMap<PersistentInteger, PersistentString> map = ObjectDirectory.get("persistent_skip_list_map_test_map",PersistentSkipListMap.class);
-        if (map == null) ObjectDirectory.put("persistent_skip_list_map_test_map", map = new PersistentSkipListMap<>());
-
+        PersistentSkipListMap<PersistentInteger, PersistentString> map = getSkipListMap();
         assert(map.size() == 0);
 
         ConcurrentSkipListMap<PersistentInteger, PersistentString> staging = new ConcurrentSkipListMap<PersistentInteger, PersistentString>();
@@ -586,10 +594,10 @@ static boolean verbose = false;
     @SuppressWarnings("unchecked")
     public static boolean testSubmapOthers() {
         if (verbose) System.out.println("****************Testing Submap Other Functions*********");
-
-        PersistentSkipListMap<PersistentString, PersistentString> map = ObjectDirectory.get("persistent_skip_list_map_test_map2",PersistentSkipListMap.class);
-        if (map == null) ObjectDirectory.put("persistent_skip_list_map_test_map2", map = new PersistentSkipListMap<>());
-
+        String id = "tests.persistent_skiplist_map2_" + Thread.currentThread().getId();
+        PersistentSkipListMap<PersistentString, PersistentString> map = ObjectDirectory.get(id,PersistentSkipListMap.class);
+        if (map == null) ObjectDirectory.put(id, map = new PersistentSkipListMap<>());
+        //map.clear();
         assert(map.size() == 0);
 
         PersistentString key1 = new PersistentString("reese");

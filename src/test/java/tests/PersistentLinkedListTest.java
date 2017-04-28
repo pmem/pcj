@@ -39,12 +39,17 @@ public class PersistentLinkedListTest {
         return testAdd() && testGetAndSet() && testInsert() && testRemove() && testToString() && testPersistence();
     }
 
+    private static String threadSafeId(String id) {
+   	 return id + "_" + Thread.currentThread().getId();
+    }
+    
     @SuppressWarnings("unchecked")
     private static PersistentLinkedList<PersistentInteger> getList() {
-        PersistentLinkedList<PersistentInteger> list = ObjectDirectory.get("persistent_linked_list_test", PersistentLinkedList.class);
+   	  String id = threadSafeId("tests.persistent_linked_list");
+   	  PersistentLinkedList<PersistentInteger> list = ObjectDirectory.get(id, PersistentLinkedList.class);
         if (list == null) {
             list = new PersistentLinkedList<PersistentInteger>();
-            ObjectDirectory.put("persistent_linked_list_test", list);
+            ObjectDirectory.put(id, list);
         }
         return list;
     }
@@ -128,12 +133,13 @@ public class PersistentLinkedListTest {
     }
 
     @SuppressWarnings("unchecked")
-    public static boolean testPersistence() {
+    public static synchronized boolean testPersistence() {
         if (verbose) System.out.println("PersistentLinkedList: testing persistence across vm runs");
-        PersistentLinkedList<PersistentInteger> list = ObjectDirectory.get("persistent_linked_list_test_persistence", PersistentLinkedList.class);
+        String id = "tests.linked_list_persistance";
+        PersistentLinkedList<PersistentInteger> list = ObjectDirectory.get(id, PersistentLinkedList.class);
         if (list == null) {
             list = new PersistentLinkedList<PersistentInteger>();
-            ObjectDirectory.put("persistent_linked_list_test_persistence", list);
+            ObjectDirectory.put(id, list);
             if (verbose) System.out.println("Saving to pmem");
             for(int i = 0; i < 5; i++) list.add(new PersistentInteger(i));
         }
@@ -141,5 +147,4 @@ public class PersistentLinkedListTest {
         assert(list.size() == 5 && list.toString().equals("0-->1-->2-->3-->4-->NULL"));
         return true;
     }
-
 }

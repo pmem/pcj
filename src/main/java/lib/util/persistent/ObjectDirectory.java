@@ -38,7 +38,7 @@ public class ObjectDirectory {
             if (pointer instanceof ObjectPointer) {
                 synchronized(ObjectDirectory.class) {
                     Transaction.run(() -> {
-                        PersistentObject.decRefCountAtAddressBy(pointer.addr(), 1);
+                        PersistentObject.decRefCountAtAddress(pointer.addr());
                         deregisterObject(pointer.addr());
                     });
                 }

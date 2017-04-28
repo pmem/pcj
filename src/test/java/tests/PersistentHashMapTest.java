@@ -44,14 +44,27 @@ public class PersistentHashMapTest {
         testRemoval() &&
         testIteration();
     }
+    
+ 	private static String threadSafeId(String id) {
+ 	  	 return id + "_" + Thread.currentThread().getId();
+ 	}
+ 	
+ 	@SuppressWarnings("unchecked")
+ 	private static PersistentHashMap<PersistentInteger, PersistentString> getHashMap() {
+ 		String id = threadSafeId("tests.persistent_hashmap");
+ 		PersistentHashMap<PersistentInteger, PersistentString> map = ObjectDirectory.get(id,PersistentHashMap.class); 
+ 		if(map == null) {
+ 			map = new PersistentHashMap<>();
+ 			ObjectDirectory.put(id, map);
+ 		}
+ 		return map;
+ 	}
 
     @SuppressWarnings("unchecked")
     public static boolean testInsertion() {
         if (verbose) System.out.println("****************Testing insertion**********************");
 
-        PersistentHashMap<PersistentInteger, PersistentString> map = new PersistentHashMap<>();
-        ObjectDirectory.put("persistent_hashmap", map);
-
+        PersistentHashMap<PersistentInteger, PersistentString> map = getHashMap();
         assert(map.size() == 0);
 
         PersistentInteger key = new PersistentInteger(1);
@@ -77,8 +90,8 @@ public class PersistentHashMapTest {
     @SuppressWarnings("unchecked")
     public static boolean testRemoval() {
         if (verbose) System.out.println("****************Testing removal************************");
-
-        PersistentHashMap<PersistentInteger, PersistentString> map = ObjectDirectory.get("persistent_hashmap",PersistentHashMap.class);
+        
+        PersistentHashMap<PersistentInteger, PersistentString> map = getHashMap();
         assert(map != null);
         assert(map.size() == 2);
 
@@ -101,7 +114,7 @@ public class PersistentHashMapTest {
     public static boolean testIteration() {
         if (verbose) System.out.println("****************Testing iteration**********************");
 
-        PersistentHashMap<PersistentInteger, PersistentString> map = ObjectDirectory.get("persistent_hashmap",PersistentHashMap.class);
+        PersistentHashMap<PersistentInteger, PersistentString> map = getHashMap();
         assert(map != null);
         assert(map.size() == 0);
 
@@ -201,6 +214,13 @@ public class PersistentHashMapTest {
             assert(e1.getValue().equals(e2.getValue()));
         }
 
+        map.remove(key1);
+        map.remove(key2);
+        map.remove(key3);
+        map.remove(key4);
+        map.remove(key5);
+        map.remove(key6);
+        
         return true;
     }
-}
+ }

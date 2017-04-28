@@ -42,12 +42,17 @@ public class PersistentLinkedQueueTest {
                 && testToArray() && testToString() && testPersistence();
     }
 
+    private static String threadSafeId(String id) {
+   	 return id + "_" + Thread.currentThread().getId();
+    }
+    
     @SuppressWarnings("unchecked")
     private static PersistentLinkedQueue<PersistentInteger> getLinkedQueue() {
-        PersistentLinkedQueue<PersistentInteger> queue = ObjectDirectory.get("persistent_linked_queue_tests", PersistentLinkedQueue.class);
+   	  String id = threadSafeId("tests.persistent_linked_queue");
+        PersistentLinkedQueue<PersistentInteger> queue = ObjectDirectory.get(id, PersistentLinkedQueue.class);
         if (queue == null) {
             queue = new PersistentLinkedQueue<PersistentInteger>();
-            ObjectDirectory.put("persistent_linked_queue_tests", queue);
+            ObjectDirectory.put(id, queue);
         }
         return queue;
     }
@@ -163,12 +168,13 @@ public class PersistentLinkedQueueTest {
     }
 
     @SuppressWarnings("unchecked")
-    public static boolean testPersistence() {
+    public static synchronized boolean testPersistence() {
         if (verbose) System.out.println("PersistentLinkedQueue: testing persistence across vm runs...");
-        PersistentLinkedQueue<PersistentInteger> q = ObjectDirectory.get("plq_test_persistence", PersistentLinkedQueue.class);
+        String id = "tests.linked_queue_persistence";
+        PersistentLinkedQueue<PersistentInteger> q = ObjectDirectory.get(id, PersistentLinkedQueue.class);
         if (q == null) {
             q = new PersistentLinkedQueue<PersistentInteger>();
-            ObjectDirectory.put("plq_test_persistence", q);
+            ObjectDirectory.put(id, q);
             if (verbose) System.out.println("saving to pmem");
             for(int i = 0; i < 5; i++) q.add(new PersistentInteger(i));
         }

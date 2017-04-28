@@ -40,8 +40,13 @@ import lib.util.persistent.types.ValueField;
 import lib.util.persistent.types.PersistentField;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Deque;
+import java.util.ArrayDeque;
 import java.lang.reflect.Constructor;
+import java.util.Iterator;
 
 import lib.xpersistent.XHeap;
 import lib.xpersistent.XRoot;
@@ -51,7 +56,6 @@ public class PersistentObject implements Persistent<PersistentObject> {
     static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
 
     private final ObjectPointer<? extends PersistentObject> pointer;
-    public final ReentrantLock lock = new ReentrantLock();
 
     public PersistentObject(ObjectType<? extends PersistentObject> type) {
         this(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize()));
@@ -78,7 +82,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
 
     void initForGC() {
         Transaction.run(() -> {
-            incRefCount();
+            PersistentObject.incRefCount(getPointer().region().addr());
             ObjectDirectory.registerObject(this);
             if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
                 ((XRoot)(heap.getRoot())).addToAllObjects(getPointer().region().addr());
@@ -102,65 +106,30 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return null;
     }
 
-    public static PersistentObject getObjectAtAddress(long addr) {
-        return getObjectAtAddress(addr, ObjectCache.STRONG);
-    }
-
     @SuppressWarnings("unchecked")
-    static PersistentObject getObjectAtAddress(long addr, boolean strength) {
+    static PersistentObject getObjectAtAddress(long addr) {
         assert(addr != 0);
-        PersistentObject obj = ObjectCache.getReference(addr, strength);
+        PersistentObject obj = ObjectCache.getReference(addr);
         return obj;
     }
 
-    static synchronized int decRefCountAtAddressBy(long addr, int n) {
-        // System.out.format("decRefCountAtAddressBy(%d, %d)\n", addr, n);
-        PersistentObject obj = getObjectAtAddress(addr, ObjectCache.WEAK);
-        return (obj == null) ? 0 : obj.decRefCountBy(n);
+    static synchronized void decRefCountAtAddress(long addr) {
+        if (addr != 0) deleteReference(addr);
     }
     // end special path functions
 
-    @SuppressWarnings("unchecked")
-    void delete() {
-        long addr = pointer.region().addr();
-        // System.out.format("delete called on object (%s) at address %d\n", getPointer().type().cls(), addr);
-        List<PersistentType> ts = types();
-        List<PersistentObject> children = new java.util.ArrayList<>();
-        for (int i = 0; i < ts.size(); i++) {
-            if ((ts.get(i) instanceof ObjectType || ts.get(i) == Types.OBJECT) && getLong(getPointer().type().getOffset(i)) != 0) {
-                long childAddress = getLong(getPointer().type().getOffset(i));
-                PersistentObject obj = getObjectAtAddress(childAddress, ObjectCache.WEAK);
-                children.add(obj);
-                obj.lock.lock();
-            }
-        }
+    static void free(long addr) {
+        // System.out.format("free called on object at address %d\n", addr);
+        ObjectCache.removeReference(addr);
+        MemoryRegion reg = heap.regionFromAddress(addr);
+        MemoryRegion nameRegion = heap.regionFromAddress(reg.getInt(Header.TYPE.getOffset(Header.TYPE_NAME)));
         Transaction.run(() -> {
-            for (PersistentObject obj : children) {
-                obj.decRefCount();
+            heap.freeRegion(nameRegion);
+            heap.freeRegion(reg);
+            if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
+                ((XRoot)(heap.getRoot())).removeFromAllObjects(addr);
             }
-            refColor(CycleCollector.BLACK);
-            //if (!CycleCollector.isCandidate(addr)) {
-                free();
-            //}
         });
-        for (PersistentObject obj : children) {
-            obj.lock.unlock();
-        }
-    }
-
-    synchronized void free() {
-        ObjectCache.removeReference(pointer.region().addr());
-        PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
-        MemoryRegion nameRegion = heap.regionFromAddress(getLongField(Header.TYPE_NAME));
-        synchronized(nameRegion) {
-            Transaction.run(() -> {
-                heap.freeRegion(nameRegion);
-                heap.freeRegion(pointer.region());
-                if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
-                    ((XRoot)(heap.getRoot())).removeFromAllObjects(pointer.region().addr());
-                }
-            });
-        }
     }
 
     public ObjectPointer<? extends PersistentObject> getPointer() {return pointer;}
@@ -188,10 +157,10 @@ public class PersistentObject implements Persistent<PersistentObject> {
     synchronized void setObject(long offset, PersistentObject value) {
         PersistentObject old = getObject(offset);
         Transaction.run(() -> {
-            if (value != null) value.incRefCount();
-            if (old != null) old.decRefCount();
+            if (value != null) addReference(value.getPointer().region().addr());
+            if (old != null) deleteReference(old.getPointer().region().addr());
             setLong(offset, value == null ? 0 : value.getPointer().region().addr());
-        }, value, old);
+        }, this, value, old);
     }
 
     byte getByteField(int index) {return getByte(offset(check(index, Types.BYTE)));}
@@ -339,69 +308,133 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return new RawString(region).toString();
     }
 
-    int getRefCount() {
-        return getIntField(Header.REF_COUNT);
-    }
-
-    synchronized void incRefCountBy(int n) {
-        // System.out.println(String.format("incRefCountBy %s @ %d by %d (%d -> %d)", getPointer().type().cls(), getPointer().addr(), n, getRefCount(), getRefCount() + n));
+    static void incRefCount(long addr) {
+        MemoryRegion reg = heap.regionFromAddress(addr);
+        // System.out.println(String.format("incRefCount %s @ %d (%d -> %d)", classNameForRegion(reg), addr, getRefCount(addr), getRefCount(addr) + 1));
         Transaction.run(() -> {
-            setIntField(Header.REF_COUNT, getRefCount() + n);
-            CycleCollector.markBlack(this);
-        });
+            int oldCount = reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
+            reg.putInt(Header.TYPE.getOffset(Header.REF_COUNT), oldCount + 1);
+        }, reg);
     }
 
-    void incRefCount() {
-        incRefCountBy(1);
+    static int decRefCount(long addr) {
+        MemoryRegion reg = heap.regionFromAddress(addr);
+        // System.out.format("decRefCount %s @ %d (%d -> %d)\n", classNameForRegion(reg), addr, getRefCount(addr), getRefCount(addr) - 1);
+        Box<Integer> newCount = new Box<>();
+        Transaction.run(() -> {
+            int oldCount = reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
+            newCount.set(oldCount - 1);
+            reg.putInt(Header.TYPE.getOffset(Header.REF_COUNT), newCount.get());
+        }, reg);
+        return newCount.get();
     }
 
-    void speculativeIncRefCountBy(int n) {
-        // System.out.println(String.format("speculativeIncRefCountBy %s @ %d by %d (%d -> %d)", getPointer().type().cls(), getPointer().addr(), n, getRefCount(), getRefCount() + n));
-        setIntField(Header.REF_COUNT, getRefCount() + n);
+    static int getRefCount(long addr) {
+        MemoryRegion reg = heap.regionFromAddress(addr);
+        return reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
     }
 
-    private synchronized int decRefCountBy(int n) {
-        // System.out.format("decRefCountBy %s @ %d by %d (%d -> %d)\n", getPointer().type().cls(), getPointer().addr(), n, getRefCount(), getRefCount() - n);
-        if (getRefCount() <= 0) {
-            System.out.println(String.format("decRefCountBy %s @ %d by %d (%d -> %d)", getPointer().type().cls(), getPointer().addr(), n, getRefCount(), getRefCount() - n));
-            assert(false);
-        }
-        int newCount = getRefCount() - n;
-        if (newCount < 0) {
-            System.out.println("DEBUG: decRef by " + n + ", newCount = " + newCount + ", obj = " + this);
-            new Exception().printStackTrace();
-            System.exit(-1);
-        }
-        if (newCount == 0) {
+    static void addReference(long addr) {
+        MemoryRegion reg = heap.regionFromAddress(addr);
+        Transaction.run(() -> {
+            incRefCount(addr);
+            setColor(addr, CycleCollector.BLACK);
+        }, reg);
+    }
+
+    static void deleteReference(long addr) {
+        List<Long> addrsToUnlock = new ArrayList<>();
+        Deque<Long> addrsToDelete = new ArrayDeque<>();
+
+        MemoryRegion reg = heap.regionFromAddress(addr);
+        // System.out.format("deleteReference %s @ %d (%d -> %d)\n", classNameForRegion(reg), addr, getRefCount(addr), getRefCount(addr) - 1);
+        try {
             Transaction.run(() -> {
-                setIntField(Header.REF_COUNT, newCount);
-                delete();
-            });
+                int count = 0;
+                int newCount = decRefCount(addr);
+                if (newCount == 0) {
+                    addrsToDelete.push(addr);
+                    while (!addrsToDelete.isEmpty()) {
+                        long addrToDelete = addrsToDelete.pop();
+                        Iterator<Long> childAddresses = getChildAddressIterator(heap.regionFromAddress(addrToDelete));
+                        while (childAddresses.hasNext()) {
+                            long childAddr = childAddresses.next();
+                            MemoryRegion childReg = heap.regionFromAddress(childAddr);
+                            childReg.getLock().lock();
+                            addrsToUnlock.add(childAddr);
+                            if (decRefCount(childAddr) == 0) {
+                                addrsToDelete.push(childAddr);
+                            }
+                        }
+                        setColor(addrToDelete, CycleCollector.BLACK);
+                        ObjectCache.removeReference(addr);
+                        if (!CycleCollector.isCandidate(addrToDelete)) {
+                            free(addrToDelete);
+                            addrsToUnlock.remove(addrToDelete);
+                        }
+                    }
+                } else {
+                    CycleCollector.addCandidate(addr);
+                }
+            }, reg);
+        } finally {
+
+            for (long addrToUnlock : addrsToUnlock) {
+                heap.regionFromAddress(addrToUnlock).getLock().unlock();
+            }
         }
-        else {
-            Transaction.run(() -> {
-                setIntField(Header.REF_COUNT, newCount);
-                // System.out.println(String.format("else clause, set REF_COUNT of %d to %d", getPointer().addr(), newCount));
-                CycleCollector.candidate(this);
-            });
+    }
+
+    static String classNameForRegion(MemoryRegion reg) {
+        long typeNameAddr = reg.getLong(0);
+        MemoryRegion typeNameRegion = heap.regionFromAddress(typeNameAddr);
+        return PersistentObject.typeNameFromRegion(typeNameRegion);
+    }
+
+    static Iterator<Long> getChildAddressIterator(MemoryRegion reg) {
+        String typeName = classNameForRegion(reg);
+        ObjectType<?> type = Types.typeForName(typeName);
+
+        ArrayList<Long> childAddresses = new ArrayList<>();
+        if (type instanceof ArrayType) {
+            ArrayType<?> arrType = (ArrayType)type;
+            if (arrType.getElementType() == Types.OBJECT) {
+                int length = reg.getInt(ArrayType.LENGTH_OFFSET);
+                for (int i = 0; i < length; i++) {
+                    long childAddr = reg.getLong(arrType.getElementOffset(i));
+                    if (childAddr != 0) {
+                        childAddresses.add(childAddr);
+                    }
+                }
+            }
+        } else if (type instanceof ObjectType) {
+            for (int i = Header.TYPE.fieldCount(); i < type.fieldCount(); i++) {
+                List<PersistentType> types = type.getTypes();
+                if (types.get(i) instanceof ObjectType || types.get(i) == Types.OBJECT) {
+                    long childAddr = reg.getLong(type.getOffset(i));
+                    if (childAddr != 0) {
+                        childAddresses.add(childAddr);
+                    }
+                }
+            }
+        } else {
+            throw new RuntimeException("getChildAddressIterator: unexpected type!");
         }
-        return newCount;
+
+        return childAddresses.iterator();
     }
 
-    int decRefCount() {
-        return decRefCountBy(1);
+    static void setColor(long addr, byte color) {
+        MemoryRegion reg = heap.regionFromAddress(addr);
+        synchronized(reg) {
+            reg.putByte(Header.TYPE.getOffset(Header.REF_COLOR), color);
+        }
     }
 
-    void speculativeDecRefCountBy(int n) {
-        // System.out.println(String.format("speculativeDecRefCountBy %s @ %d by %d (%d -> %d)", getPointer().type().cls(), getPointer().addr(), n, getRefCount(), getRefCount() - n));
-        setIntField(Header.REF_COUNT, getRefCount() - n);
-    }
-
-    byte refColor() {
-        return getByteField(Header.REF_COLOR);
-    }
-
-    void refColor(byte refColor) {
-        setByteField(Header.REF_COLOR, refColor);
+    static byte getColor(long addr) {
+        MemoryRegion reg = heap.regionFromAddress(addr);
+        synchronized(reg) {
+            return reg.getByte(Header.TYPE.getOffset(Header.REF_COLOR));
+        }
     }
 }

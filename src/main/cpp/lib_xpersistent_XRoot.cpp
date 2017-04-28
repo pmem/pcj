@@ -53,7 +53,7 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeAllocateHashmap
   (JNIEnv *env, jclass klass)
 {
     TOID(struct hashmap_tx) hm;
-    if (hm_tx_new(pool, &hm, 10, 1, NULL) != 0) {
+    if (hm_tx_new(pool, &hm, 10000, 0, NULL) != 0) {
         throw_persistence_exception(env, "Failed to create hashmap! ");
         return 0;
     }
@@ -142,10 +142,8 @@ static int decrement_from_vm_offsets(uint64_t addr, uint64_t count, void* arg)
     //printf("decrementing %d count from object at offset %lu\n", (int)count, addr);
     //fflush(stdout);
     TOID(struct hashmap_tx) all_objects = *(TOID(struct hashmap_tx)*)arg;
-    int final_count = env_global->CallIntMethod(class_global, mid, (jlong)addr, (jint)count);
-    if (final_count == 0) {
-        hm_tx_remove(pool, all_objects, addr);
-    }
+    env_global->CallVoidMethod(class_global, mid, (jlong)addr, (jint)count);
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeCleanVMOffsets
@@ -163,9 +161,9 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeCleanVMOffsets
         return;
     }
 
-    mid = env->GetStaticMethodID(class_global, "decRefCountAtAddressBy", "(JI)I");
+    mid = env->GetStaticMethodID(class_global, "decRefCountAtAddress", "(J)V");
     if (mid == 0) {
-        throw_persistence_exception(env, "Cannot find decRefCountAtAddressBy method! ");
+        throw_persistence_exception(env, "Cannot find decRefCountAtAddress method! ");
         return;
     }
 
@@ -178,6 +176,7 @@ static int import_candidates(uint64_t key, uint64_t value, void* arg)
 {
     jobject root = *(jobject*)(arg);
     env_global->CallVoidMethod(root, mid, (jlong)key);
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeImportCandidates
