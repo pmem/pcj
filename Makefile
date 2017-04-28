@@ -59,6 +59,7 @@ all: sources examples tests
 sources: cpp java
 cpp: $(LIBRARIES)
 java: classes
+
 examples: sources
 	$(foreach example_dir,$(ALL_EXAMPLE_DIRS), $(JAVAC) $(JAVAFLAGS) -cp $(BASE_CLASSPATH):$(example_dir) $(example_dir)/*.java;)
 
