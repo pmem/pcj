@@ -93,9 +93,6 @@ directory in your Java classpath and the project's ```target/cppbuild``` directo
 
 3. ```PersistentString``` objects are backed by a byte array and only supports ASCII characters.
 
-4. Core dumps may occur if the emulated memory is not properly set up; for example, running with insufficient
-   privileges or with a nonexistent mount point.
-
 ## Contacts ##
 
 For more information on this library, contact Lei Fan (lei.t.fan@intel.com) or Steve Dohrmann (steve.dohrmann@intel.com).
