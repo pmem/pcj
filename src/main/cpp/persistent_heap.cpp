@@ -29,7 +29,8 @@ TOID(struct root_struct) root;
 static uint64_t uuid_lo;
 static int pool_refs = 0;
 static const size_t PM_POOL_SIZE = 2147483648U;  // 2G
-static const char PATH[50] = "/dev/dax0.0";
+static const char PATH_DAX[50] = "/dev/dax0.0";
+static const char PATH_FILE[50] = "/mnt/mem/persistent_pool";
 
 PMEMobjpool* get_or_create_pool()
 {
@@ -37,11 +38,26 @@ PMEMobjpool* get_or_create_pool()
     if (pool != NULL) {
         return pool;
     }
-    if (access(PATH, F_OK)) {
-        pool = pmemobj_create(PATH, POBJ_LAYOUT_NAME(persistent_heap),
-                              PM_POOL_SIZE, S_IRUSR | S_IWUSR);
+
+    const char* path;
+    size_t size;
+    if (access(PATH_DAX, F_OK) != -1) {    // use DAX
+        path = PATH_DAX;
+        size = 0;
     } else {
-        pool = pmemobj_open(PATH, POBJ_LAYOUT_NAME(persistent_heap));
+        path = PATH_FILE;
+        size = PM_POOL_SIZE;
+    }
+
+    pool = pmemobj_open(path, POBJ_LAYOUT_NAME(persistent_heap));
+    if (pool == NULL) {
+        pool = pmemobj_create(path, POBJ_LAYOUT_NAME(persistent_heap),
+                              size, S_IRUSR | S_IWUSR);
+    }
+
+    if (pool == NULL) {
+        printf("Encountered error opening pool! Please check if %s or %s exists and accessible.\n", PATH_DAX, "/mnt/mem");
+        exit(-1);
     }
 
     TOID(char) arr;

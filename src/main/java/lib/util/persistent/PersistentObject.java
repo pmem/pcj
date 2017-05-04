@@ -120,7 +120,6 @@ public class PersistentObject implements Persistent<PersistentObject> {
 
     static void free(long addr) {
         // System.out.format("free called on object at address %d\n", addr);
-        ObjectCache.removeReference(addr);
         MemoryRegion reg = heap.regionFromAddress(addr);
         MemoryRegion nameRegion = heap.regionFromAddress(reg.getInt(Header.TYPE.getOffset(Header.TYPE_NAME)));
         Transaction.run(() -> {
@@ -367,7 +366,6 @@ public class PersistentObject implements Persistent<PersistentObject> {
                             }
                         }
                         setColor(addrToDelete, CycleCollector.BLACK);
-                        ObjectCache.removeReference(addr);
                         if (!CycleCollector.isCandidate(addrToDelete)) {
                             free(addrToDelete);
                             addrsToUnlock.remove(addrToDelete);
@@ -378,7 +376,6 @@ public class PersistentObject implements Persistent<PersistentObject> {
                 }
             }, reg);
         } finally {
-
             for (long addrToUnlock : addrsToUnlock) {
                 heap.regionFromAddress(addrToUnlock).getLock().unlock();
             }

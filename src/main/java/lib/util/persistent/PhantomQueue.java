@@ -64,7 +64,6 @@ class PhantomQueue<T> {
                 while (true) {
                     Ref ref = (Ref)(queue.remove());
                     refs.remove(ref.getInfo());
-                    //System.out.println("Just removed " + ref + " from queue");
                     listener.notify(ref.getInfo(), ref.getName());
                 }
             } catch (InterruptedException ie) {
@@ -85,9 +84,11 @@ class PhantomQueue<T> {
 
     public void clearRefs() { refs.clear(); }
 
+    // static int count = 0;
     public void registerObject(T t, Pointer info) {
         Ref r = new Ref(t, info, "Offset: " + info);
         refs.put(r.getInfo(), r);
+        // if (++count % 10000 == 0) {/*count = 0; System.out.println("refs.size() = " + refs.size());}*/
         //System.out.println("Just created ref " + r);
     }
 

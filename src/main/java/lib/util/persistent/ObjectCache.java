@@ -24,31 +24,31 @@ package lib.util.persistent;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
+import java.lang.ref.Reference;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import java.lang.reflect.Constructor;
 
 class ObjectCache {
-    private static final Map<Long, SoftReference<? extends PersistentObject>> cache = new ConcurrentHashMap<>();
+    private static final Map<Long, Reference<? extends PersistentObject>> cache = new ConcurrentHashMap<>();
     private static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
 
     @SuppressWarnings("unchecked")
     static <T extends PersistentObject> T getReference(long address) {
         // System.out.format("thread id: %d, getReferece(%d)\n", Thread.currentThread().getId(), address);
+        T obj = null;
         synchronized(ObjectCache.class) {
             if (address == 0) return null;
-            SoftReference<T> ref = (SoftReference<T>)cache.get(address);
-            T obj = null;
-            if (ref == null) {           // no references exist
+            Reference<T> ref = (Reference<T>)cache.get(address);
+            if (ref == null || (obj = ref.get()) == null) {
                 obj = referenceForAddress(address);
                 cache.put(address, new SoftReference<T>(obj));
-            } else {
-                obj = ref.get();
-                assert(obj != null);
             }
-            return obj;
         }
+        assert(obj != null);
+        return obj;
     }
 
     @SuppressWarnings("unchecked")
@@ -62,9 +62,9 @@ class ObjectCache {
         Class<T> cls = type.cls();
         T obj = null;
         try {
-           Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
-           ctor.setAccessible(true);
-           obj = (T)ctor.newInstance(new ObjectPointer<T>(type, valueRegion));
+            Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
+            ctor.setAccessible(true);
+            obj = (T)ctor.newInstance(new ObjectPointer<T>(type, valueRegion));
         }
         catch (Exception e) {e.printStackTrace();}
         return obj;
@@ -72,15 +72,14 @@ class ObjectCache {
 
     static void removeReference(long addr) {
         // System.out.format("thread id: %d, removeReference(%d)\n", Thread.currentThread().getId(), addr);
-        synchronized(ObjectCache.class) {
-            cache.remove(addr);
-        }
+        cache.remove(addr);
     }
 
     // only called from PersistentObject allocating constructor
-    static synchronized <T extends PersistentObject>  void addReference(T obj) {
+    static <T extends PersistentObject> void addReference(T obj) {
+        // System.out.format("thread id: %d, addReference(%d)\n", Thread.currentThread().getId(), obj.getPointer().addr());
         assert(cache.get(obj.getPointer().addr()) == null);
-        SoftReference<T> ref = new SoftReference<>(obj);
+        Reference<T> ref = new SoftReference<>(obj);
         cache.put(obj.getPointer().addr(), ref);
     }
 }

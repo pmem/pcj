@@ -33,11 +33,12 @@ public class ObjectDirectory {
     static PhantomQueue<Persistent<?>> pq;
 
     static {
-        pq = new PhantomQueue<Persistent<?>>((Pointer pointer, String name) -> {
+        pq = new PhantomQueue<Persistent<?>>((Pointer pointer, String name) -> { 
             // System.out.println("enqueued: Ref(\"" + name + "\", " + pointer.addr() + ")");
             if (pointer instanceof ObjectPointer) {
                 synchronized(ObjectDirectory.class) {
                     Transaction.run(() -> {
+                        ObjectCache.removeReference(pointer.addr());
                         PersistentObject.decRefCountAtAddress(pointer.addr());
                         deregisterObject(pointer.addr());
                     });
@@ -65,12 +66,10 @@ public class ObjectDirectory {
         map = PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot().getObjectDirectory();
     }
 
-    static synchronized <T extends Persistent<T>> void registerObject(T obj) {
+    static <T extends Persistent<T>> void registerObject(T obj) {
         if (obj instanceof PersistentValue) return;
-        Transaction.run(() -> {
-            pq.registerObject(obj, obj.getPointer());
-            ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).registerObject(obj.getPointer().region().addr());
-        });
+        pq.registerObject(obj, obj.getPointer());
+        ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).registerObject(obj.getPointer().region().addr());
     }
 
     static synchronized void deregisterObject(long addr) {
