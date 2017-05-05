@@ -76,6 +76,7 @@ cleanex:
 tests: $(ALL_TEST_CLASSES)
 	$(JAVAC) $(JAVAFLAGS) -d $(TEST_CLASSES_DIR) -cp src:$(BASE_CLASSPATH) $(ALL_TEST_SOURCES)
 	$(JAVA) -ea -cp $(BASE_CLASSPATH):$(TEST_CLASSES_DIR):src -Djava.library.path=$(CPP_BUILD_DIR) tests.PersistentTestRunner
+	$(JAVA) -ea -cp $(BASE_CLASSPATH):$(TEST_CLASSES_DIR):src -Djava.library.path=$(CPP_BUILD_DIR) tests.PersistentTestRunner
 
 $(LIBRARIES): | $(CPP_BUILD_DIR)
 $(ALL_OBJ): | $(CPP_BUILD_DIR)
