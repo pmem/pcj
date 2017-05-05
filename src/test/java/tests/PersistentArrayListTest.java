@@ -1,4 +1,3 @@
-
 /* Copyright (C) 2017  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
@@ -46,16 +45,16 @@ public class PersistentArrayListTest {
 	private static String threadSafeId(String id) {
   	 return id + "_" + Thread.currentThread().getId();
    }
-	
+
 	@SuppressWarnings("unchecked")
 	private static PersistentArrayList<PersistentInteger> getList() {
 		String id = threadSafeId("tests.persistent_array_list");
 		PersistentArrayList<PersistentInteger> list = ObjectDirectory.get(id, PersistentArrayList.class);
-		if (list == null) { 
+		if (list == null) {
 			list = new PersistentArrayList<PersistentInteger>();
 			ObjectDirectory.put(id, list);
 		}
-		return list;		
+		return list;
 	}
 
 	public static boolean testAdd() {
@@ -76,16 +75,16 @@ public class PersistentArrayListTest {
 		PersistentArrayList<PersistentInteger> list = getList();
 		list.clear();
 		assert(list.size() == 0 && list.isEmpty());
-		ArrayList<PersistentInteger> tmpList1 = new ArrayList<>(); 
+		ArrayList<PersistentInteger> tmpList1 = new ArrayList<>();
 		for(int i = 0; i < 5; i++) tmpList1.add(new PersistentInteger(i));
 		list.addAll(tmpList1);
 		assert(list.size() == 5);
-		
+
 		Vector<PersistentInteger> tmpList2 = new Vector<>(5);
-		for(int i = 0; i < 5; i++) tmpList2.add(new PersistentInteger(i+5));		
+		for(int i = 0; i < 5; i++) tmpList2.add(new PersistentInteger(i+5));
 		list.addAll(0, tmpList2);
 		assert(list.size() == 10);
-		
+
 		LinkedList<PersistentInteger> tmpList3 = new LinkedList<PersistentInteger>();
 		for(int i = 1; i <= 5; i++) tmpList3.add(new PersistentInteger(-i));
 		list.addAll(3, tmpList3);
@@ -131,13 +130,13 @@ public class PersistentArrayListTest {
 		assert(list.size() == 6);
 		return true;
 	}
-	
+
 	public static boolean testEnsureCapacity() {
 		if (verbose) System.out.println("PersistentArrayList: testing ensureCapacity()");
 		PersistentArrayList<PersistentInteger> list = getList();
 		list.clear();
 		assert(list.size() == 0);
-		
+
 		list.ensureCapacity(15);
 		for(int i = 0; i < 25; i++) list.add(new PersistentInteger(i));
 		assert(list.size() == 25);
@@ -149,7 +148,7 @@ public class PersistentArrayListTest {
 		PersistentArrayList<PersistentInteger> list = getList();
 		list.clear();
 		assert(list.size() == 0);
-		
+
 		for(int i = 0; i < 5; i++) list.add(new PersistentInteger(i));
 		for(int i = 0; i < 5; i++) list.add(new PersistentInteger(i));
 		assert(list.size() == 10);
@@ -159,7 +158,7 @@ public class PersistentArrayListTest {
 		assert(list.lastIndexOf(new PersistentInteger(4)) == 9);
 		return true;
 	}
-	
+
    public static boolean testToArray() {
        if (verbose) System.out.println("PersistentArrayList: testing toArray()");
        PersistentArrayList<PersistentInteger> list = getList();
@@ -177,7 +176,7 @@ public class PersistentArrayListTest {
        for(PersistentInteger e : arr2) assert(e.intValue() == num++);
        return true;
    }
-   
+
    @SuppressWarnings("unchecked")
    public static synchronized boolean testPersistence() {
        if (verbose) System.out.println("PersistentArrayList: testing persistence across vm runs...");

@@ -36,7 +36,7 @@ public class TestNestedValues {
         EmployeeId alice = new EmployeeId(12345, 1000);
         EmployeeId bob = new EmployeeId(12345, 1001);
         EngineerId engAlice = new EngineerId((byte)12, alice, (short)13);
-        System.out.println(engAlice);
+        //System.out.println(engAlice);
         assert(engAlice.toString().equals("EngineerId(12, EmployeeId(12345, Tag(56, 57), 1000), 13)"));
     }
 

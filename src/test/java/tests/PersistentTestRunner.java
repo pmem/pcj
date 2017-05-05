@@ -49,6 +49,7 @@ public class PersistentTestRunner {
             Boolean ret = false;
             try {
                 ret = (Boolean)(testClass.getDeclaredMethod("run").invoke(null));
+                ret &= (Boolean)(testClass.getDeclaredMethod("run").invoke(null));
                 if (ret) passCount++;
             } catch (InvocationTargetException e) {
                 System.out.println(testClass.getName() + " tests failed.");

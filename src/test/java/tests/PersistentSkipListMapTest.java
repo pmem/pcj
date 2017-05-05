@@ -1,4 +1,4 @@
-/* Copyright (C) 2016  Intel Corporation
+/* Copyright (C) 2017  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -52,18 +52,18 @@ static boolean verbose = false;
     private static String threadSafeId(String id) {
  	  	 return id + "_" + Thread.currentThread().getId();
  	}
- 	
+
  	@SuppressWarnings("unchecked")
  	private static PersistentSkipListMap<PersistentInteger, PersistentString> getSkipListMap() {
  		String id = threadSafeId("tests.persistent_skiplist_map");
- 		PersistentSkipListMap<PersistentInteger, PersistentString> map = ObjectDirectory.get(id,PersistentSkipListMap.class); 
+ 		PersistentSkipListMap<PersistentInteger, PersistentString> map = ObjectDirectory.get(id,PersistentSkipListMap.class);
  		if(map == null) {
  			map = new PersistentSkipListMap<>();
  			ObjectDirectory.put(id, map);
  		}
  		return map;
  	}
- 	
+
     @SuppressWarnings("unchecked")
     public static boolean testInsertion() {
         if (verbose) System.out.println("****************Testing insertion**********************");

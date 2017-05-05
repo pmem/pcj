@@ -1,4 +1,4 @@
-/* Copyright (C) 2016  Intel Corporation
+/* Copyright (C) 2017  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,15 +44,15 @@ public class PersistentHashMapTest {
         testRemoval() &&
         testIteration();
     }
-    
+
  	private static String threadSafeId(String id) {
  	  	 return id + "_" + Thread.currentThread().getId();
  	}
- 	
+
  	@SuppressWarnings("unchecked")
  	private static PersistentHashMap<PersistentInteger, PersistentString> getHashMap() {
  		String id = threadSafeId("tests.persistent_hashmap");
- 		PersistentHashMap<PersistentInteger, PersistentString> map = ObjectDirectory.get(id,PersistentHashMap.class); 
+ 		PersistentHashMap<PersistentInteger, PersistentString> map = ObjectDirectory.get(id,PersistentHashMap.class);
  		if(map == null) {
  			map = new PersistentHashMap<>();
  			ObjectDirectory.put(id, map);
@@ -90,7 +90,7 @@ public class PersistentHashMapTest {
     @SuppressWarnings("unchecked")
     public static boolean testRemoval() {
         if (verbose) System.out.println("****************Testing removal************************");
-        
+
         PersistentHashMap<PersistentInteger, PersistentString> map = getHashMap();
         assert(map != null);
         assert(map.size() == 2);
@@ -220,7 +220,7 @@ public class PersistentHashMapTest {
         map.remove(key4);
         map.remove(key5);
         map.remove(key6);
-        
+
         return true;
     }
  }

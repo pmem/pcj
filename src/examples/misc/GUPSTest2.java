@@ -1,3 +1,24 @@
+/* Copyright (C) 2017  Intel Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 only, as published by the Free Software Foundation.
+ * This file has been designated as subject to the "Classpath"
+ * exception as provided in the LICENSE file that accompanied
+ * this code.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License version 2 for more details (a copy
+ * is included in the LICENSE file that accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 2 along with this program; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301, USA.
+ */
+
 package examples.misc;
 
 import java.util.*;
@@ -6,7 +27,6 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
 public class GUPSTest2 {
-
     static PersistentSkipListMap map;
 
     @SuppressWarnings("unchecked")
@@ -16,7 +36,7 @@ public class GUPSTest2 {
             System.exit(1);
         }
         int START_THREADS = Math.max(Integer.parseInt(args[0]), 1);
-        int END_THREADS = Integer.parseInt(args[1]);
+        int END_THREADS = Math.max(Integer.parseInt(args[1]), 1);
         int NUM_TRANSACTIONS = Integer.parseInt(args[2]);
         float WRITE_FRACTION = args.length > 3 ? Float.parseFloat(args[3]) : 0.5f;
         System.out.println("WRITE_FRACTION = " + WRITE_FRACTION);
@@ -31,12 +51,11 @@ public class GUPSTest2 {
         int deltaT = START_THREADS < END_THREADS ? 1 : -1;
         int nt = START_THREADS;
         while (nt != END_THREADS + deltaT) {
-            // for (int nt = MIN_THREADS; nt <= MAX_THREADS; nt += deltaT) {         
             Thread[] threads = new Thread[nt];
             long start = System.nanoTime();
             int ni = NUM_TRANSACTIONS / nt;
             for (int j = 0; j < threads.length; j++) {
-                threads[j] = new Thread( ()->{
+                threads[j] = new Thread(()->{
                     int kint = (int)Thread.currentThread().getId() * NUM_TRANSACTIONS;
                     int wcount = (int)(ni * WRITE_FRACTION);
                     for (int i = 0; i < wcount; i++) {
@@ -46,7 +65,6 @@ public class GUPSTest2 {
                         Object old = map.put(key, val);
                         assert(old == null);
                     }
-                    System.gc();
                     int rcount = ni - wcount;
                     int kmax = (int)(rcount / wcount);
                     for (int k = 0; k < kmax; k++) {

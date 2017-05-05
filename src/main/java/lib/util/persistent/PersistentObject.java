@@ -41,8 +41,8 @@ import lib.util.persistent.types.PersistentField;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Set;
-import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Deque;
 import java.util.ArrayDeque;
 import java.lang.reflect.Constructor;
@@ -342,7 +342,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
     }
 
     static void deleteReference(long addr) {
-        List<Long> addrsToUnlock = new ArrayList<>();
+        Map<Long, Integer> addrsToUnlock = new HashMap<>();
         Deque<Long> addrsToDelete = new ArrayDeque<>();
 
         MemoryRegion reg = heap.regionFromAddress(addr);
@@ -360,9 +360,11 @@ public class PersistentObject implements Persistent<PersistentObject> {
                             long childAddr = childAddresses.next();
                             MemoryRegion childReg = heap.regionFromAddress(childAddr);
                             childReg.getLock().lock();
-                            addrsToUnlock.add(childAddr);
+                            addrsToUnlock.put(childAddr, (addrsToUnlock.getOrDefault(childAddr, 0)+1));
                             if (decRefCount(childAddr) == 0) {
                                 addrsToDelete.push(childAddr);
+                            } else {
+                                CycleCollector.addCandidate(childAddr);
                             }
                         }
                         setColor(addrToDelete, CycleCollector.BLACK);
@@ -376,8 +378,10 @@ public class PersistentObject implements Persistent<PersistentObject> {
                 }
             }, reg);
         } finally {
-            for (long addrToUnlock : addrsToUnlock) {
-                heap.regionFromAddress(addrToUnlock).getLock().unlock();
+            for (Map.Entry<Long, Integer> e : addrsToUnlock.entrySet()) {
+                for (int i = 0; i < e.getValue(); i++) {
+                    heap.regionFromAddress(e.getKey()).getLock().unlock();
+                }
             }
         }
     }
