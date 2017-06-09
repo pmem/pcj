@@ -64,12 +64,13 @@ Once all the prerequisites have been satisfied:
    ```
    $ git clone https://github.com/pmem/pcj
    $ cd pcj
-   $ make
+   $ make && make tests
    ```
-Other available Makefile targets include:
+Available Makefile targets include:
 
    - `sources` - builds only sources
    - `examples` - builds the sources and examples
+   - `tests` - builds and runs tests
 
 ### USING THIS LIBRARY IN EXISTING JAVA APPLICATIONS ###
 To import this library into an existing Java application, include the project's target/classes 
