@@ -139,10 +139,8 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativePrintAllObjects
 
 static int decrement_from_vm_offsets(uint64_t addr, uint64_t count, void* arg)
 {
-    //printf("decrementing %d count from object at offset %lu\n", (int)count, addr);
-    //fflush(stdout);
     TOID(struct hashmap_tx) all_objects = *(TOID(struct hashmap_tx)*)arg;
-    env_global->CallVoidMethod(class_global, mid, (jlong)addr, (jint)count);
+    env_global->CallVoidMethod(class_global, mid, (jlong)addr, (jint) count);
     return 0;
 }
 
@@ -161,9 +159,9 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeCleanVMOffsets
         return;
     }
 
-    mid = env->GetStaticMethodID(class_global, "decRefCountAtAddress", "(J)V");
+    mid = env->GetStaticMethodID(class_global, "deleteResidualReferences", "(JI)V");
     if (mid == 0) {
-        throw_persistence_exception(env, "Cannot find decRefCountAtAddress method! ");
+        throw_persistence_exception(env, "Cannot find deleteResidualReferences method! ");
         return;
     }
 

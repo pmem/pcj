@@ -21,9 +21,7 @@
 
 package lib.util.persistent;
 
-import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
-import java.lang.reflect.Constructor;
 
 public final class ObjectPointer<T extends PersistentObject> extends Pointer<T>
 {
@@ -46,13 +44,8 @@ public final class ObjectPointer<T extends PersistentObject> extends Pointer<T>
         return region;
     }
 
-    long addr() {
+    public long addr() {
         return region.addr();
-    }
-
-    @SuppressWarnings("unchecked")
-    T deref() {
-        return (T)ObjectCache.getReference(addr()); 
     }
 
     public String toString() {

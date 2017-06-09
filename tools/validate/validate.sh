@@ -1,23 +1,3 @@
-# Copyright (C) 2017  Intel Corporation
-# 
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# version 2 only, as published by the Free Software Foundation.
-# This file has been designated as subject to the "Classpath"
-# exception as provided in the LICENSE file that accompanied
-# this code.
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License version 2 for more details (a copy
-# is included in the LICENSE file that accompanied this code).
-# 
-# You should have received a copy of the GNU General Public License
-# version 2 along with this program; if not, write to the Free
-# Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-# Boston, MA  02110-1301, USA.
-
 #!/bin/bash
 
 path="tools/validate"
@@ -28,6 +8,7 @@ total_count=0
 function unit_tests {
     echo "Running unit tests..."
     make_res=`make`
+    make_res=`make tests`
     if [[ $make_res =~ ([0-9]{2})/([0-9]{2}) ]]; then
         pass_count=${BASH_REMATCH[1]}
         total_count=${BASH_REMATCH[2]}
@@ -77,4 +58,4 @@ test1_persistence
 test2_recreation
 cd tools/validate
 
-echo "Test result: $pass_count/$total_count passed."
+echo "Test result: $pass_count/$total_count passed!"

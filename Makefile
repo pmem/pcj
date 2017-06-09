@@ -19,14 +19,14 @@
 # Boston, MA  02110-1301, USA.
 
 CC = g++
-JAVAC = javac 
-JAVA = java
+JAVAC = javac
+JAVA = java 
 JAVADOC = $(JAVA_HOME)/bin/javadoc
 
 JNI_INCLUDES = $(JAVA_HOME)/include $(JAVA_HOME)/include/linux
 
 CFLAGS = -O3 -DNDEBUG -fPIC
-JAVAFLAGS = -Xlint:unchecked -proc:none
+JAVAFLAGS = -Xlint:unchecked -XDenableSunApiLintControl -proc:none
 LINK_FLAGS = -fPIC -O3 -DNDEBUG -shared -lpmem -lpmemobj -Wl,-rpath,/usr/local/lib:/usr/local/lib64
 
 CPP_SOURCE_DIR = src/main/cpp
@@ -55,7 +55,7 @@ LIBRARIES = $(addprefix $(CPP_BUILD_DIR)/, libPersistent.so)
 EXAMPLES_DIR = src/examples
 ALL_EXAMPLE_DIRS = $(wildcard $(EXAMPLES_DIR)/*)
 
-all: sources examples tests
+all: sources examples
 sources: cpp java
 cpp: $(LIBRARIES)
 java: classes

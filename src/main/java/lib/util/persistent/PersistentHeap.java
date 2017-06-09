@@ -25,7 +25,6 @@ public interface PersistentHeap {
     void open();
     void close();
     MemoryRegion allocateRegion(long size);
-    MemoryRegion regionFromAddress(long address); // address of 0 is root?
     void freeRegion(MemoryRegion region);
     Root getRoot();
 }

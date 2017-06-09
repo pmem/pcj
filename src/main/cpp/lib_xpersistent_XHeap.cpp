@@ -86,11 +86,11 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeMemoryRegionMemcpy
     } TX_END
 }
 
-JNIEXPORT jint JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
   (JNIEnv *env, jobject obj, jboolean verbose)
 {
     TOID(char) mr_toid;
-    int mr_count = 0;
+    uint64_t mr_count = 0;
 
     POBJ_FOREACH_TYPE(pool, mr_toid) {
         if (verbose == JNI_TRUE) {

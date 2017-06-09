@@ -22,18 +22,15 @@
 package lib.xpersistent;
 
 import lib.util.persistent.MemoryRegion;
-import lib.util.persistent.Transaction;
-import java.util.concurrent.locks.ReentrantLock;
 
-class UncheckedPersistentMemoryRegion implements MemoryRegion {
+public class UncheckedPersistentMemoryRegion implements MemoryRegion {
     private long addr;
-    private final ReentrantLock lock = new ReentrantLock();
 
     static {
         System.loadLibrary("Persistent");
     }
 
-    UncheckedPersistentMemoryRegion(long addr) {
+    public UncheckedPersistentMemoryRegion(long addr) {
         this.addr = addr;
     }
 
@@ -51,12 +48,7 @@ class UncheckedPersistentMemoryRegion implements MemoryRegion {
         }
 
         long bits = 0;
-        try {
-            lock.lock();
-            bits = nativeGetLong(this.addr, offset, (int)size);
-        } finally {
-            lock.unlock();
-        }
+        bits = nativeGetLong(this.addr, offset, (int)size);
 
         switch ((int)size) {
         case 1:
@@ -77,17 +69,10 @@ class UncheckedPersistentMemoryRegion implements MemoryRegion {
         if (size < 0 || size > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid size: " + size);
         }
-
         if (size != 1 && size != 2 && size != 4 && size != 8) {
             throw new IllegalArgumentException("Invalid size: " + size);
         }
-
-        try {
-            lock.lock();
-            nativePutLong(this.addr, offset, value, (int)size);
-        } finally {
-            lock.unlock();
-        }
+        nativePutLong(this.addr, offset, value, (int)size);
     }
 
     public byte getByte(long offset) {
@@ -123,10 +108,6 @@ class UncheckedPersistentMemoryRegion implements MemoryRegion {
     }
     public void putAddress(long offset, long value) {
         putLong(offset, value);
-    }
-
-    public ReentrantLock getLock() {
-        return lock;
     }
 
     private native long nativeGetLong(long regionOffset, long offset, int size);

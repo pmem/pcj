@@ -255,7 +255,7 @@ public class TestCases {
             SelfRef sr1 = new SelfRef(12, sr0, persistent("world"));
             if (verbose) { System.out.println(sr1); }
 
-            examples.misc.TestNestedValues.main(new String[0]);
+            // examples.misc.TestNestedValues.main(new String[0]);
 
             // test PersistentLong
             PersistentLong tpl1 = new PersistentLong(12345);

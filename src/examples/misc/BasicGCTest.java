@@ -29,7 +29,7 @@ import java.util.*;
 class BasicGCTest {
     public static void main(String[] args) {
         ((XHeap)PersistentMemoryProvider.getDefaultProvider().getHeap()).open();
-        int curMemRegCount = ((XHeap)PersistentMemoryProvider.getDefaultProvider().getHeap()).debug();
+        long curMemRegCount = ((XHeap)PersistentMemoryProvider.getDefaultProvider().getHeap()).debug();
         System.out.println("currently in heap " + curMemRegCount);
         assert(curMemRegCount == 2 || curMemRegCount == 18);
         PersistentHashMap<PersistentString, PersistentHashMap> hm = new PersistentHashMap<>();

@@ -22,9 +22,6 @@
 package lib.util.persistent;
 
 import lib.util.persistent.spi.PersistentMemoryProvider;
-import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.ArrayType;
-import lib.util.persistent.types.Types;
 import lib.xpersistent.XRoot;
 import lib.xpersistent.XHeap;
 import java.util.HashSet;
@@ -40,6 +37,7 @@ public class CycleCollector {
     public static final byte WHITE = 3;
 
     static HashSet<Long> candidatesSet = new HashSet<>();
+    static HashSet<Long> freedCandidates = new HashSet<>();
     static XHeap heap;
     static XRoot root;
 
@@ -62,13 +60,14 @@ public class CycleCollector {
         Iterator<Long> it = candidatesSet.iterator();
         while (it.hasNext()) {
             Long l = it.next();
-            if (PersistentObject.getColor(l) == PURPLE) {
+            PersistentObject obj = ObjectCache.get(l, true);
+            if (obj.getColor() == PURPLE) {
                 Deque<Long> stack = new ArrayDeque<>();
                 stack.push(l);
                 markGrey(stack);
             } else {
                 it.remove();
-                if (PersistentObject.getColor(l) == BLACK && PersistentObject.getRefCount(l) == 0) {
+                if (obj.getColor() == BLACK && obj.getRefCount() == 0) {
                     PersistentObject.free(l);
                     root.removeFromAllObjects(l);
                 }
@@ -79,14 +78,15 @@ public class CycleCollector {
     private static void markGrey(Deque<Long> stack) {
         while (!stack.isEmpty()) {
             Long l = stack.pop();
-            if (PersistentObject.getColor(l) != GREY) {
-                Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(heap.regionFromAddress(l));
+            PersistentObject obj = ObjectCache.get(l, true);
+            if (obj.getColor() != GREY) {
+                Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(l);
                 while (childAddresses.hasNext()) {
                     long childAddr = childAddresses.next();
-                    PersistentObject.decRefCount(childAddr);
+                    ObjectCache.get(childAddr, true).decRefCount();
                     stack.push(childAddr);
                 }
-                PersistentObject.setColor(l, GREY);
+                obj.setColor(GREY);
             }
         }
     }
@@ -94,18 +94,19 @@ public class CycleCollector {
     private static void scan(Deque<Long> stack) {
         while (!stack.isEmpty()) {
             Long l = stack.pop();
-            if (PersistentObject.getColor(l) == GREY) {
-                if (PersistentObject.getRefCount(l) > 0) {
+            PersistentObject obj = ObjectCache.get(l, true);
+            if (obj.getColor() == GREY) {
+                if (obj.getRefCount() > 0) {
                     Deque<Long> scanBlackStack = new ArrayDeque<>();
                     scanBlackStack.push(l);
                     scanBlack(scanBlackStack);
                 } else {
-                    Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(heap.regionFromAddress(l));
+                    Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(l);
                     while (childAddresses.hasNext()) {
                         long childAddr = childAddresses.next();
                         stack.push(childAddr);
                     }
-                    PersistentObject.setColor(l, WHITE);
+                    obj.setColor(WHITE);
                 }
             }
         }
@@ -114,12 +115,13 @@ public class CycleCollector {
     private static void scanBlack(Deque<Long> stack) {
         while (!stack.isEmpty()) {
             Long l = stack.pop();
-            PersistentObject.setColor(l, BLACK);
-            Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(heap.regionFromAddress(l));
+            ObjectCache.get(l, true).setColor(BLACK);
+            Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(l);
             while (childAddresses.hasNext()) {
                 long childAddr = childAddresses.next();
-                PersistentObject.incRefCount(childAddr);
-                if (PersistentObject.getColor(childAddr) != BLACK) {
+                PersistentObject child = ObjectCache.get(childAddr, true);
+                child.incRefCount();
+                if (child.getColor() != BLACK) {
                     stack.push(childAddr);
                 }
             }
@@ -140,25 +142,35 @@ public class CycleCollector {
     private static void collectWhite(Deque<Long> stack) {
         while (!stack.isEmpty()) {
             Long l = stack.pop();
-            if (PersistentObject.getColor(l) == WHITE && !candidatesSet.contains(l)) {
-                PersistentObject.setColor(l, BLACK);
-                Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(heap.regionFromAddress(l));
-                while (childAddresses.hasNext()) {
-                    long childAddr = childAddresses.next();
-                    stack.push(childAddr);
+            if (!freedCandidates.contains(l)) {
+                PersistentObject obj = ObjectCache.get(l, true);
+                if (obj.getColor() == WHITE && !candidatesSet.contains(l)) {
+                    obj.setColor(BLACK);
+                    Iterator<Long> childAddresses = PersistentObject.getChildAddressIterator(l);
+                    while (childAddresses.hasNext()) {
+                        long childAddr = childAddresses.next();
+                        stack.push(childAddr);
+                    }
+                    obj.free(l);
+                    freedCandidates.add(l);
+                    root.removeFromAllObjects(l);
                 }
-                PersistentObject.free(l);
-                root.removeFromAllObjects(l);
             }
         }
     }
 
     static synchronized void addCandidate(long addr) {
-        if (PersistentObject.getColor(addr) != PURPLE) {
-            PersistentObject.setColor(addr, PURPLE);
+        PersistentObject obj = ObjectCache.get(addr, true);
+        if (obj.getColor() != PURPLE) {
+            obj.setColor(PURPLE);
             candidatesSet.add(addr);
             ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).addToCandidates(addr);
         }
+    }
+
+    static synchronized void removeFromCandidates(long addr) {
+        candidatesSet.remove(addr);
+        ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).removeFromCandidates(addr);
     }
 
     static synchronized boolean isCandidate(long addr) {

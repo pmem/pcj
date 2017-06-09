@@ -21,35 +21,12 @@
 
 package lib.util.persistent;
 
-import lib.util.persistent.spi.*;
-import lib.xpersistent.XRoot;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.lang.ref.WeakReference;
+import lib.util.persistent.spi.PersistentMemoryProvider;
 
-@SuppressWarnings("unchecked")
 public class ObjectDirectory {
     static PersistentHashMap<PersistentString, PersistentObject> map;
-    static PhantomQueue<Persistent<?>> pq;
 
-    static {
-        pq = new PhantomQueue<Persistent<?>>((Pointer pointer, String name) -> { 
-            // System.out.println("enqueued: Ref(\"" + name + "\", " + pointer.addr() + ")");
-            if (pointer instanceof ObjectPointer) {
-                synchronized(ObjectDirectory.class) {
-                    Transaction.run(() -> {
-                        ObjectCache.removeReference(pointer.addr());
-                        PersistentObject.decRefCountAtAddress(pointer.addr());
-                        deregisterObject(pointer.addr());
-                    });
-                }
-            }
-            else if (pointer instanceof ValuePointer) {
-                PersistentMemoryProvider.getDefaultProvider().getHeap().freeRegion(pointer.region());
-            }
-        });
-    }
-
+    @SuppressWarnings("unchecked")
     public static <T extends PersistentObject> T get(String s, Class<T> cls) {
         return (T)map.get(new PersistentString(s + cls.getName()));
     }
@@ -58,21 +35,12 @@ public class ObjectDirectory {
         map.put(new PersistentString(s + obj.getClass().getName()), obj);
     }
 
+    @SuppressWarnings("unchecked")
     public static <T extends PersistentObject> T remove(String s, Class<T> cls) {
         return (T)map.remove(new PersistentString(s + cls.getName()));
     }
 
     public static void initialize() {
         map = PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot().getObjectDirectory();
-    }
-
-    static <T extends Persistent<T>> void registerObject(T obj) {
-        if (obj instanceof PersistentValue) return;
-        pq.registerObject(obj, obj.getPointer());
-        ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).registerObject(obj.getPointer().region().addr());
-    }
-
-    static synchronized void deregisterObject(long addr) {
-        ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).deregisterObject(addr);
     }
 }

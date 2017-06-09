@@ -21,8 +21,6 @@
 
 package lib.util.persistent;
 
-import java.util.concurrent.locks.ReentrantLock;
-
 public interface MemoryRegion {
     int MODE_R  = (1 << 0);
     int MODE_W  = (1 << 1);
@@ -42,5 +40,4 @@ public interface MemoryRegion {
     void putLong(long offset, long value);
     long getAddress(long offset);
     void putAddress(long offset, long value);
-    ReentrantLock getLock();
 }

@@ -26,13 +26,9 @@ import lib.util.persistent.MemoryRegion;
 import lib.util.persistent.PersistenceException;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import lib.util.persistent.Root;
-import lib.util.persistent.ObjectPointer;
-import lib.util.persistent.PersistentObject;
-import lib.util.persistent.PersistentLong;
 import lib.util.persistent.CycleCollector;
 import lib.util.persistent.Transaction;
 import lib.util.persistent.ObjectDirectory;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class XHeap implements PersistentHeap {
     static {
@@ -43,7 +39,6 @@ public class XHeap implements PersistentHeap {
     private Root root;
     private boolean open;
     private boolean debug;
-    private ConcurrentHashMap<Long, MemoryRegion> regions;
 
     public XHeap() {
         this(PersistentMemoryProvider.getDefaultProvider());
@@ -52,7 +47,6 @@ public class XHeap implements PersistentHeap {
     public XHeap(PersistentMemoryProvider provider) {
         this.provider = provider;
         this.debug = false;
-        regions = new ConcurrentHashMap<>();
         //open();
     }
 
@@ -76,23 +70,11 @@ public class XHeap implements PersistentHeap {
         if (!open) open();
         long addr = nativeGetMemoryRegion(size);
         MemoryRegion reg = new UncheckedPersistentMemoryRegion(addr);
-        regions.put(reg.addr(), reg);
-        return reg;
-    }
-
-    public synchronized MemoryRegion regionFromAddress(long addr) {
-        if (!open) open();
-        MemoryRegion reg;
-        if ((reg = regions.get(addr)) == null) {
-            reg = new UncheckedPersistentMemoryRegion(addr);
-            regions.put(addr, reg);
-        }
         return reg;
     }
 
     public synchronized void freeRegion(MemoryRegion region) {
         if (!open) open();
-        regions.remove(region.addr());
         nativeFree(region.addr());
     }
 
@@ -118,11 +100,11 @@ public class XHeap implements PersistentHeap {
     }
     public boolean getDebugMode() { return this.debug; }
 
-    public int debug() {
+    public long debug() {
         return debug(false);
     }
 
-    public int debug(boolean verbose) {
+    public long debug(boolean verbose) {
         ((XRoot)root).printAllObjects();
         return nativeDebugPool(verbose);
     }
@@ -130,8 +112,8 @@ public class XHeap implements PersistentHeap {
     private void cleanHeap() {
         Transaction.run(() -> {
             XRoot rt = (XRoot)(getRoot());
-            CycleCollector.getCandidates().addAll(rt.importCandidates());
             rt.cleanVMOffsets();
+            CycleCollector.getCandidates().addAll(rt.importCandidates());
             CycleCollector.collect();
         });
     }
@@ -141,5 +123,5 @@ public class XHeap implements PersistentHeap {
     private synchronized native long nativeGetMemoryRegion(long size);
     private synchronized native void nativeFree(long addr);
     private synchronized native void nativeMemoryRegionMemcpy(long srcRegion, long srcOffset, long destRegion, long destOffset, long length);
-    private synchronized native int nativeDebugPool(boolean verbose);
+    private synchronized native long nativeDebugPool(boolean verbose);
 }

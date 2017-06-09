@@ -43,17 +43,17 @@ public final class XRoot implements Root {
     public XRoot(XHeap heap) {
         this.heap = heap;
         if (nativeRootExists()) {
-            region = heap.regionFromAddress(nativeGetRootOffset());
-            objectDirectory = PersistentObject.weakFromPointer(new ObjectPointer<PersistentHashMap>(PersistentHashMap.TYPE, heap.regionFromAddress(region.getLong(0))));
+            region = new UncheckedPersistentMemoryRegion(nativeGetRootOffset());
+            objectDirectory = PersistentObject.fromPointer(new ObjectPointer<PersistentHashMap>(PersistentHashMap.TYPE, new UncheckedPersistentMemoryRegion(region.getLong(0))));
             this.prevVMOffsets = region.getLong(8);
             this.vmOffsets = nativeAllocateHashmap();
             region.putLong(8, this.vmOffsets);
             allObjects = region.getLong(16);
             candidates = region.getLong(24);
         } else {
-            region = heap.regionFromAddress(nativeCreateRoot(ROOT_SIZE));
+            region = new UncheckedPersistentMemoryRegion(nativeCreateRoot(ROOT_SIZE));
             MemoryRegion objectDirectoryRegion = heap.allocateRegion(PersistentHashMap.TYPE.getAllocationSize());
-            objectDirectory = PersistentObject.weakFromPointer(new ObjectPointer<>(PersistentHashMap.TYPE, objectDirectoryRegion));
+            objectDirectory = PersistentObject.fromPointer(new ObjectPointer<>(PersistentHashMap.TYPE, objectDirectoryRegion));
             region.putLong(0, objectDirectoryRegion.addr());
             this.vmOffsets = nativeAllocateHashmap();
             this.prevVMOffsets = 0;
@@ -106,13 +106,14 @@ public final class XRoot implements Root {
     }
 
     public void registerObject(long addr) {
+        // System.out.println("register object at address " + addr);
         nativeHashmapPut(vmOffsets, addr, (nativeHashmapGet(vmOffsets, addr)) + 1);
     }
 
     public void deregisterObject(long addr) {
         long value = nativeHashmapGet(vmOffsets, addr);
         long newValue = value - 1;
-        if (newValue == 0) {
+        if (newValue <= 0) {
             nativeHashmapRemove(vmOffsets, addr);
         } else {
             nativeHashmapPut(vmOffsets, addr, newValue);

@@ -27,7 +27,7 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
 public class GUPSTest2 {
-    static PersistentSkipListMap map;
+    static PersistentSkipListMap<PersistentInteger, PersistentInteger> map;
 
     @SuppressWarnings("unchecked")
     public static void main(String[] args) {
@@ -50,25 +50,30 @@ public class GUPSTest2 {
 
         int deltaT = START_THREADS < END_THREADS ? 1 : -1;
         int nt = START_THREADS;
+        int nWrites = (int)((float)NUM_TRANSACTIONS * WRITE_FRACTION);
+        int nReads = NUM_TRANSACTIONS - nWrites;
+        System.out.format("nWrites = %d, nReads = %d\n", nWrites, nReads);
+        System.out.format("threads   time (sec.)   rate (trans./sec.)\n");
+        System.out.format("=======   ===========   ==================\n");
         while (nt != END_THREADS + deltaT) {
+            int tWrites = nWrites / nt;
+            int tReads = nReads / nt;
             Thread[] threads = new Thread[nt];
             long start = System.nanoTime();
             int ni = NUM_TRANSACTIONS / nt;
             for (int j = 0; j < threads.length; j++) {
                 threads[j] = new Thread(()->{
                     int kint = (int)Thread.currentThread().getId() * NUM_TRANSACTIONS;
-                    int wcount = (int)(ni * WRITE_FRACTION);
-                    for (int i = 0; i < wcount; i++) {
+                    for (int i = 0; i < tWrites; i++) {
                         int nextInt = kint + i;
                         PersistentInteger key = new PersistentInteger(nextInt);
-                        PersistentInteger val = new PersistentInteger(1);
+                        PersistentInteger val = new PersistentInteger(123);
                         Object old = map.put(key, val);
                         assert(old == null);
                     }
-                    int rcount = ni - wcount;
-                    int kmax = (int)(rcount / wcount);
+                    int kmax = (int)(tReads / tWrites);
                     for (int k = 0; k < kmax; k++) {
-                        for (int i = 0; i < wcount; i++) {
+                        for (int i = 0; i < tWrites; i++) {
                             int nextInt = kint + i;
                             PersistentInteger key = new PersistentInteger(nextInt);
                             Object obj = map.get(key);
@@ -87,7 +92,7 @@ public class GUPSTest2 {
             }
             long end = System.nanoTime();
             float dur = (float)(end - start) / 1e9f ;
-            System.out.format("threads = %3d: \t%8.1f transactions/sec.\n", nt, (float)NUM_TRANSACTIONS / (float)dur);
+            System.out.format("%7d%14.2f%,21.1f\n", nt, dur, (float)NUM_TRANSACTIONS / (float)dur);
             map.clear();
             nt += deltaT;
         }

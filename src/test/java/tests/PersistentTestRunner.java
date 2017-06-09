@@ -23,6 +23,7 @@ package tests;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.io.File;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
@@ -31,6 +32,7 @@ public class PersistentTestRunner {
     PersistentMemoryProvider.getDefaultProvider().getHeap().open();
         File directory = new File("src/test/java/tests/");
         File[] listOfFiles = directory.listFiles();
+        Arrays.parallelSort(listOfFiles);
         ArrayList<Class<?>> testClasses = new ArrayList<>();
         for (int i = 0; i < listOfFiles.length; i++) {
             String fileName = listOfFiles[i].getName();
@@ -49,7 +51,6 @@ public class PersistentTestRunner {
             Boolean ret = false;
             try {
                 ret = (Boolean)(testClass.getDeclaredMethod("run").invoke(null));
-                ret &= (Boolean)(testClass.getDeclaredMethod("run").invoke(null));
                 if (ret) passCount++;
             } catch (InvocationTargetException e) {
                 System.out.println(testClass.getName() + " tests failed.");

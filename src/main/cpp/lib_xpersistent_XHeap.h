@@ -71,9 +71,9 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeMemoryRegionMemcpy
 /*
  * Class:     lib_xpersistent_XHeap
  * Method:    nativeDebugPool
- * Signature: (Z)I
+ * Signature: (Z)J
  */
-JNIEXPORT jint JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
   (JNIEnv *, jobject, jboolean);
 
 #ifdef __cplusplus

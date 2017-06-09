@@ -42,12 +42,10 @@ public abstract class PersistentValue implements Persistent<PersistentValue> {
 
     protected <T extends PersistentValue> PersistentValue(ValueType type, Class<T> cls) {
         this.pointer = new ValuePointer<T>(type, heap.allocateRegion(type.getSize()), cls);
-        ObjectDirectory.registerObject(this);
     }
 
     protected PersistentValue(ValuePointer<? extends PersistentValue> pointer) {
         this.pointer = pointer;
-        ObjectDirectory.registerObject(this);
     }
 
     public byte getByte(long offset) {return pointer.region().getByte(offset);}
@@ -70,8 +68,8 @@ public abstract class PersistentValue implements Persistent<PersistentValue> {
     public boolean getBooleanField(BooleanField f) {return getByte(offset(check(f.getIndex()))) == 0 ? false : true;}
 
     @SuppressWarnings("unchecked")
-    public <T extends PersistentValue> T getValueField(ValueField<T> f) {       
-        MemoryRegion srcRegion = heap.regionFromAddress(getPointer().region().addr());
+    public <T extends PersistentValue> T getValueField(ValueField<T> f) {  
+        MemoryRegion srcRegion = getPointer().region();
         MemoryRegion dstRegion = heap.allocateRegion(f.getType().getSize());
         // System.out.println(String.format("getValueField @ index %d, src addr = %d, dst addr = %d, size = %d", f.getIndex(), srcRegion.addr(), dstRegion.addr(), f.getType().getSize()));
         synchronized(srcRegion) {
