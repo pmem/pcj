@@ -22,25 +22,56 @@
 package lib.util.persistent;
 
 import lib.util.persistent.spi.PersistentMemoryProvider;
+import static lib.util.persistent.Trace.*;
+
+// temp 
+import lib.xpersistent.XTransaction;
 
 public interface Transaction extends AutoCloseable {
 	public interface Update {
 		public void run();
 	}
 
-	public enum State {None, Active, Committed, Aborted}
+	public enum State {None, Initializing, Active, Committed, Aborted}
 
     public static void run(PersistentMemoryProvider provider, Update update, PersistentObject... toLock) {
-        Transaction t = provider.newTransaction();
-        try {
-            t.start(toLock);
-            t.update(update);
-        } catch (Throwable e) {
-            e.printStackTrace();
-            t.abort();
-            throw e;
-        } finally {
-            t.commit();
+        boolean success = false;
+        int attempts = 1;
+        int MAX_ATTEMPTS = 25;
+
+        while (!success && attempts <= MAX_ATTEMPTS) {
+            Transaction t = provider.newTransaction();
+            // for stats
+            // Stats.transactions.total++;
+            // int currentDepth = XTransaction.depth.get();
+            // if (currentDepth == 1) Stats.transactions.topLevel++;
+            // Stats.transactions.maxDepth = Math.max(Stats.transactions.maxDepth, currentDepth);
+            // end for stats
+            try {
+                t.start(toLock);
+                t.update(update);
+                success = true;
+            }
+            catch (Throwable e) {
+                // trace("Transaction.run() caught %s, depth = %d",  e, XTransaction.depth.get());
+                t.abort();
+                // trace("called abort on %s", t);
+                if (XTransaction.depth.get() != 1) throw e; // unwind stack
+                else if (!(e instanceof TransactionRetryException)) throw e; // not a retry-able exception
+                // retry
+            } 
+            finally {
+                t.commit();
+            }
+            attempts++;
+            if (!success) {
+                // Stats.transactions.retries++;
+                // trace(true, "retry #%d", attempts - 1);
+                try {Thread.sleep(attempts);} catch(InterruptedException ie) {ie.printStackTrace();}
+            }
+        }
+        if (!success) {
+            throw new TransactionException(String.format("failed to execute transaction after %d attempts", attempts));
         }
     }
 

@@ -22,7 +22,7 @@
 package lib.llpl;
 
 import java.util.Map;
-import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Iterator;
 
 public class FlushableMemoryRegion extends AbstractMemoryRegion {
@@ -33,47 +33,44 @@ public class FlushableMemoryRegion extends AbstractMemoryRegion {
     static final int DIRTY = 1;                 // so "flushed" flag is really "dirty" flag
     static final int FLUSH_GRANULARITY = 64;    // flushing is aligned to 64 byte cache lines
 
-    private HashSet<Long> addressRanges;
+    private ConcurrentHashMap<Long, Long> addressRanges;
     private long volatileAddress;
-    private boolean isFlushed;
 
     FlushableMemoryRegion(long addr) {
         super(addr);
-        this.addressRanges = new HashSet<Long>();
+        this.addressRanges = new ConcurrentHashMap<Long, Long>();
         this.volatileAddress = nativeGetVolatileAddress(this.addr);
-        this.isFlushed = nativeGetBits(this.addr, FLUSH_FLAG_OFFSET, (int)FLUSH_FLAG_SIZE) == FLUSHED ? true : false;
     }
 
-    public synchronized boolean isFlushed() {
-        return isFlushed;
+    public boolean isFlushed() {
+        return nativeGetBits(this.addr, FLUSH_FLAG_OFFSET, (int)FLUSH_FLAG_SIZE) == FLUSHED ? true : false;
     }
 
-    public synchronized void flush() {
+    public void flush() {
         if (addressRanges == null) {
-            addressRanges = new HashSet<Long>();
+            addressRanges = new ConcurrentHashMap<Long, Long>();
         }
-        addressRanges.forEach((Long address) -> {
+        addressRanges.forEach((Long address, Long nulls) -> {
             nativeFlush(this.addr, address, FLUSH_GRANULARITY);
         });
-        addressRanges.clear();
+        addressRanges = new ConcurrentHashMap<Long, Long>();
         if (nativeSetFlushed(this.addr, FLUSHED) < 0) {
             throw new PersistenceException("Failed to mark region as flushed!");
         }
-        isFlushed = true;
     }
 
-    private synchronized void addToMemoryRanges(long offset, long size) {
-        if (addressRanges == null) addressRanges = new HashSet<Long>();
+    private void addToMemoryRanges(long offset, long size) {
+        if (addressRanges == null) addressRanges = new ConcurrentHashMap<Long, Long>();
         long start = this.volatileAddress + offset;
         long end = this.volatileAddress + offset + size - 1;
         long startFlushAddr = (start / FLUSH_GRANULARITY) * FLUSH_GRANULARITY;
         long endFlushAddr = (end / FLUSH_GRANULARITY) * FLUSH_GRANULARITY;
-        addressRanges.add(startFlushAddr);
-        if (startFlushAddr != endFlushAddr) addressRanges.add(endFlushAddr);
+        addressRanges.put(startFlushAddr, 0L);
+        if (startFlushAddr != endFlushAddr) addressRanges.put(endFlushAddr, 0L);
     }
 
     @Override
-    public synchronized long getBits(long offset, long size, boolean isSigned) {
+    public long getBits(long offset, long size, boolean isSigned) {
         if (size < 0 || size > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid size: " + size);
         }
@@ -97,7 +94,7 @@ public class FlushableMemoryRegion extends AbstractMemoryRegion {
     }
 
     @Override
-    public synchronized void putBits(long offset, long size, long value) {
+    public void putBits(long offset, long size, long value) {
         if (size < 0 || size > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid size: " + size);
         }
@@ -106,8 +103,7 @@ public class FlushableMemoryRegion extends AbstractMemoryRegion {
             throw new IllegalArgumentException("Invalid size: " + size);
         }
 
-        if (isFlushed) {
-            isFlushed = false;
+        if (isFlushed()) {
             if (nativeSetFlushed(this.addr, DIRTY) < 0) {
                 throw new PersistenceException("Failed to mark region as dirty!");
             }
@@ -122,8 +118,8 @@ public class FlushableMemoryRegion extends AbstractMemoryRegion {
         return this.addr + offset + DATA_OFFSET;
     }
 
-    protected synchronized native void nativeFlush(long regionOffset, long offset, long size);
-    protected synchronized native void nativePutBits(long regionOffset, long offset, long value, int size);
+    protected native void nativeFlush(long regionOffset, long offset, long size);
+    protected native void nativePutBits(long regionOffset, long offset, long value, int size);
     protected synchronized native int nativeSetFlushed(long regionOffset, int value);
-    protected synchronized native long nativeGetVolatileAddress(long regionOffset);
+    protected native long nativeGetVolatileAddress(long regionOffset);
 }

@@ -27,24 +27,37 @@ class FlushableMemoryRegionTest {
         FlushableMemoryRegion reg = h.allocateFlushableMemoryRegion(16);
 
         reg.putByte(0, (byte)5);
+        assert(reg.isFlushed() == false);
+        FlushableMemoryRegion reg2 = h.flushableRegionFromAddress(reg.addr());
+        assert(reg2.isFlushed() == false);
         reg.flush();
+        assert(reg.isFlushed() == true);
+        assert(reg2.isFlushed() == true);
         assert(reg.getByte(0) == (byte)5);
 
         reg.putShort(1, (short)5);
+        assert(reg.isFlushed() == false);
+        assert(reg2.isFlushed() == false);
         reg.flush();
+        assert(reg.isFlushed() == true);
+        assert(reg2.isFlushed() == true);
         assert(reg.getShort(1) == (short)5);
         assert(reg.getByte(0) == (byte)5);
         assert(reg.getShort(0) == (short)1285);
 
         reg.putInt(2, 327686);
+        assert(reg.isFlushed() == false);
         reg.flush();
+        assert(reg.isFlushed() == true);
         assert(reg.getInt(2) == 327686);
         assert(reg.getShort(1) == (short)1541);
         assert(reg.getInt(1) == 83887621);
         assert(reg.getInt(0) == 394501);
 
         reg.putLong(4, 123456789101112L);
+        assert(reg.isFlushed() == false);
         reg.flush();
+        assert(reg.isFlushed() == true);
         assert(reg.getLong(4) == 123456789101112L);
         assert(reg.getLong(3) == 31604938009884672L);
         assert(reg.getInt(3) == 255473664);

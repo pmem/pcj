@@ -25,6 +25,7 @@ import lib.util.persistent.*;
 import lib.util.persistent.types.*;
 import lib.util.persistent.spi.*;
 import java.util.HashSet;
+import lib.util.persistent.PersistentLong;
 
 public final class XRoot implements Root {
     private final MemoryRegion region;
@@ -38,6 +39,9 @@ public final class XRoot implements Root {
     private long prevVMOffsets; // VMOffsets hashmap of the previous VM iteration
     private long allObjects;    // represented as the raw offset to allObjects hashmap
     private long candidates;    // represented as the raw offset to candidates hashmap
+
+    private PersistentLong registrationLock;
+    private PersistentLong candidatesLock;
 
     @SuppressWarnings("unchecked")
     public XRoot(XHeap heap) {
@@ -64,6 +68,11 @@ public final class XRoot implements Root {
             region.putLong(24, this.candidates);
         }
     }
+
+    public void init() {
+        registrationLock = new PersistentLong(0);
+        candidatesLock = new PersistentLong(0);
+    }        
 
     public PersistentHashMap<PersistentString, PersistentObject> getObjectDirectory() { return objectDirectory; }
 
@@ -93,7 +102,9 @@ public final class XRoot implements Root {
     }
 
     public void addToCandidates(long addr) {
-        nativeHashmapPut(this.candidates, addr, 0);
+        Transaction.run(() -> {
+            nativeHashmapPut(this.candidates, addr, 0);
+        }, candidatesLock);
     }
 
     public void removeFromCandidates(long addr) {
@@ -106,18 +117,21 @@ public final class XRoot implements Root {
     }
 
     public void registerObject(long addr) {
-        // System.out.println("register object at address " + addr);
-        nativeHashmapPut(vmOffsets, addr, (nativeHashmapGet(vmOffsets, addr)) + 1);
+        Transaction.run(() -> {
+            nativeHashmapPut(vmOffsets, addr, (nativeHashmapGet(vmOffsets, addr)) + 1);
+        }, registrationLock);
     }
 
     public void deregisterObject(long addr) {
-        long value = nativeHashmapGet(vmOffsets, addr);
-        long newValue = value - 1;
-        if (newValue <= 0) {
-            nativeHashmapRemove(vmOffsets, addr);
-        } else {
-            nativeHashmapPut(vmOffsets, addr, newValue);
-        }
+        Transaction.run(() -> {
+            long value = nativeHashmapGet(vmOffsets, addr);
+            long newValue = value - 1;
+            if (newValue <= 0) {
+                nativeHashmapRemove(vmOffsets, addr);
+            } else {
+                nativeHashmapPut(vmOffsets, addr, newValue);
+            }
+        }, registrationLock);
     }
 
     public HashSet<Long> importCandidates() {
@@ -127,10 +141,14 @@ public final class XRoot implements Root {
     }
 
     void addToCandidatesFromNative(long addr) {
-        this.candidatesSet.add(addr);
+        Transaction.run(() -> {
+            this.candidatesSet.add(addr);
+        });
     }
 
     public void clearCandidates() {
-        nativeHashmapClear(this.candidates);
+        Transaction.run(() -> {
+            nativeHashmapClear(this.candidates);
+        });
     }
 }

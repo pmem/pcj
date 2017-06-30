@@ -89,6 +89,7 @@ public class XHeap implements PersistentHeap {
     public synchronized void initRoot() {
         if (!open) open();
         if (this.root == null) this.root = new XRoot(this);
+        ((XRoot)this.root).init();
     }
 
     public void memcpy(MemoryRegion srcRegion, long srcOffset, MemoryRegion destRegion, long destOffset, long length) {

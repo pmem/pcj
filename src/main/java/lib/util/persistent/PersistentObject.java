@@ -48,14 +48,18 @@ import java.util.Iterator;
 import lib.xpersistent.XHeap;
 import lib.xpersistent.XRoot;
 import lib.xpersistent.UncheckedPersistentMemoryRegion;
+import java.util.Random;
+import static lib.util.persistent.Trace.*;
 
 import sun.misc.Unsafe;
 
 @SuppressWarnings("sunapi")
 public class PersistentObject implements Persistent<PersistentObject> {
     static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
+    private static Random random = new Random(System.nanoTime());
     public static Unsafe UNSAFE;
-    
+
+    // for stats
     static {
         try {
             java.lang.reflect.Field f = Unsafe.class.getDeclaredField("theUnsafe");
@@ -70,15 +74,19 @@ public class PersistentObject implements Persistent<PersistentObject> {
     private final ObjectPointer<? extends PersistentObject> pointer;
 
     public PersistentObject(ObjectType<? extends PersistentObject> type) {
-        this(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize()));
+        // would like to group the allocation transaction and initialization transaction
+        // can't just put one here because this constructor call must be first line
+        // Transaction.run(() -> {
+            this(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize()));
+        // });
     }
 
     <T extends PersistentObject> PersistentObject(ObjectType<T> type, MemoryRegion region) {
-        // trace(region.addr(), String.format("creating object of type %s", type.getName()));
+        // trace(region.addr(), "creating object of type %s", type.getName());
         this.pointer = new ObjectPointer<T>(type, region);
         List<PersistentType> ts = type.getTypes();
-        for (int i = 0; i < ts.size(); i++) initializeField(i, ts.get(i));
         Transaction.run(() -> {
+            for (int i = 0; i < ts.size(); i++) initializeField(i, ts.get(i));
             setTypeName(type.getName());
             setVersion(99);
             initForGC();
@@ -104,6 +112,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
     // only called by Root during bootstrap of Object directory PersistentHashMap
     @SuppressWarnings("unchecked")
     public static <T extends PersistentObject> T fromPointer(ObjectPointer<T> p) {
+        // trace(p.addr(), "creating object from pointer of type %s", p.type().getName());
         try {
             Class<T> cls = p.type().cls();
             Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
@@ -121,9 +130,9 @@ public class PersistentObject implements Persistent<PersistentObject> {
         MemoryRegion reg = new UncheckedPersistentMemoryRegion(addr);
         MemoryRegion nameRegion = new UncheckedPersistentMemoryRegion(reg.getInt(Header.TYPE.getOffset(Header.TYPE_NAME)));
         Transaction.run(() -> {
+            // trace(addr, "freeing object region %d and name region %d", reg.addr(), nameRegion.addr());
             heap.freeRegion(nameRegion);
             heap.freeRegion(reg);
-            // trace(addr, "did free regions");
             if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
                 ((XRoot)(heap.getRoot())).removeFromAllObjects(addr);
             }
@@ -139,15 +148,34 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return pointer.type();
     }
 
-    byte getByte(long offset) {return pointer.region().getByte(offset);}
-    short getShort(long offset) {return pointer.region().getShort(offset);}
-    int getInt(long offset) {return pointer.region().getInt(offset);}
-    long getLong(long offset) {return pointer.region().getLong(offset);}
+    synchronized byte getByte(long offset) {return pointer.region().getByte(offset);}
+    synchronized short getShort(long offset) {return pointer.region().getShort(offset);}
+    synchronized int getInt(long offset) {return pointer.region().getInt(offset);}
+    synchronized long getLong(long offset) {return pointer.region().getLong(offset);}
 
-    void setByte(long offset, byte value) {pointer.region().putByte(offset, value);}
-    void setShort(long offset, short value) {pointer.region().putShort(offset, value);}
-    void setInt(long offset, int value) {pointer.region().putInt(offset, value);}
-    void setLong(long offset, long value) {pointer.region().putLong(offset, value);}
+    void setByte(long offset, byte value) {
+        Transaction.run(() -> {
+            pointer.region().putByte(offset, value);
+        }, this);
+    }
+
+    void setShort(long offset, short value) {
+        Transaction.run(() -> {
+            pointer.region().putShort(offset, value);
+        }, this);
+    }
+
+    void setInt(long offset, int value) {
+        Transaction.run(() -> {
+            pointer.region().putInt(offset, value);
+        }, this);
+    }
+
+    void setLong(long offset, long value) {
+        Transaction.run(() -> {
+            pointer.region().putLong(offset, value);
+        }, this);
+    }
 
     @SuppressWarnings("unchecked")
     synchronized <T extends PersistentObject> T getObject(long offset) {
@@ -156,13 +184,15 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return (T)ObjectCache.get(valueAddr);
     }
 
-    synchronized void setObject(long offset, PersistentObject value) {
-        PersistentObject old = ObjectCache.get(getLong(offset), true);
+    void setObject(long offset, PersistentObject value) {
         Transaction.run(() -> {
-            if (value != null) value.addReference();
-            if (old != null) old.deleteReference();
-            setLong(offset, value == null ? 0 : value.getPointer().addr());
-        }, this, value, old);
+            PersistentObject old = ObjectCache.get(getLong(offset), true);
+            Transaction.run(() -> {
+                if (value != null) value.addReference();
+                if (old != null) old.deleteReference();
+                setLong(offset, value == null ? 0 : value.getPointer().addr());
+            }, value, old);
+        }, this);
     }
 
     byte getByteField(int index) {return getByte(offset(check(index, Types.BYTE)));}
@@ -199,7 +229,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
     public synchronized <T extends PersistentValue> T getValueField(ValueField<T> f) {
         MemoryRegion srcRegion = getPointer().region();
         MemoryRegion dstRegion = heap.allocateRegion(f.getType().getSize());
-        // System.out.println(String.format("getValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr(), f.getType().getSize()));
+        // trace("getValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr(), f.getType().getSize());
         synchronized(srcRegion) {
             synchronized(dstRegion) {
                 ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, offset(f.getIndex()), dstRegion, 0, f.getType().getSize());
@@ -212,7 +242,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
         MemoryRegion dstRegion = getPointer().region();
         long dstOffset = offset(f.getIndex());
         MemoryRegion srcRegion = value.getPointer().region();
-        // System.out.println(String.format("setValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + dstOffset, f.getType().getSize()));
+        // trace("setValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + dstOffset, f.getType().getSize());
         synchronized(srcRegion) {
             ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, 0, dstRegion, dstOffset, f.getType().getSize());
         }
@@ -303,7 +333,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return new RawString(region).toString();
     }
 
-    int getRefCount() {
+     synchronized int getRefCount() {
         MemoryRegion reg = getPointer().region();
         return reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
     }
@@ -313,7 +343,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
         Transaction.run(() -> {
             int oldCount = reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
             reg.putInt(Header.TYPE.getOffset(Header.REF_COUNT), oldCount + 1);
-            // trace(getPointer().addr(), String.format("incRefCount(), type = %s, old = %d, new = %d",getPointer().type(), oldCount, getRefCount()));
+            // trace(getPointer().addr(), "incRefCount(), type = %s, old = %d, new = %d",getPointer().type(), oldCount, getRefCount());
         }, this);
     }
 
@@ -323,9 +353,9 @@ public class PersistentObject implements Persistent<PersistentObject> {
         Transaction.run(() -> {
             int oldCount = reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
             newCount.set(oldCount - 1);
-            // trace(getPointer().addr(), String.format("decRefCount, type = %s, old = %d, new = %d", getPointer().type(), oldCount, newCount.get()));
+            // trace(getPointer().addr(), "decRefCount, type = %s, old = %d, new = %d", getPointer().type(), oldCount, newCount.get());
             if (newCount.get() < 0) {
-               trace(reg.addr(), "decRef below 0");
+               // trace(reg.addr(), "decRef below 0");
                new RuntimeException().printStackTrace(); System.exit(-1);}
             reg.putInt(Header.TYPE.getOffset(Header.REF_COUNT), newCount.get());
         }, this);
@@ -340,46 +370,38 @@ public class PersistentObject implements Persistent<PersistentObject> {
     }
 
     synchronized void deleteReference() {
-        ArrayList<PersistentObject> toUnlock = new ArrayList<>();
         Deque<Long> addrsToDelete = new ArrayDeque<>();
         MemoryRegion reg = getPointer().region();
         Transaction.run(() -> {
-            try {
-                int count = 0;
-                int newCount = decRefCount();
-                if (newCount == 0) {
-                    addrsToDelete.push(getPointer().addr());
-                    while (!addrsToDelete.isEmpty()) {
-                        long addrToDelete = addrsToDelete.pop();
-                        Iterator<Long> childAddresses = getChildAddressIterator(addrToDelete);
-                        childAddresses = getChildAddressIterator(addrToDelete);
-                        while (childAddresses.hasNext()) {
-                            long childAddr = childAddresses.next();
-                            PersistentObject child = ObjectCache.get(childAddr, true);
-                            UNSAFE.monitorEnter(child);
-                            toUnlock.add(child);
+            int count = 0;
+            int newCount = decRefCount();
+            if (newCount == 0) {
+                // trace(getPointer().addr(), "deleteReference, newCount == 0");
+                addrsToDelete.push(getPointer().addr());
+                while (!addrsToDelete.isEmpty()) {
+                    long addrToDelete = addrsToDelete.pop();
+                    Iterator<Long> childAddresses = getChildAddressIterator(addrToDelete);
+                    ArrayList<PersistentObject> children = new ArrayList<>();
+                    while (childAddresses.hasNext()) {
+                        children.add(ObjectCache.get(childAddresses.next(), true));
+                    }
+                    // Transaction.run(() -> {
+                    // }, children.toArray(new PersistentObject[0]));
+                    for (PersistentObject child : children) {
+                        Transaction.run(() -> {
+                            long childAddr = child.getPointer().addr();
                             int crc = child.decRefCount();
                             if (crc == 0) {
                                 addrsToDelete.push(childAddr);
                             } else {
                                 CycleCollector.addCandidate(childAddr);
                             }
-                        }
-                        free(addrToDelete);
+                        }, child);
                     }
-                } else {
-                    CycleCollector.addCandidate(getPointer().addr());
+                    free(addrToDelete);
                 }
-            } 
-            finally {
-                try {
-                    for (int i = toUnlock.size() - 1; i >= 0; i--) {
-                            UNSAFE.monitorExit(toUnlock.get(i));
-                        }
-                }
-                catch (IllegalMonitorStateException imse) {
-                    throw new RuntimeException(imse.getMessage());
-                }
+            } else {
+                CycleCollector.addCandidate(getPointer().addr());
             }
         }, this);
     }
@@ -388,8 +410,11 @@ public class PersistentObject implements Persistent<PersistentObject> {
         PersistentObject obj = ObjectCache.get(address, true);
         Transaction.run(() -> {
             int rc = obj.getRefCount();
-            // trace(address, String.format("deleteResidualReferences %d, refCount = %d", count, rc));
-            assert(obj.getRefCount() >= count);
+            // trace(address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
+            if (obj.getRefCount() < count) {
+                System.out.println("refcount < count");
+                System.exit(-1);
+            }
             for (int i = 0; i < count - 1; i++) obj.decRefCount();
             obj.deleteReference();
         }, obj);
@@ -443,22 +468,54 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return getPointer().region().getByte(Header.TYPE.getOffset(Header.REF_COLOR));
     }
 
-    // for debugging
-    public static boolean enableTrace = false;
-    static boolean disableOverride = false;
+    static final int TIMEOUT = 125_000_000; // ns
 
-    static String threadInfo() {
-      StringBuilder buff = new StringBuilder();
-      long tid = Thread.currentThread().getId();
-      for (int i = 0; i < tid; i++) buff.append(" ");
-      buff.append(tid);
-      return buff.toString();
-    }
-
-    public static void trace(long address, String message, boolean... override) {
-        if (!disableOverride && (enableTrace || (override.length > 0 && override[0]))) {
-            System.out.format("%s: %d " + message + "\n", threadInfo(), address); 
+    public static boolean monitorEnter(List<PersistentObject> toLock, List<PersistentObject> locked) {
+        // trace("monitorEnter (lists), starting toLock = %d, locked = %d", toLock.size(), locked.size());
+        // toLock.sort((x, y) -> Long.compare(x.getPointer().addr(), y.getPointer().addr()));
+        boolean success = true;
+        for (PersistentObject obj : toLock) {
+            if (!obj.monitorEnterTimeout(TIMEOUT)) {
+                success = false;
+                // trace("TIMEOUT exceeded");
+                for(PersistentObject lockedObj : locked) {
+                    lockedObj.monitorExit();
+                    // trace("removed locked obj %d", obj.getPointer().addr());
+                }
+                locked.clear();
+                break;
+            }
+            else {
+                locked.add(obj);
+                // trace("added locked obj %d", obj.getPointer().addr());
+            }
         }
+        // trace("monitorEnter (lists), exiting toLock = %d, locked = %d", toLock.size(), locked.size());
+        return success;
     }
-    // end for debugging
+
+    public boolean monitorEnterTimeout(long timeout) {
+        // trace(getPointer().addr(), "trying to acquire");
+        boolean success = false;
+        long start = System.nanoTime();
+        long max = TIMEOUT + random.nextInt(TIMEOUT);
+        do {
+            success = UNSAFE.tryMonitorEnter(this);
+            if (success) break;
+            // Stats.locks.spinIterations++;
+            try {Thread.sleep(0);} catch (InterruptedException ie) {ie.printStackTrace();}
+        } while (System.nanoTime() - start < max);  
+        // if (success) {
+        //     trace(getPointer().addr(), "acquired");
+        //     Stats.locks.acquired++;
+        // }
+        // else Stats.locks.timeouts++;
+        // if (!success) trace(getPointer().addr(), "failed to aquire");
+        return success;
+    }
+
+    public void monitorExit() {
+        UNSAFE.monitorExit(this);
+        // trace(getPointer().addr(), "released");
+    }
 }

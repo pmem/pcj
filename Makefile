@@ -73,6 +73,9 @@ clean: cleanex
 cleanex:
 	$(foreach example_dir,$(ALL_EXAMPLE_DIRS), rm -rf $(example_dir)/*.class;)
 
+testsources: $(ALL_TEST_CLASSES)
+	$(JAVAC) $(JAVAFLAGS) -d $(TEST_CLASSES_DIR) -cp src:$(BASE_CLASSPATH) $(ALL_TEST_SOURCES)
+
 tests: $(ALL_TEST_CLASSES)
 	$(JAVAC) $(JAVAFLAGS) -d $(TEST_CLASSES_DIR) -cp src:$(BASE_CLASSPATH) $(ALL_TEST_SOURCES)
 	$(JAVA) -ea -cp $(BASE_CLASSPATH):$(TEST_CLASSES_DIR):src -Djava.library.path=$(CPP_BUILD_DIR) tests.PersistentTestRunner

@@ -29,13 +29,13 @@ import lib.util.persistent.front.PersistentClass;
 @PersistentClass
 public final class PersistentString extends PersistentObject implements Comparable<PersistentString> {
     private static final IntField LENGTH = new IntField();
-    private static final ObjectField<PersistentByteArray> BYTES = new ObjectField<>(PersistentByteArray.class);
+    private static final ObjectField<PersistentImmutableByteArray> BYTES = new ObjectField<>(PersistentImmutableByteArray.class);
     private static final ObjectType<PersistentString> TYPE = ObjectType.fromFields(PersistentString.class, LENGTH, BYTES);
 
     public PersistentString(String s) {
         super(TYPE);
         setIntField(LENGTH, s.length());
-        setObjectField(BYTES, new PersistentByteArray(s.getBytes()));
+        setObjectField(BYTES, new PersistentImmutableByteArray(s.getBytes()));
     }
 
     public PersistentString(ObjectPointer<PersistentString> p) {
@@ -47,7 +47,7 @@ public final class PersistentString extends PersistentObject implements Comparab
     }
 
     public String toString() {
-        PersistentByteArray ba = getObjectField(BYTES);
+        PersistentImmutableByteArray ba = getObjectField(BYTES);
         return new String(ba.toArray());
     }
 
@@ -66,7 +66,7 @@ public final class PersistentString extends PersistentObject implements Comparab
     }
 
     public byte[] getBytes() {
-        PersistentByteArray ba = getObjectField(BYTES);
+        PersistentImmutableByteArray ba = getObjectField(BYTES);
         return ba.toArray();
     }
 

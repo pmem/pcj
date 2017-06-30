@@ -24,16 +24,18 @@ package lib.xpersistent;
 import lib.util.persistent.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import java.util.ArrayList;
+import static lib.util.persistent.Trace.trace;
 
 public class XTransaction implements Transaction {
+
+    private static ThreadLocal<Transaction.State> state = new ThreadLocal<>();
+    public static ThreadLocal<Integer> depth = new ThreadLocal<>();
+    private static ThreadLocal<ArrayList<PersistentObject>> locked = new ThreadLocal<>();
+    private static ThreadLocal<ArrayList<PersistentObject>> constructions = new ThreadLocal<>();
 
     static {
         System.loadLibrary("Persistent");
     }
-
-    private static ThreadLocal<Transaction.State> state = new ThreadLocal<>();
-    private static ThreadLocal<Integer> depth = new ThreadLocal<>();
-    private static ThreadLocal<ArrayList<PersistentObject>> locked = new ThreadLocal<>();
 
     XTransaction() {
         if (state.get() == null) {
@@ -48,7 +50,15 @@ public class XTransaction implements Transaction {
         if (locked.get() == null) {
             locked.set(new ArrayList<PersistentObject>());
         }
+        if (constructions.get() == null) {
+            constructions.set(new ArrayList<PersistentObject>());
+        }
         depth.set(depth.get() + 1);
+    }
+
+    public static void addNewObject(PersistentObject obj) {
+        // trace(obj.getPointer().addr(), "addNewObject called");
+        constructions.get().add(obj);
     }
 
     public Transaction update(Transaction.Update update) {
@@ -56,21 +66,33 @@ public class XTransaction implements Transaction {
             throw new TransactionError("In update: transaction not active");
         }
         update.run();
-        // System.out.println("ran update " + update);
         return this;
     }
 
+    private void releaseLocks() {
+        // trace("releaseLocks called, depth = %d, this = %s", depth.get(), this);
+        ArrayList<PersistentObject> toUnlock = locked.get();
+        for (int i = toUnlock.size() - 1; i >= 0; i--) {
+            PersistentObject obj = toUnlock.get(i);
+            obj.monitorExit();
+        }
+        locked.get().clear();
+    }
+
     public Transaction start(PersistentObject... toLock) {
+        // trace("start transaction, depth = %d, this = %s", depth.get(), this);
         ArrayList<PersistentObject> objs = new ArrayList<>();
+        ArrayList<PersistentObject> lockedObjs = new ArrayList<>();
         for (PersistentObject obj : toLock) {
             if (obj != null) objs.add(obj); 
         }
-        // acquire locks in canonical order
-        objs.sort((x, y) -> Long.compare(x.getPointer().addr(), y.getPointer().addr()));
-        for (PersistentObject obj : objs) {
-                PersistentObject.UNSAFE.monitorEnter(obj);
-                locked.get().add(obj);
+        boolean didLock = PersistentObject.monitorEnter(objs, lockedObjs);
+        if (!didLock) {
+            // trace("failed to get transaction locks");
+            // assert(lockedObjs.isEmpty());
+            throw new TransactionRetryException("failed to get transaction locks");
         }
+        locked.get().addAll(lockedObjs);
         if (depth.get() == 1 && state.get() == Transaction.State.None) {
             state.set(Transaction.State.Active);
             nativeStartTransaction();
@@ -79,9 +101,10 @@ public class XTransaction implements Transaction {
     }
 
     public void commit() {
+        // trace("commit called, state = %s, depth = %d, this = %s", state.get(), depth.get(), this);
         if (depth.get() == 1) {
             if (state.get() == Transaction.State.None) {
-                throw new TransactionError("In commit: transaction not active");
+                return;
             }
             if (state.get() == Transaction.State.Aborted) {
                 depth.set(depth.get() - 1);
@@ -89,20 +112,34 @@ public class XTransaction implements Transaction {
             }
             nativeEndTransaction();
             state.set(Transaction.State.Committed);
-            ArrayList<PersistentObject> toUnlock = locked.get();
-            for (int i = toUnlock.size() - 1; i >= 0; i--) {
-                PersistentObject.UNSAFE.monitorExit(toUnlock.get(i));
+            for (PersistentObject obj : constructions.get()) {
+                ObjectCache.committedConstruction(obj);
             }
-            locked.get().clear();
+            constructions.get().clear();
+            releaseLocks();
         }
         depth.set(depth.get() - 1);
     }
 
     public void abort() {
-        if (state.get() != Transaction.State.Active) throw new TransactionError("In abort: transaction not active");
-        if (depth.get() == 1) {
-            nativeAbortTransaction();
+        // trace("abort called, state = %s, depth = %d, this = %s", state.get(), depth.get(), this);
+        if (state.get() != Transaction.State.Active) {
             state.set(Transaction.State.Aborted);
+            releaseLocks();
+            return;
+        }
+        if (depth.get() == 1) {
+            // remove locked objects from ObjectCache
+            ArrayList<PersistentObject> toUnlock = locked.get();
+            for (int i = toUnlock.size() - 1; i >= 0; i--) {
+                ObjectCache.remove(toUnlock.get(i).getPointer().addr());
+            }
+            nativeAbortTransaction();
+            // trace("nativeAbortTransaction called");
+            constructions.get().clear();
+            // trace("abort: constructions cleared");
+            state.set(Transaction.State.Aborted);
+            releaseLocks();
         }
     }
 

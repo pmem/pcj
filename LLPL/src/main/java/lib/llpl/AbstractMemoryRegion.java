@@ -99,5 +99,5 @@ abstract class AbstractMemoryRegion implements MemoryRegion {
         putLong(offset, value);
     }
 
-    protected synchronized native long nativeGetBits(long regionOffset, long offset, int size);
+    protected native long nativeGetBits(long regionOffset, long offset, int size);
 }

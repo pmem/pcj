@@ -23,6 +23,7 @@ package lib.util.persistent;
 
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import lib.util.persistent.types.Types;
+import static lib.util.persistent.Trace.*;
 
 class RawString {
     private final MemoryRegion region;
@@ -32,10 +33,11 @@ class RawString {
         this.string = s;
         final Box<MemoryRegion> box = new Box<>();
         Transaction.run(() -> {
-            this.region = box.set(PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(Types.INT.getSize() + s.length()));
-            putString(0, s);
+            MemoryRegion r = box.set(PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(Types.INT.getSize() + s.length()));
+            putString(r, 0, s);
         });
         this.region = box.get();
+        // trace(region.addr(), "created RawString");
     }
 
     public RawString(MemoryRegion region) {
@@ -51,9 +53,13 @@ class RawString {
         return string;
     }
 
-    private synchronized String getString(long offset) {
+    private String getString(long offset) {
         int size = region.getInt(offset);
-        assert(size > 0 && size < 128);
+        if (size < 0 || size > 128) {
+            System.out.format("Heap appears to be corrupt: RawString at address %d size = %d\n", region.addr() + offset, size);
+            new Exception().printStackTrace();
+            System.exit(-1);
+        }
         byte[] bytes = new byte[size];
         long base = offset + Types.INT.getSize();
         for (int i = 0; i < bytes.length; i++) bytes[i] = region.getByte(base + i);
@@ -61,7 +67,7 @@ class RawString {
         return s;
     }
 
-    private synchronized void putString(long offset, String s) {
+    private void putString(MemoryRegion region, long offset, String s) {
         byte[] bytes = s.getBytes();
         Transaction.run(() -> {
             region.putInt(offset, bytes.length);

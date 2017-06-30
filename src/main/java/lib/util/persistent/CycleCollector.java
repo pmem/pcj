@@ -159,13 +159,15 @@ public class CycleCollector {
         }
     }
 
-    static synchronized void addCandidate(long addr) {
-        PersistentObject obj = ObjectCache.get(addr, true);
-        if (obj.getColor() != PURPLE) {
-            obj.setColor(PURPLE);
-            candidatesSet.add(addr);
-            ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).addToCandidates(addr);
-        }
+    static /*synchronized*/ void addCandidate(long addr) {
+        Transaction.run(() -> {
+            PersistentObject obj = ObjectCache.get(addr, true);
+            if (obj.getColor() != PURPLE) {
+                obj.setColor(PURPLE);
+                candidatesSet.add(addr);
+                ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).addToCandidates(addr);
+            }
+        });
     }
 
     static synchronized void removeFromCandidates(long addr) {

@@ -98,8 +98,8 @@ public class Heap {
     }
 
     private synchronized native void nativeOpenHeap(String name);
-    private synchronized native long nativeGetMemoryRegion(long size);
+    private native long nativeGetMemoryRegion(long size);
     private synchronized native int nativeSetRoot(long val);
-    private synchronized native long nativeGetRoot();
-    private synchronized native int nativeFree(long addr);
+    private native long nativeGetRoot();
+    private native int nativeFree(long addr);
 }

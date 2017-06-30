@@ -19,27 +19,10 @@
  * Boston, MA  02110-1301, USA.
  */
 
-package lib.llpl;
+package lib.util.persistent;
 
-public class RawMemoryRegion extends AbstractMemoryRegion {
-    RawMemoryRegion(long addr) {
-        super(addr);
-    }
-
-    @Override
-    public void putBits(long offset, long size, long value) {
-        if (size < 0 || size > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Invalid size: " + size);
-        }
-
-        if (size != 1 && size != 2 && size != 4 && size != 8) {
-            throw new IllegalArgumentException("Invalid size: " + size);
-        }
-
-        if (nativePutBits(this.addr, offset, value, (int)size) < 0) {
-            throw new PersistenceException("Failed to put bits into region!");
-        }
-    }
-
-    protected native int nativePutBits(long regionOffset, long offset, long value, int size);
+public class TransactionRetryException extends TransactionException {
+   public TransactionRetryException(String message) {
+      super(message);
+   }
 }

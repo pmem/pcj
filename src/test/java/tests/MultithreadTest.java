@@ -31,9 +31,12 @@ public class MultithreadTest {
     static boolean verbose = false;
 
     public static void main(String[] args) {
-    PersistentMemoryProvider.getDefaultProvider().getHeap().open();
+        Trace.enable(false);
+        Stats.enable(false);
+        PersistentMemoryProvider.getDefaultProvider().getHeap().open();
         verbose = true;
         run();
+        lib.util.persistent.Stats.printStats();
     }
 
     public static boolean run() {
@@ -48,11 +51,15 @@ public class MultithreadTest {
             Thread[] threads = new Thread[NUM_THREADS];
             PersistentSkipListMap<PersistentString, PersistentInteger> m1 = new PersistentSkipListMap<>();
             long start = System.nanoTime();
+            Box<Integer> bi = new Box<>();
             for (int i = 0; i < threads.length; i++) {
                 threads[i] = new Thread( ()->{
                     for (int j = 0; j < NUM_ITERATIONS; j++) {
-                        PersistentString key = new PersistentString("hello"+j);
-                        m1.put(key, new PersistentInteger(j));
+                        bi.set(j);
+                        Transaction.run(() -> {
+                            PersistentString key = new PersistentString("hello" + bi.get());
+                            m1.put(key, new PersistentInteger(bi.get()));
+                        });
                     }
                 });
                 threads[i].start();

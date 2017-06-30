@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <inttypes.h>
 
 #include <libpmemobj.h>
 #include "hashmap_tx.h"
@@ -43,10 +44,10 @@ static void create_hashmap(PMEMobjpool *pop, TOID(struct hashmap_tx) hashmap,
 		TX_ADD(hashmap);
 
 		D_RW(hashmap)->seed = seed;
-		D_RW(hashmap)->hash_fun_a =
-				(uint32_t)(1000.0 * rand() / RAND_MAX) + 1;
-		D_RW(hashmap)->hash_fun_b =
-				(uint32_t)(100000.0 * rand() / RAND_MAX);
+		do {
+			D_RW(hashmap)->hash_fun_a = (uint32_t)rand();
+		} while (D_RW(hashmap)->hash_fun_a == 0);
+		D_RW(hashmap)->hash_fun_b = (uint32_t)rand();
 		D_RW(hashmap)->hash_fun_p = HASH_FUNC_COEFF_P;
 
 		D_RW(hashmap)->buckets = TX_ZALLOC(struct buckets, sz);
@@ -74,14 +75,6 @@ static uint64_t hash
 	size_t len = D_RO(*buckets)->nbuckets;
 
 	return ((a * value + b) % p) % len;
-
-    /*const uint64_t w_bit = 4294967295;
-    const int A = 2654435769;
-    uint64_t r0 = (value * A) ^ (value+1);;
-    uint64_t ret = ((r0 & w_bit)) % len;
-    //printf("Returning hash value %lu for input value %lu\n", ret, value);
-    fflush(stdout);
-    return ret;*/
 }
 
 /*

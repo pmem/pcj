@@ -46,12 +46,7 @@ JNIEXPORT jint JNICALL Java_lib_llpl_FlushableMemoryRegion_nativeSetFlushed
     void* src = &value;
 
     int ret = 0;
-    TX_BEGIN(pool) {
-        TX_MEMCPY(dest, src, sizeof(int));
-    } TX_ONABORT {
-        ret = -1;
-    } TX_END
-
+    pmemobj_memcpy_persist(pool, dest, src, sizeof(int));
     return ret;
 }
 

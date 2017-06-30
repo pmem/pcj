@@ -26,6 +26,8 @@ import lib.util.persistent.*;
 import lib.util.persistent.types.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
+import lib.xpersistent.XTransaction;
+
 public class GUPSTest3 {
     static PersistentSkipListMap<PersistentInteger, Value> map;
     private static final int WRITE = 0;
@@ -45,6 +47,7 @@ public class GUPSTest3 {
         int SLEEP_MS = args.length > 4 ? Integer.parseInt(args[4]) : 0;
         System.out.format("READ_MULTIPLIER = %d\n", READ_MULTIPLIER);
 
+        Stats.enable(true);
         PersistentMemoryProvider.getDefaultProvider().getHeap().open();
         map = new PersistentSkipListMap<PersistentInteger, Value>();           
         int deltaT = START_THREADS < END_THREADS ? 1 : -1;
@@ -99,6 +102,7 @@ public class GUPSTest3 {
             map.clear();
             nt += deltaT;
         }
+        // lib.util.persistent.Stats.printStats();
     }
 
     private static void run(Thread[] ts) {
