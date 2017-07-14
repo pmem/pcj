@@ -26,68 +26,99 @@ public class Stats {
     static boolean enable = false;
     static boolean disableOverride = false;
     public static ObjectCacheStats objectCache = new ObjectCacheStats();
+    public static MemoryStats memory = new MemoryStats();
     public static TransactionStats transactions = new TransactionStats();
     public static LockStats locks = new LockStats();
 
     public static void enable(boolean e) {enable = e;}
     public static void disableOverride(boolean e) {disableOverride = e;}
 
-    public static boolean isEnabled() {
+    public static boolean enabled() {
         return (enable && !disableOverride);
     }
 
     public static class ObjectCacheStats {
-        public static long simpleHits = 0;
-        public static long promotedHits = 0;
-        public static long simpleMisses = 0;
-        public static long referentMisses = 0;
+        public static long simpleHits = -1;
+        public static long promotedHits = -1;
+        public static long simpleMisses = -1;
+        public static long referentMisses = -1;
+    }
+
+    public static class MemoryStats {
+        public static long constructions = 0;
+        public static long reconstructions = 0;
+        public static long enqueued = 0;
     }
 
     public static class TransactionStats {
-        public static long total = 0;
-        public static long topLevel = 0;
-        public static long maxDepth = 0;
-        public static long retries = 0;
+        public static long total = -1;
+        public static long topLevel = -1;
+        public static long maxDepth = -1;
+        public static long totalRetries = 0;
+        private static long maxRetries = 0;
+        public static long failures = 0;
+
+        public static void updateMaxRetries(int retries) {
+            if (retries > maxRetries) maxRetries = retries;
+        }
     }
 
     public static class LockStats {
-        public static long acquired = 0;
-        public static long timeouts = 0;
-        public static long spinIterations = 0;
+        public static long acquired = -1;
+        public static long timeouts = -1;
+        public static long spinIterations = -1;
+    }
+
+    private static String format1 = "%,15d"; 
+
+    private static String format(long value) {
+        return String.format(value == -1 ? "%15s" : "%,15d", value == -1 ? "N/A" : value);
     }
 
     public static void printObjectCacheStats() {
-        if (!isEnabled()) return;
-        System.out.format("\n       ObjectCache Stats\n");
-        System.out.format(  "-------------------------------\n"); 
-        System.out.format("simpleHits     :%,15d\n", objectCache.simpleHits); 
-        System.out.format("promotedHits   :%,15d\n", objectCache.promotedHits); 
-        System.out.format("simpleMisses   :%,15d\n", objectCache.simpleMisses); 
-        System.out.format("referentMisses :%,15d\n", objectCache.referentMisses); 
+        if (!enabled()) return;
+        System.out.println("\n       ObjectCache Stats");
+        System.out.println(  "-------------------------------"); 
+        System.out.println("simpleHits     :" + format(objectCache.simpleHits)); 
+        System.out.println("promotedHits   :" + format(objectCache.promotedHits)); 
+        System.out.println("simpleMisses   :" + format(objectCache.simpleMisses)); 
+        System.out.println("referentMisses :" + format(objectCache.referentMisses)); 
+    }
+
+    public static void printMemoryStats() {
+        if (!enabled()) return;
+        System.out.println("\n         Memory Stats");
+        System.out.println(  "-------------------------------"); 
+        System.out.println("constructions  :" + format(memory.constructions)); 
+        System.out.println("reconstructions:" + format(memory.reconstructions)); 
+        System.out.println("enqueued       :" + format(memory.enqueued)); 
     }
 
     public static void printTransactionStats() {
-        if (!isEnabled()) return;
-        System.out.format("\n       Transaction Stats\n");
-        System.out.format(  "-------------------------------\n");         
-        System.out.format("total          :%,15d\n", transactions.total);
-        System.out.format("topLevel       :%,15d\n", transactions.topLevel);
-        System.out.format("maxDepth       :%,15d\n", transactions.maxDepth);
-        System.out.format("retries        :%,15d\n", transactions.retries);
+        if (!enabled()) return;
+        System.out.println("\n       Transaction Stats");
+        System.out.println(  "-------------------------------");         
+        System.out.println("total          :" + format(transactions.total));
+        System.out.println("topLevel       :" + format(transactions.topLevel));
+        System.out.println("maxDepth       :" + format(transactions.maxDepth));
+        System.out.println("totalRetries   :" + format(transactions.totalRetries));
+        System.out.println("maxRetries     :" + format(transactions.maxRetries));
+        System.out.println("failures       :" + format(transactions.failures));
     }
 
     public static void printLockStats() {
-        if (!isEnabled()) return;
-        System.out.format("\n          Lock Stats\n");
-        System.out.format(  "-------------------------------\n");         
-        System.out.format("aquired        :%,15d\n", locks.acquired);
-        System.out.format("timeouts       :%,15d\n", locks.timeouts);
-        System.out.format("spinIterations :%,15d\n", locks.spinIterations);
+        if (!enabled()) return;
+        System.out.println("\n          Lock Stats");
+        System.out.println(  "-------------------------------");         
+        System.out.println("aquired        :" + format(locks.acquired));
+        System.out.println("timeouts       :" + format(locks.timeouts));
+        System.out.println("spinIterations :" + format(locks.spinIterations));
     }
 
     public static void printStats() {
-        if (!isEnabled()) return;
+        if (!enabled()) return;
         printObjectCacheStats();
+        printMemoryStats();
         printTransactionStats();
         printLockStats();
         System.out.println();

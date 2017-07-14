@@ -50,6 +50,7 @@ import lib.xpersistent.XRoot;
 import lib.xpersistent.UncheckedPersistentMemoryRegion;
 import java.util.Random;
 import static lib.util.persistent.Trace.*;
+import java.util.concurrent.TimeoutException;
 
 import sun.misc.Unsafe;
 
@@ -83,6 +84,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
 
     <T extends PersistentObject> PersistentObject(ObjectType<T> type, MemoryRegion region) {
         // trace(region.addr(), "creating object of type %s", type.getName());
+        Stats.memory.constructions++;
         this.pointer = new ObjectPointer<T>(type, region);
         List<PersistentType> ts = type.getTypes();
         Transaction.run(() -> {
@@ -99,6 +101,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
 
     public PersistentObject(ObjectPointer<? extends PersistentObject> p) {
         // trace(p.region().addr(), "recreating object");
+        Stats.memory.reconstructions++;
         this.pointer = p;
     }
 
@@ -128,7 +131,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
         // trace(addr, "free called");
         ObjectCache.remove(addr);
         MemoryRegion reg = new UncheckedPersistentMemoryRegion(addr);
-        MemoryRegion nameRegion = new UncheckedPersistentMemoryRegion(reg.getInt(Header.TYPE.getOffset(Header.TYPE_NAME)));
+        MemoryRegion nameRegion = new UncheckedPersistentMemoryRegion(reg.getLong(Header.TYPE.getOffset(Header.TYPE_NAME)));
         Transaction.run(() -> {
             // trace(addr, "freeing object region %d and name region %d", reg.addr(), nameRegion.addr());
             heap.freeRegion(nameRegion);
@@ -148,10 +151,21 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return pointer.type();
     }
 
-    synchronized byte getByte(long offset) {return pointer.region().getByte(offset);}
-    synchronized short getShort(long offset) {return pointer.region().getShort(offset);}
-    synchronized int getInt(long offset) {return pointer.region().getInt(offset);}
-    synchronized long getLong(long offset) {return pointer.region().getLong(offset);}
+    synchronized byte getByte(long offset) {
+        return pointer.region().getByte(offset);
+    }
+
+    synchronized short getShort(long offset) {
+        return pointer.region().getShort(offset);
+    }
+
+    synchronized int getInt(long offset) {
+        return pointer.region().getInt(offset);
+    }
+
+    synchronized long getLong(long offset) {
+        return pointer.region().getLong(offset);
+    }
 
     void setByte(long offset, byte value) {
         Transaction.run(() -> {
@@ -178,10 +192,28 @@ public class PersistentObject implements Persistent<PersistentObject> {
     }
 
     @SuppressWarnings("unchecked")
-    synchronized <T extends PersistentObject> T getObject(long offset) {
-        long valueAddr = getLong(offset);
-        if (valueAddr == 0) return null;
-        return (T)ObjectCache.get(valueAddr);
+    <T extends PersistentObject> T getObject(long offset) {
+        T ans = null;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        boolean success = inTransaction ? monitorEnterTimeout() : monitorEnterTimeout(5000);
+        if (success) {
+            try {
+                if (inTransaction) info.transaction.addLockedObject(this);
+                long valueAddr = getLong(offset);
+                if (valueAddr != 0) ans = (T)ObjectCache.get(valueAddr);
+            }
+            finally {
+                if (!inTransaction) monitorExit();
+            }
+        }
+        else {
+            String message = "failed to acquire lock (timeout) in getObject";
+            trace(true, getPointer().addr(), message + ", inTransaction = %s", inTransaction);
+            if (inTransaction) throw new TransactionRetryException(message);
+            else throw new RuntimeException(message);
+        }
+        return ans;
     }
 
     void setObject(long offset, PersistentObject value) {
@@ -355,7 +387,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
             newCount.set(oldCount - 1);
             // trace(getPointer().addr(), "decRefCount, type = %s, old = %d, new = %d", getPointer().type(), oldCount, newCount.get());
             if (newCount.get() < 0) {
-               // trace(reg.addr(), "decRef below 0");
+               trace(true, reg.addr(), "decRef below 0");
                new RuntimeException().printStackTrace(); System.exit(-1);}
             reg.putInt(Header.TYPE.getOffset(Header.REF_COUNT), newCount.get());
         }, this);
@@ -410,9 +442,9 @@ public class PersistentObject implements Persistent<PersistentObject> {
         PersistentObject obj = ObjectCache.get(address, true);
         Transaction.run(() -> {
             int rc = obj.getRefCount();
-            // trace(address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
+            trace(address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
             if (obj.getRefCount() < count) {
-                System.out.println("refcount < count");
+                trace(true, address, "refCount %d < count %d", obj.getRefCount(), count);
                 System.exit(-1);
             }
             for (int i = 0; i < count - 1; i++) obj.decRefCount();
@@ -468,49 +500,65 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return getPointer().region().getByte(Header.TYPE.getOffset(Header.REF_COLOR));
     }
 
-    static final int TIMEOUT = 125_000_000; // ns
-
-    public static boolean monitorEnter(List<PersistentObject> toLock, List<PersistentObject> locked) {
-        // trace("monitorEnter (lists), starting toLock = %d, locked = %d", toLock.size(), locked.size());
+    public static boolean monitorEnter(List<PersistentObject> toLock, List<PersistentObject> locked, boolean block) {
+        trace("monitorEnter (lists), starting toLock = %d, locked = %d, block = %s", toLock.size(), locked.size(), block);
         // toLock.sort((x, y) -> Long.compare(x.getPointer().addr(), y.getPointer().addr()));
         boolean success = true;
         for (PersistentObject obj : toLock) {
-            if (!obj.monitorEnterTimeout(TIMEOUT)) {
-                success = false;
-                // trace("TIMEOUT exceeded");
-                for(PersistentObject lockedObj : locked) {
-                    lockedObj.monitorExit();
-                    // trace("removed locked obj %d", obj.getPointer().addr());
+            if (!block) {
+                if (!obj.monitorEnterTimeout()) {
+                    success = false;
+                    // trace("TIMEOUT exceeded");
+                    for(PersistentObject lockedObj : locked) {
+                        lockedObj.monitorExit();
+                        // trace("removed locked obj %d", obj.getPointer().addr());
+                    }
+                    locked.clear();
+                    break;
                 }
-                locked.clear();
-                break;
+                else {
+                    locked.add(obj);
+                    // trace("added locked obj %d", obj.getPointer().addr());
+                }
             }
-            else {
-                locked.add(obj);
-                // trace("added locked obj %d", obj.getPointer().addr());
-            }
+            else obj.monitorEnter();
         }
         // trace("monitorEnter (lists), exiting toLock = %d, locked = %d", toLock.size(), locked.size());
         return success;
     }
 
+    public void monitorEnter() {
+        // trace(true, getPointer().addr(), "blocking monitorEnter for %s, attempt = %d", this, lib.xpersistent.XTransaction.tlInfo.get().attempts);
+        UNSAFE.monitorEnter(this);
+        // trace(true, getPointer().addr(), "blocking monitorEnter for %s exit", this);
+    }
+
     public boolean monitorEnterTimeout(long timeout) {
-        // trace(getPointer().addr(), "trying to acquire");
         boolean success = false;
-        long start = System.nanoTime();
-        long max = TIMEOUT + random.nextInt(TIMEOUT);
+        long start = System.currentTimeMillis();
+        int count = 0;
         do {
             success = UNSAFE.tryMonitorEnter(this);
             if (success) break;
-            // Stats.locks.spinIterations++;
-            try {Thread.sleep(0);} catch (InterruptedException ie) {ie.printStackTrace();}
-        } while (System.nanoTime() - start < max);  
-        // if (success) {
-        //     trace(getPointer().addr(), "acquired");
-        //     Stats.locks.acquired++;
-        // }
+            count++;
+            Stats.locks.spinIterations++;
+            // if (count > 2000) try {count = 0; Thread.sleep(1);} catch (InterruptedException ie) {ie.printStackTrace();}
+        } while (System.currentTimeMillis() - start < timeout);  
+        // if (success) Stats.locks.acquired++;
         // else Stats.locks.timeouts++;
-        // if (!success) trace(getPointer().addr(), "failed to aquire");
+        return success;
+    }
+
+    public boolean monitorEnterTimeout() {
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        int max = info.timeout + random.nextInt(info.timeout);
+        boolean success = monitorEnterTimeout(max);
+        if (success) {
+            info.timeout = Config.MONITOR_ENTER_TIMEOUT;
+        }
+        else {
+            info.timeout = Math.min((int)(info.timeout * Config.MONITOR_ENTER_TIMEOUT_INCREASE_FACTOR), Config.MAX_MONITOR_ENTER_TIMEOUT);
+        }
         return success;
     }
 

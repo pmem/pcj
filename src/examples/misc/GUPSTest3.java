@@ -25,6 +25,9 @@ import java.util.*;
 import lib.util.persistent.*;
 import lib.util.persistent.types.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
+import lib.util.persistent.Trace;
+import static lib.util.persistent.Trace.*;
+
 
 import lib.xpersistent.XTransaction;
 
@@ -45,9 +48,11 @@ public class GUPSTest3 {
         int NUM_WRITES = Integer.parseInt(args[2]);
         int READ_MULTIPLIER = args.length > 3 ? Integer.parseInt(args[3]) : 1;
         int SLEEP_MS = args.length > 4 ? Integer.parseInt(args[4]) : 0;
+        boolean TRACE = args.length > 5 ? Boolean.parseBoolean(args[5]) : false;
         System.out.format("READ_MULTIPLIER = %d\n", READ_MULTIPLIER);
 
         Stats.enable(true);
+        Trace.enable(TRACE);
         PersistentMemoryProvider.getDefaultProvider().getHeap().open();
         map = new PersistentSkipListMap<PersistentInteger, Value>();           
         int deltaT = START_THREADS < END_THREADS ? 1 : -1;
@@ -59,6 +64,7 @@ public class GUPSTest3 {
         System.out.format("threads   time (sec.)   trans./sec.   reads/sec.   writes/sec.\n");
         System.out.format("=======   ===========   ===========   ==========   ===========\n");
         while (nt != END_THREADS + deltaT) {
+            // trace("starting run with %d threads", nt);
             int tWrites = nWrites / nt;
             int tReads = nReads / nt;
             Thread[] threads = new Thread[nt];
@@ -68,6 +74,7 @@ public class GUPSTest3 {
                 threads[j] = new Thread(()->{
                     int kint = (int)Thread.currentThread().getId() * nTransactions;
                     for (int i = 0; i < tWrites; i++) {
+                        // trace("write i = %d", i);
                         int nextInt = kint + i;
                         PersistentInteger key = new PersistentInteger(nextInt);
                         Value val = new Value();
@@ -86,6 +93,7 @@ public class GUPSTest3 {
                     int kint = (int)Thread.currentThread().getId() * nTransactions;
                     for (int k = 0; k < READ_MULTIPLIER; k++) {
                         for (int i = 0; i < tWrites; i++) {
+                            // trace("read set k = %d, i = %d", k, i);
                             int nextInt = kint + i;
                             PersistentInteger key = new PersistentInteger(nextInt);
                             Value obj = map.get(key);
@@ -102,7 +110,7 @@ public class GUPSTest3 {
             map.clear();
             nt += deltaT;
         }
-        // lib.util.persistent.Stats.printStats();
+        lib.util.persistent.Stats.printStats();
     }
 
     private static void run(Thread[] ts) {

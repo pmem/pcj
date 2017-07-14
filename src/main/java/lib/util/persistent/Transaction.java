@@ -36,42 +36,63 @@ public interface Transaction extends AutoCloseable {
 
     public static void run(PersistentMemoryProvider provider, Update update, PersistentObject... toLock) {
         boolean success = false;
-        int attempts = 1;
-        int MAX_ATTEMPTS = 25;
-
-        while (!success && attempts <= MAX_ATTEMPTS) {
+        TransactionInfo info = XTransaction.tlInfo.get();
+        while (!success && info.attempts <= Config.MAX_TRANSACTION_RETRIES) {
             Transaction t = provider.newTransaction();
             // for stats
-            // Stats.transactions.total++;
-            // int currentDepth = XTransaction.depth.get();
-            // if (currentDepth == 1) Stats.transactions.topLevel++;
-            // Stats.transactions.maxDepth = Math.max(Stats.transactions.maxDepth, currentDepth);
+            Stats.transactions.total++;
+            int currentDepth = info.depth;
+            if (currentDepth == 1) Stats.transactions.topLevel++;
+            Stats.transactions.maxDepth = Math.max(Stats.transactions.maxDepth, currentDepth);
             // end for stats
             try {
-                t.start(toLock);
+                boolean block = Config.BLOCK_ON_EXCEED_MAX_TRANSACTION_RETRIES && info.attempts == Config.MAX_TRANSACTION_RETRIES;
+                // trace(true, "%s about to call start, attempts = %d, depth = %d, block = %s", t, info.attempts, info.depth, block);
+                t.start(block, toLock);
                 t.update(update);
                 success = true;
             }
             catch (Throwable e) {
-                // trace("Transaction.run() caught %s, depth = %d",  e, XTransaction.depth.get());
+                success = false;
+                // trace(true, "%s Transaction.run() caught %s, depth = %d", t,  e, info.depth);
                 t.abort();
-                // trace("called abort on %s", t);
-                if (XTransaction.depth.get() != 1) throw e; // unwind stack
+                // trace(true, "called abort on %s", t);
+                if (info.depth > 1) throw e; // unwind stack
                 else if (!(e instanceof TransactionRetryException)) throw e; // not a retry-able exception
                 // retry
             } 
             finally {
                 t.commit();
             }
-            attempts++;
             if (!success) {
-                // Stats.transactions.retries++;
-                // trace(true, "retry #%d", attempts - 1);
-                try {Thread.sleep(attempts);} catch(InterruptedException ie) {ie.printStackTrace();}
+                info.attempts++;     
+                Stats.transactions.totalRetries++;
+                Stats.transactions.updateMaxRetries(info.attempts - 1);
+                int sleepTime = info.retryDelay + Util.randomInt(info.retryDelay);
+                // trace(true, "old retryDelay = %d, new retryDelay = %d", info.retryDelay, Math.min((int)(info.retryDelay * Config.TRANSACTION_RETRY_DELAY_INCREASE_FACTOR), Config.MAX_TRANSACTION_RETRY_DELAY)); 
+                info.retryDelay = Math.min((int)(info.retryDelay * Config.TRANSACTION_RETRY_DELAY_INCREASE_FACTOR), Config.MAX_TRANSACTION_RETRY_DELAY);
+                // trace("retry #%d, sleepTime = %d", info.attempts - 1, sleepTime);
+                try {Thread.sleep(sleepTime);} catch(InterruptedException ie) {ie.printStackTrace();}
             }
         }
+        // trace(true, "after while, depth = %d, success = %s, attempts = %d",  info.depth, success,  info.attempts);
         if (!success) {
-            throw new TransactionException(String.format("failed to execute transaction after %d attempts", attempts));
+            Stats.transactions.failures++;
+            trace(true, "failed transaction");
+            RuntimeException e = new TransactionException(String.format("failed to execute transaction after %d attempts", info.attempts));            
+            if (Config.EXIT_ON_TRANSACTION_FAILURE) {
+                e.printStackTrace();
+                Stats.printStats();
+                System.exit(-1);
+            }
+            throw e;
+        }
+        else {
+            // trace(true, "transaction success, attempts = %d, depth = %d",info.attempts, info.depth);
+            if (info.depth == 1) {
+                info.attempts = 1;
+                info.retryDelay = Config.BASE_TRANSACTION_RETRY_DELAY;
+            }
         }
     }
 
@@ -84,7 +105,7 @@ public interface Transaction extends AutoCloseable {
 	}
 
 	public Transaction update(Update update);
-    public Transaction start(PersistentObject... toLock);
+    public Transaction start(boolean block, PersistentObject... toLock);
 	public void commit();
 	public void abort();
 	public State state();

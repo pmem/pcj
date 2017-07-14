@@ -313,21 +313,16 @@ public class PersistentLinkedQueue <E extends PersistentObject> extends Persiste
 
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		try {
-			if(isEmpty()) sb.append("Empty Queue");
-			else {
-				PersistentNode<E> cursor = first();
-				do {
-					String item = (cursor.getItem() == null)? "(null)" : cursor.getItem().toString();
-					sb.append(item);
-					sb.append("-->");
-					cursor = cursor.getNext();
-				} while(cursor != null);
-				sb.append("NULL");    			
-			}
-		}
-		catch(Exception e) {
-			e.printStackTrace();
+		if(isEmpty()) sb.append("Empty Queue");
+		else {
+			PersistentNode<E> cursor = first();
+			do {
+				String item = (cursor.getItem() == null)? "(null)" : cursor.getItem().toString();
+				sb.append(item);
+				sb.append("-->");
+				cursor = cursor.getNext();
+			} while(cursor != null);
+			sb.append("NULL");    			
 		}
 		return sb.toString();
 	}

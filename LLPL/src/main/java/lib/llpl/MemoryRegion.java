@@ -26,6 +26,10 @@ public interface MemoryRegion {
     int MODE_W  = (1 << 1);
     int MODE_RW = MODE_R | MODE_W;
 
+    public enum Kind {
+        Raw, Flushable, Transactional
+    }
+
     void checkAccess(int mode) throws IllegalAccessException;
     void checkAlive();
     void checkBounds(long offset) throws IndexOutOfBoundsException;

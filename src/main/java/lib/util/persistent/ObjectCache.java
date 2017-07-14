@@ -31,6 +31,7 @@ import lib.util.persistent.spi.PersistentMemoryProvider;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.ref.ReferenceQueue;
 import lib.xpersistent.XRoot;
 import lib.xpersistent.XTransaction;
@@ -54,19 +55,18 @@ public class ObjectCache {
             try {
                 while (true) {
                     PRef<?> qref = (PRef)queue.remove();
-                    // trace(qref.getAddress(), "object enqueued");
+                    trace(qref.getAddress(), "object enqueued");
+                    Stats.memory.enqueued++;
                     prefs.remove(qref.getAddress());
                     if (!qref.isForAdmin()) {
-                        synchronized(ObjectCache.class) {
+                        Transaction.run(() -> {
+                            long address = qref.getAddress();
+                            deregisterObject(address);
+                            PersistentObject obj = get(address, true);
                             Transaction.run(() -> {
-                                long address = qref.getAddress();
-                                deregisterObject(address);
-                                PersistentObject obj = get(address, true);
-                                Transaction.run(() -> {
-                                    obj.deleteReference();
-                                }, obj);
-                            });
-                        }
+                                obj.deleteReference();
+                            }, obj);
+                        });
                     }
                 }
             } catch (InterruptedException ie) {
@@ -107,7 +107,7 @@ public class ObjectCache {
 
         public PRef(T obj, boolean forAdmin) {
             super(obj, queue);
-            // trace("created PRef object for address " + obj.getPointer().addr());
+            trace("created PRef object for address " + obj.getPointer().addr());
             this.address = obj.getPointer().addr();
             this.forAdmin = forAdmin;
             prefs.put(this.address, this);
@@ -140,7 +140,6 @@ public class ObjectCache {
             // trace(address, "MISS: " + (ref == null ? "simple" : "null referent"));
             // if (ref == null) Stats.objectCache.simpleMisses++; else Stats.objectCache.referentMisses++;
             obj = objectForAddress(address, forAdmin);
-            if (!forAdmin) obj.initForGC();       
             ref = new Ref(obj, forAdmin);
             cache.put(address, ref);
         }
@@ -171,9 +170,10 @@ public class ObjectCache {
                 Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
                 ctor.setAccessible(true);
                 box.set((T)ctor.newInstance(new ObjectPointer<T>(type, valueRegion)));
+                if (!forAdmin) box.get().initForGC();       
             }
-            catch (Exception e) {
-                throw new RuntimeException(e.getMessage());
+            catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+                throw new RuntimeException("failed to call reflected constructor");
             }
             if (!forAdmin) XTransaction.addNewObject(box.get());
         });
@@ -188,7 +188,6 @@ public class ObjectCache {
     static <T extends PersistentObject> void add(T obj) {
         // trace(obj.getPointer().addr(), "ObjectCache.add");
         long address = obj.getPointer().addr();
-        // assert(cache.get(address) == null);
         Ref<T> ref = new Ref<>(obj);
         cache.put(address, ref);
         XTransaction.addNewObject(obj);        

@@ -24,9 +24,11 @@ package lib.util.persistent;
 public class Trace {
     static boolean enable = false;
     static boolean disableOverride = false;
+    static boolean indent = false;
 
     public static void enable(boolean e) {enable = e;}
     public static void disableOverride(boolean e) {disableOverride = e;}
+    public static void useIndent(boolean e) {indent = e;}
 
     private static boolean isEnabled() {
         return (enable && !disableOverride);
@@ -55,7 +57,7 @@ public class Trace {
     public static String threadInfo() {
       StringBuilder buff = new StringBuilder();
       long tid = Thread.currentThread().getId();
-      for (int i = 0; i < tid; i++) buff.append(" ");
+      if (indent) for (int i = 0; i < tid; i++) buff.append(" ");
       buff.append(tid);
       return buff.toString();
     }

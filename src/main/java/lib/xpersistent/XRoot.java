@@ -70,8 +70,8 @@ public final class XRoot implements Root {
     }
 
     public void init() {
-        registrationLock = new PersistentLong(0);
-        candidatesLock = new PersistentLong(0);
+        registrationLock = new PersistentLong(333333333);
+        candidatesLock = new PersistentLong(444444444);
     }        
 
     public PersistentHashMap<PersistentString, PersistentObject> getObjectDirectory() { return objectDirectory; }

@@ -21,11 +21,11 @@
 
 package lib.llpl;
 
-abstract class AbstractMemoryRegion implements MemoryRegion {
-    protected final long addr;
+abstract class AbstractMemoryRegion implements MemoryRegion, Comparable<AbstractMemoryRegion> {
+    protected long addr;
 
     static {
-        System.loadLibrary("MemoryRegion");
+        System.loadLibrary("llpl");
     }
 
     AbstractMemoryRegion(long addr) {
@@ -36,8 +36,13 @@ abstract class AbstractMemoryRegion implements MemoryRegion {
         return this.addr;
     }
 
+    void addr(long addr) { this.addr = addr; }
+
     public void checkAccess(int mode) throws IllegalAccessException {}
-    public void checkAlive() {}
+    public void checkAlive() {
+        if (this.addr == 0)
+            throw new IllegalStateException("Region is not alive!");
+    }
     public void checkBounds(long offset) throws IndexOutOfBoundsException {}
 
     public long getBits(long offset, long size, boolean isSigned) {
@@ -97,6 +102,25 @@ abstract class AbstractMemoryRegion implements MemoryRegion {
     }
     public void putAddress(long offset, long value) {
         putLong(offset, value);
+    }
+
+    @Override
+    public int hashCode() {
+        return Long.hashCode(this.addr());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof AbstractMemoryRegion)) return false;
+        return this.addr() == ((AbstractMemoryRegion)o).addr();
+    }
+
+    @Override
+    public int compareTo(AbstractMemoryRegion that) {
+        long diff = this.addr() - that.addr();
+        if (diff < 0) return -1;
+        else if (diff > 0) return 1;
+        else return 0;
     }
 
     protected native long nativeGetBits(long regionOffset, long offset, int size);

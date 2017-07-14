@@ -23,6 +23,8 @@ package examples.database;
 
 import lib.util.persistent.*;
 import lib.util.persistent.types.*;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 
 public class Value extends PersistentObject {
     private static final ObjectField<PersistentArray> CELLS = new ObjectField<>(PersistentArray.class);
@@ -58,15 +60,17 @@ public class Value extends PersistentObject {
         if (iMax == -1) return "[]";
 
         StringBuilder b = new StringBuilder();
-        b.append('[');
+//        b.append('[');
         for (int i = 0; ; i++) {
             if (cells().get(i) != null)
                 b.append(((Cell)(cells().get(i))).val().toString());
             else
                 b.append("NULL");
             if (i == iMax)
-                return b.append(']').toString();
+                return b.toString();
+ //               return b.append(']').toString();
             b.append(", ");
         }
     }
+
 }

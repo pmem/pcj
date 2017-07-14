@@ -67,6 +67,10 @@ public final class ColumnFamily extends PersistentObject {
         return table().get(k);
     }
 
+    public boolean containsKey(Key k) {
+        return table().containsKey(k);
+    }
+
     public Value remove(Key k) {
         return table().remove(k);
     }

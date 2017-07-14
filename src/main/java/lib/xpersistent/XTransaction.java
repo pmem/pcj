@@ -28,73 +28,66 @@ import static lib.util.persistent.Trace.trace;
 
 public class XTransaction implements Transaction {
 
-    private static ThreadLocal<Transaction.State> state = new ThreadLocal<>();
-    public static ThreadLocal<Integer> depth = new ThreadLocal<>();
-    private static ThreadLocal<ArrayList<PersistentObject>> locked = new ThreadLocal<>();
-    private static ThreadLocal<ArrayList<PersistentObject>> constructions = new ThreadLocal<>();
+    public static ThreadLocal<TransactionInfo> tlInfo = ThreadLocal.withInitial(() -> new TransactionInfo());
 
     static {
         System.loadLibrary("Persistent");
     }
 
     XTransaction() {
-        if (state.get() == null) {
-            state.set(Transaction.State.None);
-        }
-        if (depth.get() == null) {
-            depth.set(0);
-        }
-        if (depth.get() == 0) {
-            state.set(Transaction.State.None);
-        }
-        if (locked.get() == null) {
-            locked.set(new ArrayList<PersistentObject>());
-        }
-        if (constructions.get() == null) {
-            constructions.set(new ArrayList<PersistentObject>());
-        }
-        depth.set(depth.get() + 1);
+        TransactionInfo info = tlInfo.get();
+        info.transaction = this;
+        if (info.depth == 0) info.state = Transaction.State.None;
+        info.depth++;
     }
 
     public static void addNewObject(PersistentObject obj) {
         // trace(obj.getPointer().addr(), "addNewObject called");
-        constructions.get().add(obj);
+        tlInfo.get().constructions.add(obj);
     }
 
     public Transaction update(Transaction.Update update) {
-        if (state.get() != Transaction.State.Active) {
+        if (tlInfo.get().state != Transaction.State.Active) {
             throw new TransactionError("In update: transaction not active");
         }
         update.run();
         return this;
     }
 
+    public void addLockedObject(PersistentObject obj) {
+        TransactionInfo info = tlInfo.get();
+        info.locked.add(obj);
+    }
+
     private void releaseLocks() {
         // trace("releaseLocks called, depth = %d, this = %s", depth.get(), this);
-        ArrayList<PersistentObject> toUnlock = locked.get();
+        TransactionInfo info = tlInfo.get();
+        ArrayList<PersistentObject> toUnlock = info.locked;
         for (int i = toUnlock.size() - 1; i >= 0; i--) {
             PersistentObject obj = toUnlock.get(i);
             obj.monitorExit();
         }
-        locked.get().clear();
+        toUnlock.clear();
     }
 
-    public Transaction start(PersistentObject... toLock) {
-        // trace("start transaction, depth = %d, this = %s", depth.get(), this);
+    public Transaction start(boolean block, PersistentObject... toLock) {
+        TransactionInfo info = tlInfo.get();
+        // trace("start transaction, block = %s, depth = %d, this = %s", block, info.depth, this);
         ArrayList<PersistentObject> objs = new ArrayList<>();
         ArrayList<PersistentObject> lockedObjs = new ArrayList<>();
         for (PersistentObject obj : toLock) {
             if (obj != null) objs.add(obj); 
         }
-        boolean didLock = PersistentObject.monitorEnter(objs, lockedObjs);
-        if (!didLock) {
+        boolean didLock = PersistentObject.monitorEnter(objs, lockedObjs, block);
+        if (!didLock && !block) {
             // trace("failed to get transaction locks");
             // assert(lockedObjs.isEmpty());
             throw new TransactionRetryException("failed to get transaction locks");
         }
-        locked.get().addAll(lockedObjs);
-        if (depth.get() == 1 && state.get() == Transaction.State.None) {
-            state.set(Transaction.State.Active);
+        info.locked.addAll(lockedObjs);
+        // trace(true, "in start, depth = %d, state = %s", info.depth, info.state);
+        if (info.depth == 1 && info.state == Transaction.State.None) {
+            info.state = Transaction.State.Active;
             nativeStartTransaction();
         }
         return this;
@@ -102,49 +95,46 @@ public class XTransaction implements Transaction {
 
     public void commit() {
         // trace("commit called, state = %s, depth = %d, this = %s", state.get(), depth.get(), this);
-        if (depth.get() == 1) {
-            if (state.get() == Transaction.State.None) {
+        TransactionInfo info = tlInfo.get();
+        if (info.depth == 1) {
+            if (info.state == Transaction.State.None) {
                 return;
             }
-            if (state.get() == Transaction.State.Aborted) {
-                depth.set(depth.get() - 1);
+            if (info.state == Transaction.State.Aborted) {
+                info.depth--;
                 return;
             }
             nativeEndTransaction();
-            state.set(Transaction.State.Committed);
-            for (PersistentObject obj : constructions.get()) {
+            info.state = Transaction.State.Committed;
+            for (PersistentObject obj : info.constructions) {
                 ObjectCache.committedConstruction(obj);
             }
-            constructions.get().clear();
+            info.constructions.clear();
             releaseLocks();
         }
-        depth.set(depth.get() - 1);
+        info.depth--;
     }
 
     public void abort() {
         // trace("abort called, state = %s, depth = %d, this = %s", state.get(), depth.get(), this);
-        if (state.get() != Transaction.State.Active) {
-            state.set(Transaction.State.Aborted);
+        TransactionInfo info = tlInfo.get();
+        if (info.state != Transaction.State.Active) {
+            info.state = Transaction.State.Aborted;
             releaseLocks();
             return;
         }
-        if (depth.get() == 1) {
-            // remove locked objects from ObjectCache
-            ArrayList<PersistentObject> toUnlock = locked.get();
-            for (int i = toUnlock.size() - 1; i >= 0; i--) {
-                ObjectCache.remove(toUnlock.get(i).getPointer().addr());
-            }
+        if (info.depth == 1) {
             nativeAbortTransaction();
             // trace("nativeAbortTransaction called");
-            constructions.get().clear();
+            info.constructions.clear();
             // trace("abort: constructions cleared");
-            state.set(Transaction.State.Aborted);
+            info.state = Transaction.State.Aborted;
             releaseLocks();
         }
     }
 
     public Transaction.State state() {
-        return state.get();
+        return tlInfo.get().state;
     }
 
     private native void nativeStartTransaction();

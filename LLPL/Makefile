@@ -45,10 +45,10 @@ ALL_CPP_SOURCES = $(wildcard $(CPP_SOURCE_DIR)/*.cpp)
 ALL_JAVA_SOURCES = $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*.java)
 ALL_OBJ = $(addprefix $(CPP_BUILD_DIR)/, $(notdir $(ALL_CPP_SOURCES:.cpp=.o)))
 
-ALL_TEST_SOURCES = $(addprefix $(TEST_DIR)/, FlushableMemoryRegionTest.java TransactionalMemoryRegionTest.java RawMemoryRegionTest.java)
+ALL_TEST_SOURCES = $(addprefix $(TEST_DIR)/, FlushableMemoryRegionTest.java TransactionalMemoryRegionTest.java RawMemoryRegionTest.java MemoryRegionCollectionTest.java MemoryRegionFreeTest.java MemoryRegionEqualityTest.java)
 ALL_TEST_CLASSES = $(addprefix $(TEST_CLASSES_DIR)/, $(notdir $(ALL_TEST_SOURCES:.java=.class)))
 
-LIBRARIES = $(addprefix $(CPP_BUILD_DIR)/, libMemoryRegion.so)
+LIBRARIES = $(addprefix $(CPP_BUILD_DIR)/, libllpl.so)
 
 EXAMPLES_DIR = src/examples
 ALL_EXAMPLE_DIRS = $(wildcard $(EXAMPLES_DIR)/*)
