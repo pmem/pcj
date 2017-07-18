@@ -20,7 +20,6 @@
  */
 
 package lib.util.persistent;
-import lib.xpersistent.XTransaction;
 
 public class Stats {
     static boolean enable = false;

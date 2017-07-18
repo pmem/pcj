@@ -24,11 +24,14 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.Types;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentFloat extends PersistentObject implements Comparable<PersistentFloat> { 
+@PersistentClass
+public final class PersistentFloat extends PersistentObject
+  implements Comparable<PersistentFloat> {
     private static final FloatField FLOAT = new FloatField();
     private static final ObjectType<PersistentFloat> TYPE = ObjectType.fromFields(PersistentFloat.class, FLOAT);
+    private static final long serialVersionUID = 1L;
 
     public PersistentFloat(float x) {
         super(TYPE);

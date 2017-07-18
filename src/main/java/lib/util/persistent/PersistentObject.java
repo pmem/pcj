@@ -26,7 +26,6 @@ import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ValueType;
 import lib.util.persistent.types.ArrayType;
-import lib.util.persistent.types.CarriedType;
 import lib.util.persistent.types.ByteField;
 import lib.util.persistent.types.ShortField;
 import lib.util.persistent.types.IntField;
@@ -37,8 +36,10 @@ import lib.util.persistent.types.CharField;
 import lib.util.persistent.types.BooleanField;
 import lib.util.persistent.types.ObjectField;
 import lib.util.persistent.types.ValueField;
-import lib.util.persistent.types.PersistentField;
 import lib.util.persistent.spi.PersistentMemoryProvider;
+
+import java.io.ObjectStreamClass;
+import java.io.Serializable;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -54,7 +55,8 @@ import static lib.util.persistent.Trace.*;
 import sun.misc.Unsafe;
 
 @SuppressWarnings("sunapi")
-public class PersistentObject implements Persistent<PersistentObject> {
+public class PersistentObject implements Persistent<PersistentObject>, Serializable {
+    // FIXME: Compatible only with the default provider
     static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
     private static Random random = new Random(System.nanoTime());
     public static Unsafe UNSAFE;
@@ -62,6 +64,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
     // for stats
     static {
         try {
+            // Warning: With Java9, Unsafe is not accisble
             java.lang.reflect.Field f = Unsafe.class.getDeclaredField("theUnsafe");
             f.setAccessible(true);
             UNSAFE = (Unsafe)f.get(null);
@@ -71,35 +74,57 @@ public class PersistentObject implements Persistent<PersistentObject> {
         }
     }
 
-    private final ObjectPointer<? extends PersistentObject> pointer;
+    private ObjectPointer<? extends PersistentObject> pointer;
 
-    public PersistentObject(ObjectType<? extends PersistentObject> type) {
-        // would like to group the allocation transaction and initialization transaction
-        // can't just put one here because this constructor call must be first line
-        // Transaction.run(() -> {
-            this(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize()));
-        // });
+    protected <T extends PersistentObject> void init(ObjectType<T> type) {
+        // PPR: associate with the DefaultProvider. It's impossible to use another provider
+        init(type,PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize()));
     }
 
-    <T extends PersistentObject> PersistentObject(ObjectType<T> type, MemoryRegion region) {
-        // trace(region.addr(), "creating object of type %s", type.getName());
+    protected <T extends PersistentObject> void init(ObjectType<T> type,MemoryRegion region) {
+        trace(region.addr(), "creating object of type %s", type.getName());
         this.pointer = new ObjectPointer<T>(type, region);
         List<PersistentType> ts = type.getTypes();
         Transaction.run(() -> {
             for (int i = 0; i < ts.size(); i++) initializeField(i, ts.get(i));
             setTypeName(type.getName());
-            setVersion(99);
+            long serialVersionUID = ObjectStreamClass.lookup(type.cls()).getSerialVersionUID();
+            setVersion(serialVersionUID);
             initForGC();
-            if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
+            // FIXME: Compatible only with the default provider
+            // FIXME: circulare dependency between package XRoot and this package
+            if (heap instanceof XHeap && ((XHeap)heap).getDebugMode()) {
                 ((XRoot)(heap.getRoot())).addToAllObjects(getPointer().region().addr());
             }
         }, this);
         ObjectCache.add(this);
     }
 
-    public PersistentObject(ObjectPointer<? extends PersistentObject> p) {
-        // trace(p.region().addr(), "recreating object");
+    protected void init(ObjectPointer<? extends PersistentObject> p) {
+        trace(p.region().addr(), "recreating object");
         this.pointer = p;
+    }
+
+
+    protected PersistentObject() { }
+
+    public PersistentObject(ObjectType<? extends PersistentObject> type) {
+        Transaction.run(() -> {
+            init(type);
+        });
+    }
+
+    public PersistentObject(ObjectPointer<? extends PersistentObject> p) {
+        trace(p.region().addr(), "recreating object");
+        Transaction.run(() -> {
+            init(p);
+        });
+    }
+
+    protected <T extends PersistentObject> PersistentObject(ObjectType<T> type, MemoryRegion region) {
+        Transaction.run(() -> {
+            init(type,region);
+        });
     }
 
     void initForGC() {
@@ -112,7 +137,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
     // only called by Root during bootstrap of Object directory PersistentHashMap
     @SuppressWarnings("unchecked")
     public static <T extends PersistentObject> T fromPointer(ObjectPointer<T> p) {
-        // trace(p.addr(), "creating object from pointer of type %s", p.type().getName());
+        trace(p.addr(), "creating object from pointer of type %s", p.type().getName());
         try {
             Class<T> cls = p.type().cls();
             Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
@@ -125,15 +150,16 @@ public class PersistentObject implements Persistent<PersistentObject> {
     }
 
     static void free(long addr) {
-        // trace(addr, "free called");
+        trace(addr, "free called");
         ObjectCache.remove(addr);
         MemoryRegion reg = new UncheckedPersistentMemoryRegion(addr);
         MemoryRegion nameRegion = new UncheckedPersistentMemoryRegion(reg.getInt(Header.TYPE.getOffset(Header.TYPE_NAME)));
         Transaction.run(() -> {
-            // trace(addr, "freeing object region %d and name region %d", reg.addr(), nameRegion.addr());
+            trace(addr, "freeing object region %d and name region %d", reg.addr(), nameRegion.addr());
             heap.freeRegion(nameRegion);
             heap.freeRegion(reg);
-            if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
+            // FIXME: circulare dependency between package XRoot and this package
+            if (heap instanceof XHeap && ((XHeap)heap).getDebugMode()) {
                 ((XRoot)(heap.getRoot())).removeFromAllObjects(addr);
             }
             CycleCollector.removeFromCandidates(addr);
@@ -229,10 +255,11 @@ public class PersistentObject implements Persistent<PersistentObject> {
     public synchronized <T extends PersistentValue> T getValueField(ValueField<T> f) {
         MemoryRegion srcRegion = getPointer().region();
         MemoryRegion dstRegion = heap.allocateRegion(f.getType().getSize());
-        // trace("getValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr(), f.getType().getSize());
+        trace("getValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr(), f.getType().getSize());
         synchronized(srcRegion) {
             synchronized(dstRegion) {
-                ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, offset(f.getIndex()), dstRegion, 0, f.getType().getSize());
+                // FIXME: circulare dependency between package XRoot and this package
+                ((XHeap)heap).memcpy(srcRegion, offset(f.getIndex()), dstRegion, 0, f.getType().getSize());
             }
         }
         return (T)new ValuePointer((ValueType)f.getType(), dstRegion, f.cls()).deref();
@@ -242,9 +269,10 @@ public class PersistentObject implements Persistent<PersistentObject> {
         MemoryRegion dstRegion = getPointer().region();
         long dstOffset = offset(f.getIndex());
         MemoryRegion srcRegion = value.getPointer().region();
-        // trace("setValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + dstOffset, f.getType().getSize());
+        trace("setValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + dstOffset, f.getType().getSize());
         synchronized(srcRegion) {
-            ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, 0, dstRegion, dstOffset, f.getType().getSize());
+            // FIXME: circulare dependency between package XRoot and this package
+            ((XHeap)heap).memcpy(srcRegion, 0, dstRegion, dstOffset, f.getType().getSize());
         }
     }
 
@@ -314,12 +342,12 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return index;
     }
 
-    private int getVersion() {
-        return getIntField(Header.VERSION);
+    private long getVersion() {
+        return getLongField(Header.VERSION);
     }
 
-    private void setVersion(int version) {
-        setIntField(Header.VERSION, version);
+    private void setVersion(long version) {
+        setLongField(Header.VERSION, version);
     }
 
     private void setTypeName(String name) {
@@ -343,7 +371,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
         Transaction.run(() -> {
             int oldCount = reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
             reg.putInt(Header.TYPE.getOffset(Header.REF_COUNT), oldCount + 1);
-            // trace(getPointer().addr(), "incRefCount(), type = %s, old = %d, new = %d",getPointer().type(), oldCount, getRefCount());
+            trace(getPointer().addr(), "incRefCount(), type = %s, old = %d, new = %d",getPointer().type(), oldCount, getRefCount());
         }, this);
     }
 
@@ -353,10 +381,11 @@ public class PersistentObject implements Persistent<PersistentObject> {
         Transaction.run(() -> {
             int oldCount = reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
             newCount.set(oldCount - 1);
-            // trace(getPointer().addr(), "decRefCount, type = %s, old = %d, new = %d", getPointer().type(), oldCount, newCount.get());
+            trace(getPointer().addr(), "decRefCount, type = %s, old = %d, new = %d", getPointer().type(), oldCount, newCount.get());
             if (newCount.get() < 0) {
-               // trace(reg.addr(), "decRef below 0");
-               new RuntimeException().printStackTrace(); System.exit(-1);}
+               trace(reg.addr(), "decRef below 0");
+               throw new HeapCorruptedError(reg.addr()+" decRef below 0");
+            }
             reg.putInt(Header.TYPE.getOffset(Header.REF_COUNT), newCount.get());
         }, this);
         return newCount.get();
@@ -376,7 +405,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
             int count = 0;
             int newCount = decRefCount();
             if (newCount == 0) {
-                // trace(getPointer().addr(), "deleteReference, newCount == 0");
+                trace(getPointer().addr(), "deleteReference, newCount == 0");
                 addrsToDelete.push(getPointer().addr());
                 while (!addrsToDelete.isEmpty()) {
                     long addrToDelete = addrsToDelete.pop();
@@ -406,14 +435,14 @@ public class PersistentObject implements Persistent<PersistentObject> {
         }, this);
     }
 
+    // Call by JNI
     static void deleteResidualReferences(long address, int count) {
         PersistentObject obj = ObjectCache.get(address, true);
         Transaction.run(() -> {
             int rc = obj.getRefCount();
-            // trace(address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
+            trace(address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
             if (obj.getRefCount() < count) {
-                System.out.println("refcount < count");
-                System.exit(-1);
+                throw new HeapCorruptedError("refcount < count");
             }
             for (int i = 0; i < count - 1; i++) obj.decRefCount();
             obj.deleteReference();
@@ -471,31 +500,31 @@ public class PersistentObject implements Persistent<PersistentObject> {
     static final int TIMEOUT = 125_000_000; // ns
 
     public static boolean monitorEnter(List<PersistentObject> toLock, List<PersistentObject> locked) {
-        // trace("monitorEnter (lists), starting toLock = %d, locked = %d", toLock.size(), locked.size());
+        trace("monitorEnter (lists), starting toLock = %d, locked = %d", toLock.size(), locked.size());
         // toLock.sort((x, y) -> Long.compare(x.getPointer().addr(), y.getPointer().addr()));
         boolean success = true;
         for (PersistentObject obj : toLock) {
             if (!obj.monitorEnterTimeout(TIMEOUT)) {
                 success = false;
-                // trace("TIMEOUT exceeded");
+                trace("TIMEOUT exceeded");
                 for(PersistentObject lockedObj : locked) {
                     lockedObj.monitorExit();
-                    // trace("removed locked obj %d", obj.getPointer().addr());
+                    trace("removed locked obj %d", obj.getPointer().addr());
                 }
                 locked.clear();
                 break;
             }
             else {
                 locked.add(obj);
-                // trace("added locked obj %d", obj.getPointer().addr());
+                trace("added locked obj %d", obj.getPointer().addr());
             }
         }
-        // trace("monitorEnter (lists), exiting toLock = %d, locked = %d", toLock.size(), locked.size());
+        trace("monitorEnter (lists), exiting toLock = %d, locked = %d", toLock.size(), locked.size());
         return success;
     }
 
     public boolean monitorEnterTimeout(long timeout) {
-        // trace(getPointer().addr(), "trying to acquire");
+        trace(getPointer().addr(), "trying to acquire");
         boolean success = false;
         long start = System.nanoTime();
         long max = TIMEOUT + random.nextInt(TIMEOUT);
@@ -516,6 +545,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
 
     public void monitorExit() {
         UNSAFE.monitorExit(this);
-        // trace(getPointer().addr(), "released");
+        trace(getPointer().addr(), "released");
     }
 }
+

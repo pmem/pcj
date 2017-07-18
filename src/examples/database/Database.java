@@ -38,6 +38,7 @@ public class Database {
         if (ObjectDirectory.get("keyspace", PersistentSkipListMap.class) == null) {
             keyspace = new PersistentSkipListMap<>();
             ObjectDirectory.put("keyspace", keyspace);
+            System.out.println("New database");
         } else {
             keyspace = ObjectDirectory.get("keyspace", PersistentSkipListMap.class);
         }

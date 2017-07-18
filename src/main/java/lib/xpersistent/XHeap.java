@@ -41,6 +41,7 @@ public class XHeap implements PersistentHeap {
     private boolean debug;
 
     public XHeap() {
+        // FIXME: Compatible only with the default provider
         this(PersistentMemoryProvider.getDefaultProvider());
     }
 

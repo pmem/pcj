@@ -24,11 +24,14 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.Types;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentByte extends PersistentObject implements Comparable<PersistentByte> { 
+@PersistentClass
+public final class PersistentByte extends PersistentObject
+  implements Comparable<PersistentByte> {
     private static final ByteField BYTE = new ByteField();
     private static final ObjectType<PersistentByte> TYPE = ObjectType.fromFields(PersistentByte.class, BYTE);
+    private static final long serialVersionUID = 1L;
 
     public PersistentByte(byte x) {
         super(TYPE);

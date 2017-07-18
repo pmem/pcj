@@ -24,8 +24,12 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentImmutableByteArray extends AbstractPersistentImmutableArray {
+@PersistentClass
+public final class PersistentImmutableByteArray
+  extends AbstractPersistentImmutableArray {
+    private static final long serialVersionUID = 1L;
     private static final ArrayType<PersistentImmutableByteArray> TYPE = new ArrayType<>(PersistentImmutableByteArray.class, Types.BYTE);
 
     public PersistentImmutableByteArray(byte[] array) {

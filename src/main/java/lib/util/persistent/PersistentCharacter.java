@@ -24,11 +24,14 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.Types;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentCharacter extends PersistentObject implements Comparable<PersistentCharacter> { 
+@PersistentClass
+public final class PersistentCharacter extends PersistentObject
+  implements Comparable<PersistentCharacter> {
     private static final CharField CHAR = new CharField();
     private static final ObjectType<PersistentCharacter> TYPE = ObjectType.fromFields(PersistentCharacter.class, CHAR);
+    private static final long serialVersionUID = 1L;
 
     public PersistentCharacter(char x) {
         super(TYPE);

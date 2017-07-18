@@ -25,6 +25,7 @@ import lib.util.persistent.PersistentObject;
 import lib.util.persistent.PersistentValue;
 import lib.util.persistent.Persistent;
 import java.lang.reflect.Field;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Types {
 
@@ -41,25 +42,45 @@ public class Types {
 
     public static final String TYPE_FIELD_NAME = "TYPE";
     public static final String OLD_TYPE_FIELD_NAME = "type";
-	
+
+    private static final ConcurrentHashMap<Class<?>,PersistentType> typemap=new ConcurrentHashMap<>();
     @SuppressWarnings("unchecked")
     public static synchronized <T extends Persistent<?>> PersistentType typeForClass(Class<T> cls) {
         try {
+            PersistentType t=typemap.get(cls);
+            if (t!=null) return t;
             Field typeField = null;
-            // TODO: remove inner try and catch when old name gone
-            try {
-                typeField = cls.getDeclaredField(TYPE_FIELD_NAME);
-            } 
-            catch (NoSuchFieldException e) {
-                typeField = cls.getDeclaredField(OLD_TYPE_FIELD_NAME);
+            PersistentType type;
+            for (int i=0;i<3;++i) {
+                try {
+                    switch (i) {
+                        case 0: // TYPE_FIELD_NAME
+                        case 2: // OLD_TYPE_FIELD_NAME
+                            typeField = cls.getDeclaredField(i==0 ? TYPE_FIELD_NAME : OLD_TYPE_FIELD_NAME);
+                            typeField.setAccessible(true);
+                            type = (PersistentType) typeField.get(null);
+                            //typeField.setAccessible(false); // PPR: No thread safe if interlace two threads
+                            if (type == null) throw new RuntimeException("type field is null in " + cls);
+                            typemap.put(cls,type);
+                            return type;
+                        case 1: // Scala
+                            Class<?> scalaObject = cls.getClassLoader().loadClass(cls.getName() + "$");
+                            Field moduleField=scalaObject.getDeclaredField("MODULE$");
+                            Object module = moduleField.get(null);
+                            typeField=scalaObject.getDeclaredField(TYPE_FIELD_NAME);
+                            typeField.setAccessible(true);
+                            type = (PersistentType) typeField.get(module);
+                            //typeField.setAccessible(false);
+                            if (type == null) throw new RuntimeException("type field is null in " + cls);
+                            typemap.put(cls,type);
+                            return type;
+                    }
+                } catch (NoSuchFieldException e) { // Ignore
+                } catch (ClassNotFoundException e) { // Ignore
+                }
             }
-            typeField.setAccessible(true);
-            PersistentType type = (PersistentType)typeField.get(null);
-            typeField.setAccessible(false);
-            if (type == null) throw new RuntimeException("type field is null in " + cls);
-            return type;
-        } 
-        catch (NoSuchFieldException e) {throw new RuntimeException("no type field in " + cls);}
+            throw new RuntimeException("no type field in " + cls);
+        }
         catch (IllegalAccessException e) {throw new RuntimeException("illegal access on type field in " + cls);}
     }
 

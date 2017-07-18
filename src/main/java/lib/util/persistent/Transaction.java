@@ -28,13 +28,13 @@ import static lib.util.persistent.Trace.*;
 import lib.xpersistent.XTransaction;
 
 public interface Transaction extends AutoCloseable {
-	public interface Update {
+	interface Update {
 		public void run();
 	}
 
-	public enum State {None, Initializing, Active, Committed, Aborted}
+	enum State {None, Initializing, Active, Committed, Aborted}
 
-    public static void run(PersistentMemoryProvider provider, Update update, PersistentObject... toLock) {
+    static void run(PersistentMemoryProvider provider, Update update, PersistentObject... toLock) {
         boolean success = false;
         int attempts = 1;
         int MAX_ATTEMPTS = 25;
@@ -53,9 +53,9 @@ public interface Transaction extends AutoCloseable {
                 success = true;
             }
             catch (Throwable e) {
-                // trace("Transaction.run() caught %s, depth = %d",  e, XTransaction.depth.get());
+                trace("Transaction.run() caught %s, depth = %d",  e, XTransaction.depth.get());
                 t.abort();
-                // trace("called abort on %s", t);
+                trace("called abort on %s", t);
                 if (XTransaction.depth.get() != 1) throw e; // unwind stack
                 else if (!(e instanceof TransactionRetryException)) throw e; // not a retry-able exception
                 // retry
@@ -66,7 +66,7 @@ public interface Transaction extends AutoCloseable {
             attempts++;
             if (!success) {
                 // Stats.transactions.retries++;
-                // trace(true, "retry #%d", attempts - 1);
+                trace(true, "retry #%d", attempts - 1);
                 try {Thread.sleep(attempts);} catch(InterruptedException ie) {ie.printStackTrace();}
             }
         }
@@ -75,19 +75,24 @@ public interface Transaction extends AutoCloseable {
         }
     }
 
-    public static void run(Update update, PersistentObject... toLock) {
+    static void run(Update update, PersistentObject... toLock) {
+        // FIXME: Compatible only with the default provider
         run(PersistentMemoryProvider.getDefaultProvider(), update, toLock);
     }
 
-	public static Transaction newInstance() {
+	static Transaction newInstance() {
+        // FIXME: Compatible only with the default provider
 		return PersistentMemoryProvider.getDefaultProvider().newTransaction();
 	}
+    static Transaction newInstance(PersistentMemoryProvider provider) {
+        return provider.newTransaction();
+    }
 
-	public Transaction update(Update update);
-    public Transaction start(PersistentObject... toLock);
-	public void commit();
-	public void abort();
-	public State state();
+	Transaction update(Update update);
+    Transaction start(PersistentObject... toLock);
+	void commit();
+	void abort();
+	State state();
 
 	default void close() {commit();}
 }

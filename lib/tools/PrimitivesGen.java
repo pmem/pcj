@@ -23,7 +23,6 @@ package lib.tools;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.stream.IntStream;
 import org.stringtemplate.v4.*;
 
 public class PrimitivesGen {

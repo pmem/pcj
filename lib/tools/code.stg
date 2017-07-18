@@ -46,11 +46,14 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.Types;
+import lib.util.persistent.front.PersistentClass;
 
-public final class Persistent<class> extends PersistentObject implements Comparable\<Persistent<class>\> { 
+@PersistentClass
+public final class Persistent<class> extends PersistentObject
+  implements Comparable\<Persistent<class>\> {
     private static final <identifier>Field <field> = new <identifier>Field();
     private static final ObjectType\<Persistent<class>\> TYPE = ObjectType.fromFields(Persistent<class>.class, <field>);
+    private static final long serialVersionUID = 1L;
 
     public Persistent<class>(<smallcaps> x) {
         super(TYPE);
@@ -141,8 +144,12 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentImmutable<identifier>Array extends AbstractPersistentImmutableArray {
+@PersistentClass
+public final class PersistentImmutable<identifier>Array
+  extends AbstractPersistentImmutableArray {
+    private static final long serialVersionUID = 1L;
     private static final ArrayType\<PersistentImmutable<identifier>Array> TYPE = new ArrayType\<>(PersistentImmutable<identifier>Array.class, Types.<field>);
 
     public PersistentImmutable<identifier>Array(<smallcaps>[] array) {
@@ -193,8 +200,12 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.front.PersistentClass;
 
-public final class Persistent<identifier>Array extends AbstractPersistentArray {
+@PersistentClass
+public final class Persistent<identifier>Array
+  extends AbstractPersistentArray {
+    private static final long serialVersionUID = 1L;
     private static final ArrayType\<Persistent<identifier>Array> TYPE = new ArrayType\<>(Persistent<identifier>Array.class, Types.<field>);
 
     public Persistent<identifier>Array(int size) {
@@ -249,16 +260,18 @@ mjstuple_class(class_prefix, n, range) ::= <<
  * Boston, MA  02110-1301, USA.
  */
 
-
-
 package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
+import lib.util.persistent.front.PersistentClass;
 
-public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\> extends PersistentObject {
-    <range:{ x | private static final ObjectField\<PersistentObject> FIELD<x> = new ObjectField\<>();};separator="\n"> 
+@PersistentClass
+public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\>
+  extends PersistentObject {
+    private static final long serialVersionUID = 1L;
+    <range:{ x | private static final ObjectField\<PersistentObject> FIELD<x> = new ObjectField\<>();};separator="\n">
     public static final ObjectType\<<class_prefix>Tuple<n>\> TYPE = ObjectType.fromFields(<class_prefix>Tuple<n>.class, <range:{x | FIELD<x>};separator=", ">);
 
     public <class_prefix>Tuple<n>() {
@@ -337,8 +350,11 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
+import lib.util.persistent.front.PersistentClass;
 
+@PersistentClass
 public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\> extends PersistentObject {
+    private static final long serialVersionUID = 1L;
     <range:{ x | private static final ObjectField\<PersistentObject> FIELD<x> = new ObjectField\<>();};separator="\n">
     public static final ObjectType\<<class_prefix>Tuple<n>\> TYPE = ObjectType.fromFields(<class_prefix>Tuple<n>.class, <range:{x | FIELD<x>};separator=", ">);
 

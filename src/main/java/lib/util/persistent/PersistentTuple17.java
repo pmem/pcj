@@ -19,15 +19,17 @@
  * Boston, MA  02110-1301, USA.
  */
 
-
-
 package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
+import lib.util.persistent.front.PersistentClass;
 
-public class PersistentTuple17<T1 extends PersistentObject, T2 extends PersistentObject, T3 extends PersistentObject, T4 extends PersistentObject, T5 extends PersistentObject, T6 extends PersistentObject, T7 extends PersistentObject, T8 extends PersistentObject, T9 extends PersistentObject, T10 extends PersistentObject, T11 extends PersistentObject, T12 extends PersistentObject, T13 extends PersistentObject, T14 extends PersistentObject, T15 extends PersistentObject, T16 extends PersistentObject, T17 extends PersistentObject> extends PersistentObject {
+@PersistentClass
+public class PersistentTuple17<T1 extends PersistentObject, T2 extends PersistentObject, T3 extends PersistentObject, T4 extends PersistentObject, T5 extends PersistentObject, T6 extends PersistentObject, T7 extends PersistentObject, T8 extends PersistentObject, T9 extends PersistentObject, T10 extends PersistentObject, T11 extends PersistentObject, T12 extends PersistentObject, T13 extends PersistentObject, T14 extends PersistentObject, T15 extends PersistentObject, T16 extends PersistentObject, T17 extends PersistentObject>
+  extends PersistentObject {
+    private static final long serialVersionUID = 1L;
     private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD2 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD3 = new ObjectField<>();
@@ -44,7 +46,7 @@ public class PersistentTuple17<T1 extends PersistentObject, T2 extends Persisten
     private static final ObjectField<PersistentObject> FIELD14 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD15 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD16 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD17 = new ObjectField<>(); 
+    private static final ObjectField<PersistentObject> FIELD17 = new ObjectField<>();
     public static final ObjectType<PersistentTuple17> TYPE = ObjectType.fromFields(PersistentTuple17.class, FIELD1, FIELD2, FIELD3, FIELD4, FIELD5, FIELD6, FIELD7, FIELD8, FIELD9, FIELD10, FIELD11, FIELD12, FIELD13, FIELD14, FIELD15, FIELD16, FIELD17);
 
     public PersistentTuple17() {

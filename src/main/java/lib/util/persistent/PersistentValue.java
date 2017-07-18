@@ -36,6 +36,7 @@ import lib.util.persistent.spi.PersistentMemoryProvider;
 
 // TODO: factor common accessor code out of PersistentValue and PersistentObject
 public abstract class PersistentValue implements Persistent<PersistentValue> {
+    // FIXME: Compatible only with the default provider
     private static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
 
     private final ValuePointer<? extends PersistentValue> pointer;

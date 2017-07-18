@@ -24,11 +24,14 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.Types;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentLong extends PersistentObject implements Comparable<PersistentLong> { 
+@PersistentClass
+public final class PersistentLong extends PersistentObject
+  implements Comparable<PersistentLong> {
     private static final LongField LONG = new LongField();
     private static final ObjectType<PersistentLong> TYPE = ObjectType.fromFields(PersistentLong.class, LONG);
+    private static final long serialVersionUID = 1L;
 
     public PersistentLong(long x) {
         super(TYPE);

@@ -88,6 +88,11 @@ public class ValueType implements Container {
         return obj instanceof ValueType && ((ValueType)obj).getTypes().equals(getTypes());
     }
 
+    @Override
+    public int hashCode() {
+        return getTypes().hashCode();
+    }
+
     @Override 
     public String toString() {
         StringBuilder buff = new StringBuilder();

@@ -23,7 +23,6 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import java.util.concurrent.atomic.*;
 
 public final class PersistentAtomicReference<T extends PersistentObject> extends PersistentObject {
 

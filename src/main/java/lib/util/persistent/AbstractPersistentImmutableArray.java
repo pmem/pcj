@@ -21,8 +21,6 @@
 
 package lib.util.persistent;
 
-import java.util.List;
-import java.util.ArrayList;
 import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.types.ValueType;
 import lib.util.persistent.types.Types;
@@ -33,12 +31,14 @@ import lib.util.persistent.spi.PersistentMemoryProvider;
 abstract class AbstractPersistentImmutableArray extends PersistentObject {
 
     protected AbstractPersistentImmutableArray(ArrayType<? extends PersistentObject> type, int count, Object data) {
+        // FIXME: Compatible only with the default provider
         super(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize(count)));
         setInt(ArrayType.LENGTH_OFFSET, count);
         initializeElements(data, type.getElementType());
     }
 
     protected AbstractPersistentImmutableArray(ArrayType<? extends PersistentObject> type, int count) {
+        // FIXME: Compatible only with the default provider
         super(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize(count)));
         setInt(ArrayType.LENGTH_OFFSET, count);
         for (int i = 0; i < count; i++) {initializeElement(i, type.getElementType());}
@@ -104,15 +104,15 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
         return getInt(ArrayType.LENGTH_OFFSET);
     }
 
-    long elementOffset(int index) {
+    protected long elementOffset(int index) {
         return ((ArrayType)getPointer().type()).getElementOffset(index);
     }
 
-    long elementOffset(int index, long size) {
+    protected long elementOffset(int index, long size) {
         return ((ArrayType)getPointer().type()).getElementOffset(index, size);
     }
 
-    int check(int index) {
+    protected int check(int index) {
         if (index < 0 || index >= length()) throw new IndexOutOfBoundsException("index " + index + " out of bounds");
         return index;
     }

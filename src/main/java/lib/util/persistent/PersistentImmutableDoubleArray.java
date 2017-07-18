@@ -24,8 +24,12 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentImmutableDoubleArray extends AbstractPersistentImmutableArray {
+@PersistentClass
+public final class PersistentImmutableDoubleArray
+  extends AbstractPersistentImmutableArray {
+    private static final long serialVersionUID = 1L;
     private static final ArrayType<PersistentImmutableDoubleArray> TYPE = new ArrayType<>(PersistentImmutableDoubleArray.class, Types.DOUBLE);
 
     public PersistentImmutableDoubleArray(double[] array) {

@@ -23,7 +23,6 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import java.lang.StringBuilder;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 

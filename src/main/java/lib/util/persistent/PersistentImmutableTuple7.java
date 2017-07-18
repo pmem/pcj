@@ -26,8 +26,11 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
+import lib.util.persistent.front.PersistentClass;
 
+@PersistentClass
 public class PersistentImmutableTuple7<T1 extends PersistentObject, T2 extends PersistentObject, T3 extends PersistentObject, T4 extends PersistentObject, T5 extends PersistentObject, T6 extends PersistentObject, T7 extends PersistentObject> extends PersistentObject {
+    private static final long serialVersionUID = 1L;
     private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD2 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD3 = new ObjectField<>();

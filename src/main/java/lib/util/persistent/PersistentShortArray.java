@@ -24,8 +24,12 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentShortArray extends AbstractPersistentArray {
+@PersistentClass
+public final class PersistentShortArray
+  extends AbstractPersistentArray {
+    private static final long serialVersionUID = 1L;
     private static final ArrayType<PersistentShortArray> TYPE = new ArrayType<>(PersistentShortArray.class, Types.SHORT);
 
     public PersistentShortArray(int size) {

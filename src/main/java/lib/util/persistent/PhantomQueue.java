@@ -25,6 +25,7 @@ import java.lang.ref.*;
 import java.util.*;
 import java.util.concurrent.*;
 
+// PPR: memory leak if crash before purge the reference ?
 class PhantomQueue<T> {
     private Listener listener;
     private ReferenceQueue<T> queue;

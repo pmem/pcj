@@ -23,14 +23,10 @@ package tests;
 
 import lib.util.persistent.*;
 import lib.util.persistent.types.*;
-import lib.xpersistent.*;
-import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.Arrays;
 import java.util.ArrayList;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import lib.util.persistent.front.PersistentClass;
-import examples.misc.*;
 import static lib.util.persistent.Persistent.*;
 
 public class TestCases {

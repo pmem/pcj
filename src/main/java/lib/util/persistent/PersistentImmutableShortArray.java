@@ -24,8 +24,12 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentImmutableShortArray extends AbstractPersistentImmutableArray {
+@PersistentClass
+public final class PersistentImmutableShortArray
+  extends AbstractPersistentImmutableArray {
+    private static final long serialVersionUID = 1L;
     private static final ArrayType<PersistentImmutableShortArray> TYPE = new ArrayType<>(PersistentImmutableShortArray.class, Types.SHORT);
 
     public PersistentImmutableShortArray(short[] array) {

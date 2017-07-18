@@ -21,10 +21,6 @@
 
 package lib.util.persistent;
 
-import lib.util.persistent.types.PersistentField;
-import java.util.List;
-import java.util.Arrays;
-
 public interface Persistent<T extends Persistent<T>> //extends Reference<T>
 {
     // public default ptr() {return getPointer();}
