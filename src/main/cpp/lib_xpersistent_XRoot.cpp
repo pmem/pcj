@@ -84,7 +84,7 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeHashmapGet
 
     NEPMEMoid ret = hm_tx_get(pool, hm, (uint64_t)key);
     if (NEOID_IS_ERR(ret)) {
-        throw_persistence_exception(env, "Failed to insert into hashmap! ");
+        throw_persistence_exception(env, "Failed to get from hashmap! ");
         return 0;
     }
     return ret.value;
@@ -99,7 +99,7 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeHashmapRemove
 
     NEPMEMoid ret = hm_tx_remove(pool, hm, (uint64_t)key);
     if (NEOID_IS_ERR(ret)) {
-        throw_persistence_exception(env, "Failed to insert into hashmap! ");
+        throw_persistence_exception(env, "Failed to remove from hashmap! ");
         return 0;
     }
     return ret.value;

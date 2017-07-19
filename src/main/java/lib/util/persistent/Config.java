@@ -19,29 +19,20 @@
  * Boston, MA  02110-1301, USA.
  */
 
-package lib.llpl;
+package lib.util.persistent;
 
-public interface MemoryRegion {
-    int MODE_R  = (1 << 0);
-    int MODE_W  = (1 << 1);
-    int MODE_RW = MODE_R | MODE_W;
+import java.util.Random;
 
-    public enum Kind {
-        Raw, Flushable, Transactional
-    }
+public class Config {
+    public static final int MONITOR_ENTER_TIMEOUT = 30; // ms
+    public static final int MAX_MONITOR_ENTER_TIMEOUT = 125; // ms
+    public static final float MONITOR_ENTER_TIMEOUT_INCREASE_FACTOR = 1.5f; 
 
-    void checkAccess(int mode) throws IllegalAccessException;
-    void checkAlive();
-    void checkBounds(long offset) throws IndexOutOfBoundsException;
-    long addr() throws UnsupportedOperationException;
-    byte getByte(long offset);
-    void putByte(long offset, byte value);
-    short getShort(long offset);
-    void putShort(long offset, short value);
-    int getInt(long offset);
-    void putInt(long offset, int value);
-    long getLong(long offset);
-    void putLong(long offset, long value);
-    long getAddress(long offset);
-    void putAddress(long offset, long value);
+    public static final int MAX_TRANSACTION_RETRIES = 25;
+    public static final int BASE_TRANSACTION_RETRY_DELAY = 200; //ms
+    public static final int MAX_TRANSACTION_RETRY_DELAY = 5000; //ms
+    public static final float TRANSACTION_RETRY_DELAY_INCREASE_FACTOR = 1.5f; 
+
+    public static final boolean EXIT_ON_TRANSACTION_FAILURE = false;
+    public static final boolean BLOCK_ON_EXCEED_MAX_TRANSACTION_RETRIES = false;
 }

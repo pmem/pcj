@@ -45,7 +45,7 @@ public class CycleCollector {
 
     public static synchronized void collect() {
         // FIXME: Compatible only with the default provider
-        // FIXME: circulare dependency between package XRoot and this package
+        // FIXME: circular dependency between package XRoot and this package
         heap = ((XHeap)(PersistentMemoryProvider.getDefaultProvider().getHeap()));
         root = ((XRoot)(heap.getRoot()));
         markCandidates();
@@ -168,7 +168,7 @@ public class CycleCollector {
                 obj.setColor(PURPLE);
                 candidatesSet.add(addr);
                 // FIXME: Compatible only with the default provider
-                // FIXME: circulare dependency between package XRoot and this package
+                // FIXME: circular dependency between package XRoot and this package
                 ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).addToCandidates(addr);
             }
         });

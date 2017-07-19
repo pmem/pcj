@@ -25,7 +25,7 @@ import java.util.HashMap;
 
 public class Heap {
     static {
-        System.loadLibrary("MemoryRegion");
+        System.loadLibrary("llpl");
     }
 
     private static HashMap<String, Heap> heaps = new HashMap<>();
@@ -85,6 +85,8 @@ public class Heap {
         if (nativeFree(region.addr()) < 0) {
             throw new PersistenceException("Failed to free region!");
         }
+        if (region instanceof AbstractMemoryRegion)
+            ((AbstractMemoryRegion)region).addr(0);
     }
 
     public long getRoot() {
@@ -97,9 +99,14 @@ public class Heap {
         }
     }
 
+    public void flush(long addr, long size) {
+        nativeFlush(addr, size);
+    }
+
     private synchronized native void nativeOpenHeap(String name);
     private native long nativeGetMemoryRegion(long size);
     private synchronized native int nativeSetRoot(long val);
     private native long nativeGetRoot();
     private native int nativeFree(long addr);
+    private native void nativeFlush(long addr, long size);
 }

@@ -21,8 +21,10 @@
 
 package examples.database;
 
+import java.nio.ByteBuffer;
 import lib.util.persistent.*;
 import lib.util.persistent.types.*;
+
 
 public class Key extends PersistentObject implements Comparable<Key> {
     private static final ObjectField<PersistentString> KEY = new ObjectField<>(PersistentString.class);
@@ -51,5 +53,11 @@ public class Key extends PersistentObject implements Comparable<Key> {
     @Override
     public String toString() {
         return key().toString();
+    }
+    
+    public ByteBuffer toByteBuf(){
+        String s = toString();
+        ByteBuffer b = ByteBuffer.allocate(s.length());
+        return b.put(s.getBytes());
     }
 }

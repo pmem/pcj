@@ -38,7 +38,7 @@ class RawString {
             putString(r, 0, s);
         });
         this.region = box.get();
-        trace(region.addr(), "created RawString");
+        //trace(region.addr(), "created RawString");
     }
 
     public RawString(MemoryRegion region) {

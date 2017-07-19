@@ -79,3 +79,9 @@ JNIEXPORT jint JNICALL Java_lib_llpl_Heap_nativeFree
 
     return ret;
 }
+
+JNIEXPORT void JNICALL Java_lib_llpl_Heap_nativeFlush
+  (JNIEnv *env, jobject obj, jlong addr, jlong size)
+{
+    pmemobj_persist(pool, (void*)((uint64_t)addr), (size_t)size);
+}

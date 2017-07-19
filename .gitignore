@@ -16,5 +16,3 @@ CMakeLists.txt
 hs_err_pid*
 .idea
 *.iml
-
-

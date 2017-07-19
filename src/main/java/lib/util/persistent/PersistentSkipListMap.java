@@ -1876,7 +1876,6 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             return (!inBounds(key, m.comparator)) ? null : m.get(key);
         }
 
-        @Override
         public V put(K key, V value) {
             checkKeyBounds(key, m.comparator);
             return m.put(key, value);
@@ -2001,6 +2000,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
                                    toKey, toInclusive, isDescending);
         }
 
+        @Override
         public SubMap<K,V> subMap(K fromKey, boolean fromInclusive,
                                   K toKey, boolean toInclusive) {
             if (fromKey == null || toKey == null)
@@ -2008,47 +2008,57 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             return newSubMap(fromKey, fromInclusive, toKey, toInclusive);
         }
 
+        @Override
         public SubMap<K,V> headMap(K toKey, boolean inclusive) {
             if (toKey == null)
                 throw new NullPointerException();
             return newSubMap(null, false, toKey, inclusive);
         }
 
+        @Override
         public SubMap<K,V> tailMap(K fromKey, boolean inclusive) {
             if (fromKey == null)
                 throw new NullPointerException();
             return newSubMap(fromKey, inclusive, null, false);
         }
 
+        @Override
         public SubMap<K,V> subMap(K fromKey, K toKey) {
             return subMap(fromKey, true, toKey, false);
         }
 
+        @Override
         public SubMap<K,V> headMap(K toKey) {
             return headMap(toKey, false);
         }
 
+        @Override
         public SubMap<K,V> tailMap(K fromKey) {
             return tailMap(fromKey, true);
         }
 
+        @Override
         public SubMap<K,V> descendingMap() {
             return new SubMap<K,V>(m, lo, loInclusive,
                                    hi, hiInclusive, !isDescending);
         }
 
+        @Override
         public Entry<K,V> ceilingEntry(K key) {
             return getNearEntry(key, GT|EQ);
         }
 
+        @Override
         public K ceilingKey(K key) {
             return getNearKey(key, GT|EQ);
         }
 
+        @Override
         public Entry<K,V> lowerEntry(K key) {
             return getNearEntry(key, LT);
         }
 
+        @Override
         public K lowerKey(K key) {
             return getNearKey(key, LT);
         }
@@ -2057,38 +2067,47 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             return getNearEntry(key, LT|EQ);
         }
 
+        @Override
         public K floorKey(K key) {
             return getNearKey(key, LT|EQ);
         }
 
+        @Override
         public Entry<K,V> higherEntry(K key) {
             return getNearEntry(key, GT);
         }
 
+        @Override
         public K higherKey(K key) {
             return getNearKey(key, GT);
         }
 
+        @Override
         public K firstKey() {
             return isDescending ? highestKey() : lowestKey();
         }
 
+        @Override
         public K lastKey() {
             return isDescending ? lowestKey() : highestKey();
         }
 
+        @Override
         public Entry<K,V> firstEntry() {
             return isDescending ? highestEntry() : lowestEntry();
         }
 
+        @Override
         public Entry<K,V> lastEntry() {
             return isDescending ? lowestEntry() : highestEntry();
         }
 
+        @Override
         public Entry<K,V> pollFirstEntry() {
             return isDescending ? removeHighest() : removeLowest();
         }
 
+        @Override
         public Entry<K,V> pollLastEntry() {
             return isDescending ? removeLowest() : removeHighest();
         }
@@ -2099,6 +2118,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             return (ks != null) ? ks : (keySetView = new KeySet<K>(this));
         }
 
+        @Override
         public NavigableSet<K> navigableKeySet() {
             KeySet<K> ks = keySetView;
             return (ks != null) ? ks : (keySetView = new KeySet<K>(this));
@@ -2295,6 +2315,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         }
     }
 
+    @Override
     public void forEach(BiConsumer<? super K, ? super V> action) {
         if (action == null) throw new NullPointerException();
         V v;

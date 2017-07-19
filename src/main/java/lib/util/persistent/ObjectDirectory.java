@@ -26,6 +26,11 @@ import lib.util.persistent.spi.PersistentMemoryProvider;
 public class ObjectDirectory {
     static PersistentHashMap<PersistentString, PersistentObject> map;
 
+    static {
+        lib.util.persistent.spi.PersistentMemoryProvider.getDefaultProvider().getHeap().open();
+    }
+
+
     @SuppressWarnings("unchecked")
     public static <T extends PersistentObject> T get(String s, Class<T> cls) {
         return (T)map.get(new PersistentString(s + cls.getName()));

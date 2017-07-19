@@ -19,29 +19,31 @@
  * Boston, MA  02110-1301, USA.
  */
 
-package lib.llpl;
+package lib.util.persistent;
 
-public interface MemoryRegion {
-    int MODE_R  = (1 << 0);
-    int MODE_W  = (1 << 1);
-    int MODE_RW = MODE_R | MODE_W;
+import lib.util.persistent.PersistentObject;
+import lib.xpersistent.XTransaction;
+import java.util.ArrayList;
+import static lib.util.persistent.Trace.trace;
 
-    public enum Kind {
-        Raw, Flushable, Transactional
-    }
+public class TransactionInfo {
+    public XTransaction transaction;
+    public Transaction.State state;
+    public int depth;
+    public ArrayList<PersistentObject> locked;
+    public ArrayList<PersistentObject> constructions;
+    public int attempts;
+    public int timeout;
+    public int retryDelay;
 
-    void checkAccess(int mode) throws IllegalAccessException;
-    void checkAlive();
-    void checkBounds(long offset) throws IndexOutOfBoundsException;
-    long addr() throws UnsupportedOperationException;
-    byte getByte(long offset);
-    void putByte(long offset, byte value);
-    short getShort(long offset);
-    void putShort(long offset, short value);
-    int getInt(long offset);
-    void putInt(long offset, int value);
-    long getLong(long offset);
-    void putLong(long offset, long value);
-    long getAddress(long offset);
-    void putAddress(long offset, long value);
+    public TransactionInfo() {
+        transaction = null;
+        state = Transaction.State.None;
+        depth = 0;
+        locked  = new ArrayList<PersistentObject>();
+        constructions = new ArrayList<PersistentObject>(); 
+        attempts = 1;
+        timeout = Config.MONITOR_ENTER_TIMEOUT;
+        retryDelay = Config.BASE_TRANSACTION_RETRY_DELAY;
+   }
 }

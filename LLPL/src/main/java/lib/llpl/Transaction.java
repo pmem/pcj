@@ -23,7 +23,7 @@ package lib.llpl;
 
 public class Transaction {
     static {
-        System.loadLibrary("MemoryRegion");
+        System.loadLibrary("llpl");
     }
 
     public interface Update {

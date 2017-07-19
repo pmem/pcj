@@ -30,15 +30,15 @@ abstract class AbstractPersistentArray extends AbstractPersistentImmutableArray 
 
     AbstractPersistentArray(ObjectPointer<? extends AbstractPersistentArray> p) {super(p);}
 
-    @Override byte getByteElement(int index) {return getByte(elementOffset(check(index)));}
-    @Override short getShortElement(int index) {return getShort(elementOffset(check(index)));}
-    @Override int getIntElement(int index) {return getInt(elementOffset(check(index)));}
-    @Override long getLongElement(int index) {return getLong(elementOffset(check(index)));}
-    @Override float getFloatElement(int index) {return Float.intBitsToFloat(getInt(elementOffset(check(index))));}
-    @Override double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(check(index))));}
-    @Override char getCharElement(int index) {return (char)getInt(elementOffset(check(index)));}
-    @Override boolean getBooleanElement(int index) {return getByte(elementOffset(check(index))) == (byte)0 ? false : true;}
-    @Override PersistentObject getObjectElement(int index) {return getObject(elementOffset(check(index)));}
+    @Override final byte getByteElement(int index) {return getByte(elementOffset(check(index)));}
+    @Override final short getShortElement(int index) {return getShort(elementOffset(check(index)));}
+    @Override final int getIntElement(int index) {return getInt(elementOffset(check(index)));}
+    @Override final long getLongElement(int index) {return getLong(elementOffset(check(index)));}
+    @Override final float getFloatElement(int index) {return Float.intBitsToFloat(getInt(elementOffset(check(index))));}
+    @Override final double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(check(index))));}
+    @Override final char getCharElement(int index) {return (char)getInt(elementOffset(check(index)));}
+    @Override final boolean getBooleanElement(int index) {return getByte(elementOffset(check(index))) == (byte)0 ? false : true;}
+    @Override final PersistentObject getObjectElement(int index) {return getObject(elementOffset(check(index)));}
 
     final void setByteElement(int index, byte value) {setByte(elementOffset(check(index)), value);}
     final void setShortElement(int index, short value) {setShort(elementOffset(check(index)), value);}
@@ -51,7 +51,7 @@ abstract class AbstractPersistentArray extends AbstractPersistentImmutableArray 
     final void setObjectElement(int index, PersistentObject value) {setObject(elementOffset(check(index)), value);}
     final void setValueElement(int index, PersistentValue value) {super.setValueElement(index, value);}
 
-    @Override public int length() {
+    @Override public final int length() {
         return getInt(ArrayType.LENGTH_OFFSET);
     }
 

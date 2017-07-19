@@ -32,7 +32,7 @@ public class MultithreadTest {
 
     public static void main(String[] args) {
         Trace.enable(false);
-        Stats.enable(false);
+        Stats.enable(true);
         PersistentMemoryProvider.getDefaultProvider().getHeap().open();
         verbose = true;
         run();
