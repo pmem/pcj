@@ -22,9 +22,12 @@
 package lib.xpersistent;
 
 import lib.util.persistent.MemoryRegion;
+import lib.util.persistent.Transaction;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class UncheckedPersistentMemoryRegion implements MemoryRegion {
     private long addr;
+    private final ReentrantLock lock = new ReentrantLock();
 
     static {
         System.loadLibrary("Persistent");

@@ -30,7 +30,7 @@ import lib.util.persistent.front.PersistentClass;
 public final class PersistentInteger extends PersistentObject
   implements Comparable<PersistentInteger> {
     private static final IntField INT = new IntField();
-    private static final ObjectType<PersistentInteger> TYPE = ObjectType.fromFields(PersistentInteger.class, INT);
+    public static final ObjectType<PersistentInteger> TYPE = ObjectType.fromFields(PersistentInteger.class, INT);
     private static final long serialVersionUID = 1L;
 
     public PersistentInteger(int x) {

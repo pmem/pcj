@@ -30,7 +30,7 @@ import lib.util.persistent.front.PersistentClass;
 public final class PersistentByteArray
   extends AbstractPersistentArray {
     private static final long serialVersionUID = 1L;
-    private static final ArrayType<PersistentByteArray> TYPE = new ArrayType<>(PersistentByteArray.class, Types.BYTE);
+    public static final ArrayType<PersistentByteArray> TYPE = new ArrayType<>(PersistentByteArray.class, Types.BYTE);
 
     public PersistentByteArray(int size) {
         super(TYPE, size);
