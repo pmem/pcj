@@ -22,7 +22,11 @@
 package lib.util.persistent;
 
 public class TransactionRetryException extends TransactionException {
-   public TransactionRetryException(String message) {
-      super(message);
-   }
+    public TransactionRetryException(String message) {
+        super(message);
+    }
+
+    public TransactionRetryException() {
+        super();
+    }
 }

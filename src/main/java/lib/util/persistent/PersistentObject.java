@@ -51,6 +51,7 @@ import lib.xpersistent.UncheckedPersistentMemoryRegion;
 import java.util.Random;
 import static lib.util.persistent.Trace.*;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
 import sun.misc.Unsafe;
 
@@ -151,20 +152,100 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return pointer.type();
     }
 
-    synchronized byte getByte(long offset) {
-        return pointer.region().getByte(offset);
+    byte getByte(long offset) {
+        // return Util.synchronizedBlock(this, () -> pointer.region().getByte(offset));
+        byte ans;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        if (!inTransaction) {
+            monitorEnter();
+            ans = pointer.region().getByte(offset);
+            monitorExit();
+        }
+        else {
+            boolean success = monitorEnterTimeout();
+            if (success) {
+                info.transaction.addLockedObject(this);
+                return pointer.region().getByte(offset);
+            }
+            else {
+                if (inTransaction) throw new TransactionRetryException();
+                else throw new RuntimeException("failed to acquire lock (timeout)");
+            }
+        }
+        return ans;
     }
 
-    synchronized short getShort(long offset) {
-        return pointer.region().getShort(offset);
+    short getShort(long offset) {
+        // return Util.synchronizedBlock(this, () -> pointer.region().getShort(offset));
+        short ans;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        if (!inTransaction) {
+            monitorEnter();
+            ans = pointer.region().getShort(offset);
+            monitorExit();
+        }
+        else {
+            boolean success = monitorEnterTimeout();
+            if (success) {
+                info.transaction.addLockedObject(this);
+                ans = pointer.region().getShort(offset);
+            }
+            else {
+                if (inTransaction) throw new TransactionRetryException();
+                else throw new RuntimeException("failed to acquire lock (timeout)");
+            }
+        }
+        return ans;
     }
 
-    synchronized int getInt(long offset) {
-        return pointer.region().getInt(offset);
+    int getInt(long offset) {
+        // return Util.synchronizedBlock(this, () -> pointer.region().getInt(offset));
+        int ans;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        if (!inTransaction) {
+            monitorEnter();
+            ans = pointer.region().getInt(offset);
+            monitorExit();
+        }
+        else {
+            boolean success = monitorEnterTimeout();
+            if (success) {
+                info.transaction.addLockedObject(this);
+                ans = pointer.region().getInt(offset);
+            }
+            else {
+                if (inTransaction) throw new TransactionRetryException();
+                else throw new RuntimeException("failed to acquire lock (timeout)");
+            }
+        }
+        return ans;
     }
 
-    synchronized long getLong(long offset) {
-        return pointer.region().getLong(offset);
+    long getLong(long offset) {
+        // return Util.synchronizedBlock(this, () -> pointer.region().getLong(offset));
+        long ans;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        if (!inTransaction) {
+            monitorEnter();
+            ans = pointer.region().getLong(offset);
+            monitorExit();
+        }
+        else {
+            boolean success = monitorEnterTimeout();
+            if (success) {
+                info.transaction.addLockedObject(this);
+                ans = pointer.region().getLong(offset);
+            }
+            else {
+                if (inTransaction) throw new TransactionRetryException();
+                else throw new RuntimeException("failed to acquire lock (timeout)");
+            }
+        }
+        return ans;
     }
 
     void setByte(long offset, byte value) {

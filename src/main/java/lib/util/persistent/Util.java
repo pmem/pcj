@@ -22,6 +22,10 @@
 package lib.util.persistent;
 
 import java.util.Random;
+import java.util.function.Supplier;
+import java.util.function.IntSupplier;
+import java.util.function.LongSupplier;
+
 
 public class Util {
 
@@ -40,4 +44,129 @@ public class Util {
         catch (InterruptedException ie) {ie.printStackTrace();}
     }
 
+    @FunctionalInterface
+    public interface ByteSupplier {byte getAsByte();}
+
+    @FunctionalInterface
+    public interface ShortSupplier {short getAsShort();}
+
+    public static <T> T synchronizedBlock(PersistentObject obj, Supplier<T> func) { 
+        // System.out.println("Supplier");
+        T ans;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        if (!inTransaction) {
+            obj.monitorEnter();
+            try {ans = func.get();}
+            finally {obj.monitorExit();}
+        }
+        else {
+            boolean success = obj.monitorEnterTimeout();
+            if (success) {
+                info.transaction.addLockedObject(obj);
+                ans = func.get();
+            }
+            else {
+                if (inTransaction) throw new TransactionRetryException();
+                else throw new RuntimeException("failed to acquire lock (timeout)");
+            }
+        }
+        return ans;
+    }
+
+    public static byte synchronizedBlock(PersistentObject obj, ByteSupplier func) { 
+        // System.out.println("ByteSupplier");
+        byte ans;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        if (!inTransaction) {
+            obj.monitorEnter();
+            try {ans = func.getAsByte();}
+            finally {obj.monitorExit();}
+        }
+        else {
+            boolean success = obj.monitorEnterTimeout();
+            if (success) {
+                info.transaction.addLockedObject(obj);
+                ans = func.getAsByte();
+            }
+            else {
+                if (inTransaction) throw new TransactionRetryException();
+                else throw new RuntimeException("failed to acquire lock (timeout)");
+            }
+        }
+        return ans;
+    }
+
+    public static short synchronizedBlock(PersistentObject obj, ShortSupplier func) { 
+        // System.out.println("ShortSupplier");
+        short ans;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        if (!inTransaction) {
+            obj.monitorEnter();
+            try {ans = func.getAsShort();}
+            finally {obj.monitorExit();}
+        }
+        else {
+            boolean success = obj.monitorEnterTimeout();
+            if (success) {
+                info.transaction.addLockedObject(obj);
+                ans = func.getAsShort();
+            }
+            else {
+                if (inTransaction) throw new TransactionRetryException();
+                else throw new RuntimeException("failed to acquire lock (timeout)");
+            }
+        }
+        return ans;
+    }
+
+    public static int synchronizedBlock(PersistentObject obj, IntSupplier func) { 
+        // System.out.println("IntSupplier");
+        int ans;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        if (!inTransaction) {
+            obj.monitorEnter();
+            try {ans = func.getAsInt();}
+            finally {obj.monitorExit();}
+        }
+        else {
+            boolean success = obj.monitorEnterTimeout();
+            if (success) {
+                info.transaction.addLockedObject(obj);
+                ans = func.getAsInt();
+            }
+            else {
+                if (inTransaction) throw new TransactionRetryException();
+                else throw new RuntimeException("failed to acquire lock (timeout)");
+            }
+        }
+        return ans;
+    }
+
+    public static long synchronizedBlock(PersistentObject obj, LongSupplier func) { 
+        // System.out.println("LongSupplier");
+        long ans;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        if (!inTransaction) {
+            obj.monitorEnter();
+            try {ans = func.getAsLong();}
+            finally {obj.monitorExit();}
+        }
+        else {
+            boolean success = obj.monitorEnterTimeout();
+            if (success) {
+                info.transaction.addLockedObject(obj);
+                ans = func.getAsLong();
+            }
+            else {
+                if (inTransaction) throw new TransactionRetryException();
+                else throw new RuntimeException("failed to acquire lock (timeout)");
+            }
+        }
+        return ans;
+    }
 }

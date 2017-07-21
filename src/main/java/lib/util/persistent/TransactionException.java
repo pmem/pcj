@@ -22,7 +22,11 @@
 package lib.util.persistent;
 
 public class TransactionException extends RuntimeException {
-	public TransactionException(String message) {
-		super(message);
-	}
+    public TransactionException(String message) {
+        super(message);
+    }
+ 
+    public TransactionException() {
+        super();
+    }
 }
