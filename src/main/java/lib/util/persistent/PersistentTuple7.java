@@ -19,22 +19,23 @@
  * Boston, MA  02110-1301, USA.
  */
 
-
-
 package lib.util.persistent;
 
-import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
+import lib.util.persistent.front.PersistentClass;
 
-public class PersistentTuple7<T1 extends PersistentObject, T2 extends PersistentObject, T3 extends PersistentObject, T4 extends PersistentObject, T5 extends PersistentObject, T6 extends PersistentObject, T7 extends PersistentObject> extends PersistentObject {
+@PersistentClass
+public class PersistentTuple7<T1 extends PersistentObject, T2 extends PersistentObject, T3 extends PersistentObject, T4 extends PersistentObject, T5 extends PersistentObject, T6 extends PersistentObject, T7 extends PersistentObject>
+  extends PersistentObject {
+    private static final long serialVersionUID = 1L;
     private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD2 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD3 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD4 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD5 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD6 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD7 = new ObjectField<>(); 
+    private static final ObjectField<PersistentObject> FIELD7 = new ObjectField<>();
     public static final ObjectType<PersistentTuple7> TYPE = ObjectType.fromFields(PersistentTuple7.class, FIELD1, FIELD2, FIELD3, FIELD4, FIELD5, FIELD6, FIELD7);
 
     public PersistentTuple7() {

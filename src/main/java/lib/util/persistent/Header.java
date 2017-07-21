@@ -33,7 +33,7 @@ public class Header {
 
     public static final PersistentType[] TYPES = new PersistentType[] {
         Types.LONG,        // TYPE_NAME  // TODO: should reference shared name or type
-        Types.INT,         // VERSION
+        Types.LONG,        // VERSION
         Types.INT,         // REF_COUNT
         Types.BYTE,        // REF_COLOR
     };

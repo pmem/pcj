@@ -21,7 +21,6 @@
 
 package lib.util.persistent;
 
-import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ValueType;
 import java.lang.reflect.Constructor;
 

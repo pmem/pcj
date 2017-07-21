@@ -21,8 +21,6 @@
 
 package lib.util.persistent;
 
-import java.util.List;
-import java.util.ArrayList;
 import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.types.ValueType;
 import lib.util.persistent.types.Types;
@@ -33,12 +31,14 @@ import lib.util.persistent.spi.PersistentMemoryProvider;
 abstract class AbstractPersistentImmutableArray extends PersistentObject {
 
     protected AbstractPersistentImmutableArray(ArrayType<? extends PersistentObject> type, int count, Object data) {
+        // FIXME: Compatible only with the default provider
         super(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize(count)));
         setInt(ArrayType.LENGTH_OFFSET, count);
         initializeElements(data, type.getElementType());
     }
 
     protected AbstractPersistentImmutableArray(ArrayType<? extends PersistentObject> type, int count) {
+        // FIXME: Compatible only with the default provider
         super(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize(count)));
         setInt(ArrayType.LENGTH_OFFSET, count);
         for (int i = 0; i < count; i++) {initializeElement(i, type.getElementType());}
@@ -68,7 +68,7 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
             MemoryRegion dstRegion = heap.allocateRegion(size);
             // System.out.println(String.format("getValueElement src addr = %d, dst addr = %d, size = %d", srcRegion.addr() + offset, dstRegion.addr(), size));
             synchronized(srcRegion) {
-                ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, offset, dstRegion, 0, size);
+                heap.memcpy(srcRegion, offset, dstRegion, 0, size);
             }
             return cls.cast(new ValuePointer(type, dstRegion, cls).deref());
         } catch (Exception e) {throw new RuntimeException("unable to extract type from class " + cls);}
@@ -95,7 +95,7 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
         // System.out.println(String.format("setValueElement src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + dstOffset, size));
         synchronized(dstRegion) {
             synchronized(srcRegion) {
-                ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, 0, dstRegion, dstOffset, size);
+                heap.memcpy(srcRegion, 0, dstRegion, dstOffset, size);
             }
         }
     }
@@ -104,15 +104,15 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
         return getInt(ArrayType.LENGTH_OFFSET);
     }
 
-    long elementOffset(int index) {
+    protected long elementOffset(int index) {
         return ((ArrayType)getPointer().type()).getElementOffset(index);
     }
 
-    long elementOffset(int index, long size) {
+    protected long elementOffset(int index, long size) {
         return ((ArrayType)getPointer().type()).getElementOffset(index, size);
     }
 
-    int check(int index) {
+    protected int check(int index) {
         if (index < 0 || index >= length()) throw new IndexOutOfBoundsException("index " + index + " out of bounds");
         return index;
     }

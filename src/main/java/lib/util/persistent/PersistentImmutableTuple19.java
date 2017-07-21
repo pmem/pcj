@@ -23,11 +23,13 @@
 
 package lib.util.persistent;
 
-import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
+import lib.util.persistent.front.PersistentClass;
 
+@PersistentClass
 public class PersistentImmutableTuple19<T1 extends PersistentObject, T2 extends PersistentObject, T3 extends PersistentObject, T4 extends PersistentObject, T5 extends PersistentObject, T6 extends PersistentObject, T7 extends PersistentObject, T8 extends PersistentObject, T9 extends PersistentObject, T10 extends PersistentObject, T11 extends PersistentObject, T12 extends PersistentObject, T13 extends PersistentObject, T14 extends PersistentObject, T15 extends PersistentObject, T16 extends PersistentObject, T17 extends PersistentObject, T18 extends PersistentObject, T19 extends PersistentObject> extends PersistentObject {
+    private static final long serialVersionUID = 1L;
     private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD2 = new ObjectField<>();
     private static final ObjectField<PersistentObject> FIELD3 = new ObjectField<>();

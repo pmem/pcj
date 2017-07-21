@@ -21,12 +21,12 @@
 
 package lib.util.persistent;
 
+import lib.util.persistent.front.PersistentClass;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ValueType;
 import lib.util.persistent.types.ArrayType;
-import lib.util.persistent.types.CarriedType;
 import lib.util.persistent.types.ByteField;
 import lib.util.persistent.types.ShortField;
 import lib.util.persistent.types.IntField;
@@ -37,8 +37,10 @@ import lib.util.persistent.types.CharField;
 import lib.util.persistent.types.BooleanField;
 import lib.util.persistent.types.ObjectField;
 import lib.util.persistent.types.ValueField;
-import lib.util.persistent.types.PersistentField;
 import lib.util.persistent.spi.PersistentMemoryProvider;
+
+import java.io.ObjectStreamClass;
+import java.io.Serializable;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -50,12 +52,13 @@ import lib.xpersistent.XRoot;
 import lib.xpersistent.UncheckedPersistentMemoryRegion;
 import java.util.Random;
 import static lib.util.persistent.Trace.*;
-import java.util.concurrent.TimeoutException;
 
 import sun.misc.Unsafe;
 
 @SuppressWarnings("sunapi")
-public class PersistentObject implements Persistent<PersistentObject> {
+@PersistentClass
+public class PersistentObject implements Persistent<PersistentObject>, Serializable {
+    // FIXME: Compatible only with the default provider
     static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
     private static Random random = new Random(System.nanoTime());
     public static Unsafe UNSAFE;
@@ -63,6 +66,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
     // for stats
     static {
         try {
+            // Warning: With Java9, Unsafe is not accessible
             java.lang.reflect.Field f = Unsafe.class.getDeclaredField("theUnsafe");
             f.setAccessible(true);
             UNSAFE = (Unsafe)f.get(null);
@@ -72,37 +76,59 @@ public class PersistentObject implements Persistent<PersistentObject> {
         }
     }
 
-    private final ObjectPointer<? extends PersistentObject> pointer;
+    private ObjectPointer<? extends PersistentObject> pointer;
 
-    public PersistentObject(ObjectType<? extends PersistentObject> type) {
-        // would like to group the allocation transaction and initialization transaction
-        // can't just put one here because this constructor call must be first line
-        // Transaction.run(() -> {
-            this(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize()));
-        // });
+    // For Scala
+    protected <T extends PersistentObject> void initPersistenObject(ObjectType<T> type) {
+        // PPR: associate with the DefaultProvider. It's impossible to use another provider
+        initPersistenObject(type,PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize()));
     }
 
-    <T extends PersistentObject> PersistentObject(ObjectType<T> type, MemoryRegion region) {
-        // trace(region.addr(), "creating object of type %s", type.getName());
+    protected <T extends PersistentObject> void initPersistenObject(ObjectType<T> type,MemoryRegion region) {
+        //trace(region.addr(), "creating object of type %s", type.getName());
         Stats.memory.constructions++;
         this.pointer = new ObjectPointer<T>(type, region);
         List<PersistentType> ts = type.getTypes();
         Transaction.run(() -> {
             for (int i = 0; i < ts.size(); i++) initializeField(i, ts.get(i));
             setTypeName(type.getName());
-            setVersion(99);
+            long serialVersionUID = ObjectStreamClass.lookup(type.cls()).getSerialVersionUID();
+            setVersion(serialVersionUID);
             initForGC();
-            if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
+            // FIXME: circular dependency between package XRoot and this package
+            if (heap instanceof XHeap && ((XHeap)heap).getDebugMode()) {
                 ((XRoot)(heap.getRoot())).addToAllObjects(getPointer().region().addr());
             }
         }, this);
         ObjectCache.add(this);
     }
 
-    public PersistentObject(ObjectPointer<? extends PersistentObject> p) {
-        // trace(p.region().addr(), "recreating object");
+    protected void initPersistenObject(ObjectPointer<? extends PersistentObject> p) {
+        //trace(p.region().addr(), "recreating object");
         Stats.memory.reconstructions++;
         this.pointer = p;
+    }
+
+
+    protected PersistentObject() { }
+
+    public PersistentObject(ObjectType<? extends PersistentObject> type) {
+        Transaction.run(() -> {
+            initPersistenObject(type);
+        });
+    }
+
+    public PersistentObject(ObjectPointer<? extends PersistentObject> p) {
+        //trace(p.region().addr(), "recreating object");
+        Transaction.run(() -> {
+            initPersistenObject(p);
+        });
+    }
+
+    protected <T extends PersistentObject> PersistentObject(ObjectType<T> type, MemoryRegion region) {
+        Transaction.run(() -> {
+            initPersistenObject(type,region);
+        });
     }
 
     void initForGC() {
@@ -115,7 +141,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
     // only called by Root during bootstrap of Object directory PersistentHashMap
     @SuppressWarnings("unchecked")
     public static <T extends PersistentObject> T fromPointer(ObjectPointer<T> p) {
-        // trace(p.addr(), "creating object from pointer of type %s", p.type().getName());
+        //trace(p.addr(), "creating object from pointer of type %s", p.type().getName());
         try {
             Class<T> cls = p.type().cls();
             Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
@@ -128,15 +154,16 @@ public class PersistentObject implements Persistent<PersistentObject> {
     }
 
     static void free(long addr) {
-        // trace(addr, "free called");
+        //trace(addr, "free called");
         ObjectCache.remove(addr);
         MemoryRegion reg = new UncheckedPersistentMemoryRegion(addr);
         MemoryRegion nameRegion = new UncheckedPersistentMemoryRegion(reg.getLong(Header.TYPE.getOffset(Header.TYPE_NAME)));
         Transaction.run(() -> {
-            // trace(addr, "freeing object region %d and name region %d", reg.addr(), nameRegion.addr());
+            //trace(addr, "freeing object region %d and name region %d", reg.addr(), nameRegion.addr());
             heap.freeRegion(nameRegion);
             heap.freeRegion(reg);
-            if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
+            // FIXME: circular dependency between package XRoot and this package
+            if (heap instanceof XHeap && ((XHeap)heap).getDebugMode()) {
                 ((XRoot)(heap.getRoot())).removeFromAllObjects(addr);
             }
             CycleCollector.removeFromCandidates(addr);
@@ -227,68 +254,69 @@ public class PersistentObject implements Persistent<PersistentObject> {
         }, this);
     }
 
-    byte getByteField(int index) {return getByte(offset(check(index, Types.BYTE)));}
-    short getShortField(int index) {return getShort(offset(check(index, Types.SHORT)));}
-    int getIntField(int index) {return getInt(offset(check(index, Types.INT)));}
-    long getLongField(int index) {return getLong(offset(check(index, Types.LONG)));}
-    float getFloatField(int index) {return Float.intBitsToFloat(getInt(offset(check(index, Types.FLOAT))));}
-    double getDoubleField(int index) {return Double.longBitsToDouble(getLong(offset(check(index, Types.DOUBLE))));}
-    char getCharField(int index) {return (char)getInt(offset(check(index, Types.CHAR)));}
-    boolean getBooleanField(int index) {return getByte(offset(check(index, Types.BOOLEAN))) == 0 ? false : true;}
-    PersistentObject getObjectField(int index) {return getObject(offset(check(index, Types.OBJECT)));}
+    final byte getByteField(int index) {return getByte(offset(check(index, Types.BYTE)));}
+    final short getShortField(int index) {return getShort(offset(check(index, Types.SHORT)));}
+    final int getIntField(int index) {return getInt(offset(check(index, Types.INT)));}
+    final long getLongField(int index) {return getLong(offset(check(index, Types.LONG)));}
+    final float getFloatField(int index) {return Float.intBitsToFloat(getInt(offset(check(index, Types.FLOAT))));}
+    final double getDoubleField(int index) {return Double.longBitsToDouble(getLong(offset(check(index, Types.DOUBLE))));}
+    final char getCharField(int index) {return (char)getInt(offset(check(index, Types.CHAR)));}
+    final boolean getBooleanField(int index) {return getByte(offset(check(index, Types.BOOLEAN))) == 0 ? false : true;}
+    final PersistentObject getObjectField(int index) {return getObject(offset(check(index, Types.OBJECT)));}
 
-    void setByteField(int index, byte value) {setByte(offset(check(index, Types.BYTE)), value);}
-    void setShortField(int index, short value) {setShort(offset(check(index, Types.SHORT)), value);}
-    void setIntField(int index, int value) {setInt(offset(check(index, Types.INT)), value);}
-    void setLongField(int index, long value) {setLong(offset(check(index, Types.LONG)), value);}
-    void setFloatField(int index, float value) {setInt(offset(check(index, Types.FLOAT)), Float.floatToIntBits(value));}
-    void setDoubleField(int index, double value) {setLong(offset(check(index, Types.DOUBLE)), Double.doubleToLongBits(value));}
-    void setCharField(int index, char value) {setInt(offset(check(index, Types.CHAR)), (int)value);}
-    void setBooleanField(int index, boolean value) {setByte(offset(check(index, Types.BOOLEAN)), value ? (byte)1 : (byte)0);}
-    void setObjectField(int index, PersistentObject value) {setObject(offset(check(index, Types.OBJECT)), value);}
+    final void setByteField(int index, byte value) {setByte(offset(check(index, Types.BYTE)), value);}
+    final void setShortField(int index, short value) {setShort(offset(check(index, Types.SHORT)), value);}
+    final void setIntField(int index, int value) {setInt(offset(check(index, Types.INT)), value);}
+    final void setLongField(int index, long value) {setLong(offset(check(index, Types.LONG)), value);}
+    final void setFloatField(int index, float value) {setInt(offset(check(index, Types.FLOAT)), Float.floatToIntBits(value));}
+    final void setDoubleField(int index, double value) {setLong(offset(check(index, Types.DOUBLE)), Double.doubleToLongBits(value));}
+    final void setCharField(int index, char value) {setInt(offset(check(index, Types.CHAR)), (int)value);}
+    final void setBooleanField(int index, boolean value) {setByte(offset(check(index, Types.BOOLEAN)), value ? (byte)1 : (byte)0);}
+    final void setObjectField(int index, PersistentObject value) {setObject(offset(check(index, Types.OBJECT)), value);}
 
-    public byte getByteField(ByteField f) {return getByte(offset(check(f.getIndex(), Types.BYTE)));}
-    public short getShortField(ShortField f) {return getShort(offset(check(f.getIndex(), Types.SHORT)));}
-    public int getIntField(IntField f) {return getInt(offset(check(f.getIndex(), Types.INT)));}
-    public long getLongField(LongField f) {return getLong(offset(check(f.getIndex(), Types.LONG)));}
-    public float getFloatField(FloatField f) {return Float.intBitsToFloat(getInt(offset(check(f.getIndex(), Types.FLOAT))));}
-    public double getDoubleField(DoubleField f) {return Double.longBitsToDouble(getLong(offset(check(f.getIndex(), Types.DOUBLE))));}
-    public char getCharField(CharField f) {return (char)getInt(offset(check(f.getIndex(), Types.CHAR)));}
-    public boolean getBooleanField(BooleanField f) {return getByte(offset(check(f.getIndex(), Types.BOOLEAN))) == 0 ? false : true;}
-    @SuppressWarnings("unchecked") public <T extends PersistentObject> T getObjectField(ObjectField<T> f) {return (T)getObjectField(f.getIndex());}
+    public final byte getByteField(ByteField f) {return getByte(offset(check(f.getIndex(), Types.BYTE)));}
+    public final short getShortField(ShortField f) {return getShort(offset(check(f.getIndex(), Types.SHORT)));}
+    public final int getIntField(IntField f) {return getInt(offset(check(f.getIndex(), Types.INT)));}
+    public final long getLongField(LongField f) {return getLong(offset(check(f.getIndex(), Types.LONG)));}
+    public final float getFloatField(FloatField f) {return Float.intBitsToFloat(getInt(offset(check(f.getIndex(), Types.FLOAT))));}
+    public final double getDoubleField(DoubleField f) {return Double.longBitsToDouble(getLong(offset(check(f.getIndex(), Types.DOUBLE))));}
+    public final char getCharField(CharField f) {return (char)getInt(offset(check(f.getIndex(), Types.CHAR)));}
+    public final boolean getBooleanField(BooleanField f) {return getByte(offset(check(f.getIndex(), Types.BOOLEAN))) == 0 ? false : true;}
+    @SuppressWarnings("unchecked") public final <T extends PersistentObject> T getObjectField(ObjectField<T> f) {return (T)getObjectField(f.getIndex());}
 
     @SuppressWarnings("unchecked")
-    public synchronized <T extends PersistentValue> T getValueField(ValueField<T> f) {
+    public final synchronized <T extends PersistentValue> T getValueField(ValueField<T> f) {
         MemoryRegion srcRegion = getPointer().region();
         MemoryRegion dstRegion = heap.allocateRegion(f.getType().getSize());
-        // trace("getValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr(), f.getType().getSize());
+        //trace("getValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr(), f.getType().getSize());
         synchronized(srcRegion) {
             synchronized(dstRegion) {
-                ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, offset(f.getIndex()), dstRegion, 0, f.getType().getSize());
+                // FIXME: circulare dependency between package XRoot and this package
+                ((XHeap)heap).memcpy(srcRegion, offset(f.getIndex()), dstRegion, 0, f.getType().getSize());
             }
         }
         return (T)new ValuePointer((ValueType)f.getType(), dstRegion, f.cls()).deref();
     }
 
-    public synchronized <T extends PersistentValue> void setValueField(ValueField<T> f, T value) {
+    public final synchronized <T extends PersistentValue> void setValueField(ValueField<T> f, T value) {
         MemoryRegion dstRegion = getPointer().region();
         long dstOffset = offset(f.getIndex());
         MemoryRegion srcRegion = value.getPointer().region();
-        // trace("setValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + dstOffset, f.getType().getSize());
+        //trace("setValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + dstOffset, f.getType().getSize());
         synchronized(srcRegion) {
-            ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, 0, dstRegion, dstOffset, f.getType().getSize());
+            heap.memcpy(srcRegion, 0, dstRegion, dstOffset, f.getType().getSize());
         }
     }
 
-    public void setByteField(ByteField f, byte value) {setByte(offset(check(f.getIndex(), Types.BYTE)), value);}
-    public void setShortField(ShortField f, short value) {setShort(offset(check(f.getIndex(), Types.SHORT)), value);}
-    public void setIntField(IntField f, int value) {setInt(offset(check(f.getIndex(), Types.INT)), value);}
-    public void setLongField(LongField f, long value) {setLong(offset(check(f.getIndex(), Types.LONG)), value);}
-    public void setFloatField(FloatField f, float value) {setInt(offset(check(f.getIndex(), Types.FLOAT)), Float.floatToIntBits(value));}
-    public void setDoubleField(DoubleField f, double value) {setLong(offset(check(f.getIndex(), Types.DOUBLE)), Double.doubleToLongBits(value));}
-    public void setCharField(CharField f, char value) {setInt(offset(check(f.getIndex(), Types.CHAR)), (int)value);}
-    public void setBooleanField(BooleanField f, boolean value) {setByte(offset(check(f.getIndex(), Types.BOOLEAN)), value ? (byte)1 : (byte)0);}
-    public <T extends PersistentObject> void setObjectField(ObjectField<T> f, T value) {setObjectField(f.getIndex(), value);}
+    public final void setByteField(ByteField f, byte value) {setByte(offset(check(f.getIndex(), Types.BYTE)), value);}
+    public final void setShortField(ShortField f, short value) {setShort(offset(check(f.getIndex(), Types.SHORT)), value);}
+    public final void setIntField(IntField f, int value) {setInt(offset(check(f.getIndex(), Types.INT)), value);}
+    public final void setLongField(LongField f, long value) {setLong(offset(check(f.getIndex(), Types.LONG)), value);}
+    public final void setFloatField(FloatField f, float value) {setInt(offset(check(f.getIndex(), Types.FLOAT)), Float.floatToIntBits(value));}
+    public final void setDoubleField(DoubleField f, double value) {setLong(offset(check(f.getIndex(), Types.DOUBLE)), Double.doubleToLongBits(value));}
+    public final void setCharField(CharField f, char value) {setInt(offset(check(f.getIndex(), Types.CHAR)), (int)value);}
+    public final void setBooleanField(BooleanField f, boolean value) {setByte(offset(check(f.getIndex(), Types.BOOLEAN)), value ? (byte)1 : (byte)0);}
+    public final <T extends PersistentObject> void setObjectField(ObjectField<T> f, T value) {setObjectField(f.getIndex(), value);}
 
     // identity beyond one JVM instance
     public final boolean is(PersistentObject obj) {
@@ -346,12 +374,12 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return index;
     }
 
-    private int getVersion() {
-        return getIntField(Header.VERSION);
+    private long getVersion() {
+        return getLongField(Header.VERSION);
     }
 
-    private void setVersion(int version) {
-        setIntField(Header.VERSION, version);
+    private void setVersion(long version) {
+        setLongField(Header.VERSION, version);
     }
 
     private void setTypeName(String name) {
@@ -365,7 +393,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return new RawString(region).toString();
     }
 
-     synchronized int getRefCount() {
+    synchronized int getRefCount() {
         MemoryRegion reg = getPointer().region();
         return reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
     }
@@ -375,7 +403,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
         Transaction.run(() -> {
             int oldCount = reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
             reg.putInt(Header.TYPE.getOffset(Header.REF_COUNT), oldCount + 1);
-            // trace(getPointer().addr(), "incRefCount(), type = %s, old = %d, new = %d",getPointer().type(), oldCount, getRefCount());
+            //trace(getPointer().addr(), "incRefCount(), type = %s, old = %d, new = %d",getPointer().type(), oldCount, getRefCount());
         }, this);
     }
 
@@ -385,10 +413,11 @@ public class PersistentObject implements Persistent<PersistentObject> {
         Transaction.run(() -> {
             int oldCount = reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
             newCount.set(oldCount - 1);
-            // trace(getPointer().addr(), "decRefCount, type = %s, old = %d, new = %d", getPointer().type(), oldCount, newCount.get());
+            //trace(getPointer().addr(), "decRefCount, type = %s, old = %d, new = %d", getPointer().type(), oldCount, newCount.get());
             if (newCount.get() < 0) {
-               trace(true, reg.addr(), "decRef below 0");
-               new RuntimeException().printStackTrace(); System.exit(-1);}
+               //trace(reg.addr(), "decRef below 0");
+               throw new HeapCorruptedError(reg.addr()+" decRef below 0");
+            }
             reg.putInt(Header.TYPE.getOffset(Header.REF_COUNT), newCount.get());
         }, this);
         return newCount.get();
@@ -408,7 +437,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
             int count = 0;
             int newCount = decRefCount();
             if (newCount == 0) {
-                // trace(getPointer().addr(), "deleteReference, newCount == 0");
+                //trace(getPointer().addr(), "deleteReference, newCount == 0");
                 addrsToDelete.push(getPointer().addr());
                 while (!addrsToDelete.isEmpty()) {
                     long addrToDelete = addrsToDelete.pop();
@@ -438,14 +467,14 @@ public class PersistentObject implements Persistent<PersistentObject> {
         }, this);
     }
 
+    // Call by JNI
     static void deleteResidualReferences(long address, int count) {
         PersistentObject obj = ObjectCache.get(address, true);
         Transaction.run(() -> {
             int rc = obj.getRefCount();
-            trace(address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
+            //trace(address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
             if (obj.getRefCount() < count) {
-                trace(true, address, "refCount %d < count %d", obj.getRefCount(), count);
-                System.exit(-1);
+                throw new HeapCorruptedError("refcount < count");
             }
             for (int i = 0; i < count - 1; i++) obj.decRefCount();
             obj.deleteReference();
@@ -501,7 +530,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
     }
 
     public static boolean monitorEnter(List<PersistentObject> toLock, List<PersistentObject> locked, boolean block) {
-        trace("monitorEnter (lists), starting toLock = %d, locked = %d, block = %s", toLock.size(), locked.size(), block);
+        //trace("monitorEnter (lists), starting toLock = %d, locked = %d, block = %s", toLock.size(), locked.size(), block);
         // toLock.sort((x, y) -> Long.compare(x.getPointer().addr(), y.getPointer().addr()));
         boolean success = true;
         for (PersistentObject obj : toLock) {
@@ -523,7 +552,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
             }
             else obj.monitorEnter();
         }
-        // trace("monitorEnter (lists), exiting toLock = %d, locked = %d", toLock.size(), locked.size());
+        //trace("monitorEnter (lists), exiting toLock = %d, locked = %d", toLock.size(), locked.size());
         return success;
     }
 
@@ -564,6 +593,7 @@ public class PersistentObject implements Persistent<PersistentObject> {
 
     public void monitorExit() {
         UNSAFE.monitorExit(this);
-        // trace(getPointer().addr(), "released");
+        //trace(getPointer().addr(), "released");
     }
 }
+

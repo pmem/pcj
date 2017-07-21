@@ -33,11 +33,12 @@ class RawString {
         this.string = s;
         final Box<MemoryRegion> box = new Box<>();
         Transaction.run(() -> {
+            // FIXME: Compatible only with the default provider
             MemoryRegion r = box.set(PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(Types.INT.getSize() + s.length()));
             putString(r, 0, s);
         });
         this.region = box.get();
-        // trace(region.addr(), "created RawString");
+        //trace(region.addr(), "created RawString");
     }
 
     public RawString(MemoryRegion region) {
@@ -56,9 +57,7 @@ class RawString {
     private String getString(long offset) {
         int size = region.getInt(offset);
         if (size < 0 || size > 128) {
-            System.out.format("Heap appears to be corrupt: RawString at address %d size = %d\n", region.addr() + offset, size);
-            new Exception().printStackTrace();
-            System.exit(-1);
+            throw new HeapCorruptedError("Heap appears to be corrupt: RawString at address "+region.addr() + offset+ " size = "+size);
         }
         byte[] bytes = new byte[size];
         long base = offset + Types.INT.getSize();

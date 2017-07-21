@@ -25,10 +25,7 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import lib.util.persistent.PersistentObject;
-import lib.util.persistent.ObjectDirectory;
-import lib.util.persistent.PersistentString;
 import lib.util.persistent.Header;
-import java.lang.reflect.Field;
 
 public class ObjectType<T extends PersistentObject> implements Named, Container {
     public static long FIELDS_OFFSET = Header.TYPE.getAllocationSize(); // room for header fields;

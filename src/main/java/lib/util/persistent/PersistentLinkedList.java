@@ -21,12 +21,13 @@
 
 package lib.util.persistent;
 
+import lib.util.persistent.front.PersistentClass;
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import java.lang.StringBuilder;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+@PersistentClass
 public class PersistentLinkedList<E extends PersistentObject> extends PersistentObject implements Iterable<E> {
 	
     private static final IntField SIZE = new IntField();

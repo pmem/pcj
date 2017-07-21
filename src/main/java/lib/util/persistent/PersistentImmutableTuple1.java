@@ -23,11 +23,13 @@
 
 package lib.util.persistent;
 
-import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
+import lib.util.persistent.front.PersistentClass;
 
+@PersistentClass
 public class PersistentImmutableTuple1<T1 extends PersistentObject> extends PersistentObject {
+    private static final long serialVersionUID = 1L;
     private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>();
     public static final ObjectType<PersistentImmutableTuple1> TYPE = ObjectType.fromFields(PersistentImmutableTuple1.class, FIELD1);
 

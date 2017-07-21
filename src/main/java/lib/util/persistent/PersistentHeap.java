@@ -27,4 +27,5 @@ public interface PersistentHeap {
     MemoryRegion allocateRegion(long size);
     void freeRegion(MemoryRegion region);
     Root getRoot();
+    void memcpy(MemoryRegion srcRegion, long srcOffset, MemoryRegion destRegion, long destOffset, long length);
 }

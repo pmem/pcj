@@ -22,10 +22,6 @@
 package lib.util.persistent;
 
 import lib.util.persistent.types.ArrayType;
-import lib.util.persistent.types.Types;
-import lib.util.persistent.types.PersistentType;
-import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.spi.PersistentMemoryProvider;
 
 abstract class AbstractPersistentArray extends AbstractPersistentImmutableArray {
     AbstractPersistentArray(ArrayType<? extends PersistentObject> type, int count) {
@@ -34,32 +30,32 @@ abstract class AbstractPersistentArray extends AbstractPersistentImmutableArray 
 
     AbstractPersistentArray(ObjectPointer<? extends AbstractPersistentArray> p) {super(p);}
 
-    @Override byte getByteElement(int index) {return getByte(elementOffset(check(index)));}
-    @Override short getShortElement(int index) {return getShort(elementOffset(check(index)));}
-    @Override int getIntElement(int index) {return getInt(elementOffset(check(index)));}
-    @Override long getLongElement(int index) {return getLong(elementOffset(check(index)));}
-    @Override float getFloatElement(int index) {return Float.intBitsToFloat(getInt(elementOffset(check(index))));}
-    @Override double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(check(index))));}
-    @Override char getCharElement(int index) {return (char)getInt(elementOffset(check(index)));}
-    @Override boolean getBooleanElement(int index) {return getByte(elementOffset(check(index))) == (byte)0 ? false : true;}
-    @Override PersistentObject getObjectElement(int index) {return getObject(elementOffset(check(index)));}
+    @Override final byte getByteElement(int index) {return getByte(elementOffset(check(index)));}
+    @Override final short getShortElement(int index) {return getShort(elementOffset(check(index)));}
+    @Override final int getIntElement(int index) {return getInt(elementOffset(check(index)));}
+    @Override final long getLongElement(int index) {return getLong(elementOffset(check(index)));}
+    @Override final float getFloatElement(int index) {return Float.intBitsToFloat(getInt(elementOffset(check(index))));}
+    @Override final double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(check(index))));}
+    @Override final char getCharElement(int index) {return (char)getInt(elementOffset(check(index)));}
+    @Override final boolean getBooleanElement(int index) {return getByte(elementOffset(check(index))) == (byte)0 ? false : true;}
+    @Override final PersistentObject getObjectElement(int index) {return getObject(elementOffset(check(index)));}
 
-    void setByteElement(int index, byte value) {setByte(elementOffset(check(index)), value);}
-    void setShortElement(int index, short value) {setShort(elementOffset(check(index)), value);}
-    void setIntElement(int index, int value) {setInt(elementOffset(check(index)), value);}
-    void setLongElement(int index, long value) {setLong(elementOffset(check(index)), value);}
-    void setFloatElement(int index, float value) {setInt(elementOffset(check(index)), Float.floatToIntBits(value));}
-    void setDoubleElement(int index, double value) {setLong(elementOffset(check(index)), Double.doubleToLongBits(value));}
-    void setCharElement(int index, char value) {setInt(elementOffset(check(index)), (int)value);}
-    void setBooleanElement(int index, boolean value) {setByte(elementOffset(check(index)), value ? (byte)1 : (byte)0);}
-    void setObjectElement(int index, PersistentObject value) {setObject(elementOffset(check(index)), value);}
-    void setValueElement(int index, PersistentValue value) {super.setValueElement(index, value);}
+    final void setByteElement(int index, byte value) {setByte(elementOffset(check(index)), value);}
+    final void setShortElement(int index, short value) {setShort(elementOffset(check(index)), value);}
+    final void setIntElement(int index, int value) {setInt(elementOffset(check(index)), value);}
+    final void setLongElement(int index, long value) {setLong(elementOffset(check(index)), value);}
+    final void setFloatElement(int index, float value) {setInt(elementOffset(check(index)), Float.floatToIntBits(value));}
+    final void setDoubleElement(int index, double value) {setLong(elementOffset(check(index)), Double.doubleToLongBits(value));}
+    final void setCharElement(int index, char value) {setInt(elementOffset(check(index)), (int)value);}
+    final void setBooleanElement(int index, boolean value) {setByte(elementOffset(check(index)), value ? (byte)1 : (byte)0);}
+    final void setObjectElement(int index, PersistentObject value) {setObject(elementOffset(check(index)), value);}
+    final void setValueElement(int index, PersistentValue value) {super.setValueElement(index, value);}
 
-    @Override public int length() {
+    @Override public final int length() {
         return getInt(ArrayType.LENGTH_OFFSET);
     }
 
-    @Override long elementOffset(int index) {
+    @Override protected long elementOffset(int index) {
         return ((ArrayType)getPointer().type()).getElementOffset(index);
     }
 }

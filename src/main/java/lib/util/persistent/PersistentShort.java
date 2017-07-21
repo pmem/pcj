@@ -24,11 +24,14 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.Types;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentShort extends PersistentObject implements Comparable<PersistentShort> { 
+@PersistentClass
+public final class PersistentShort extends PersistentObject
+  implements Comparable<PersistentShort> {
     private static final ShortField SHORT = new ShortField();
     private static final ObjectType<PersistentShort> TYPE = ObjectType.fromFields(PersistentShort.class, SHORT);
+    private static final long serialVersionUID = 1L;
 
     public PersistentShort(short x) {
         super(TYPE);

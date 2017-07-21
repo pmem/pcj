@@ -22,7 +22,6 @@
 package lib.util.persistent.types;
 
 import lib.util.persistent.PersistentObject;
-import java.util.ArrayList;
 
 public class ArrayType<T extends PersistentObject> extends ObjectType<T> { 
     protected PersistentType elementType;
@@ -36,19 +35,19 @@ public class ArrayType<T extends PersistentObject> extends ObjectType<T> {
         this.elementSize = elementType.getSize();
     }
 
-    public PersistentType getElementType() {
+    public final PersistentType getElementType() {
         return elementType;
     }
 
-    public long getAllocationSize(int count) {
+    public final long getAllocationSize(int count) {
         return ELEMENTS_OFFSET + count * elementSize;
     }
 
-    public long getElementOffset(int index) {
+    public final long getElementOffset(int index) {
         return ELEMENTS_OFFSET + index * elementSize;
     }
 
-    public long getElementOffset(int index, long size) {
+    public final long getElementOffset(int index, long size) {
          return ELEMENTS_OFFSET + index * size;
     }
        

@@ -136,7 +136,7 @@ public class PersistentHashMap<K extends PersistentObject, V extends PersistentO
         public synchronized final int size() { return PersistentHashMap.this.size(); }
         public final void clear() { /* NIY */ }
         public final Iterator<V> iterator() { return new ValueIterator(); }
-        public synchronized final boolean contains(Object o) { return containsValue(o); }
+        public synchronized final boolean contains(V o) { return containsValue(o); }
         public final Spliterator<V> spliterator() {
             throw new UnsupportedOperationException();
         }
@@ -159,7 +159,7 @@ public class PersistentHashMap<K extends PersistentObject, V extends PersistentO
         public synchronized final int size() { return PersistentHashMap.this.size(); }
         public final void clear() { /* NIY */ }
         public final Iterator<K> iterator() { return new KeyIterator(); }
-        public synchronized final boolean contains(Object o) { return containsKey(o); }
+        public synchronized final boolean contains(K o) { return containsKey(o); }
         public final Spliterator<K> spliterator() {
             throw new UnsupportedOperationException();
         }
@@ -297,12 +297,12 @@ public class PersistentHashMap<K extends PersistentObject, V extends PersistentO
         return ret.get();
     }
 
-    public synchronized V get(Object key) {
+    public synchronized V get(K key) {
         Node<K, V> e;
         return (e = getNode(hash(key), key)) == null ? null : e.getValue();
     }
 
-    public synchronized V remove(Object key) {
+    public synchronized V remove(K key) {
         Node<K, V> e;
         return (e = removeNode(hash(key), key, null, false, true)) == null ? null : e.getValue();
     }
@@ -322,11 +322,11 @@ public class PersistentHashMap<K extends PersistentObject, V extends PersistentO
         return (vs = values) == null ? (values = new Values()) : vs;
     }
 
-    public synchronized boolean containsKey(Object key) {
+    public synchronized boolean containsKey(K key) {
         return getNode(hash(key), key) != null;
     }
 
-    public synchronized boolean containsValue(Object value) {
+    public synchronized boolean containsValue(V value) {
         PersistentArray<Node<K, V>> tab;
         V v;
         if ((tab = table()) != null && size() > 0) {

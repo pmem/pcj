@@ -23,7 +23,6 @@ package lib.tools;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.stream.IntStream;
 import org.stringtemplate.v4.*;
 
 public class ArraysGen {
@@ -41,7 +40,7 @@ public class ArraysGen {
 				st.add("smallcaps", fields[i].toLowerCase());
 				String source = st.render();
 				Files.write(Paths.get("./src/main/java/lib/util/persistent/"+ classPrefixes[j] + identifiers[i] + "Array.java"), source.getBytes());
-				Files.write(Paths.get("./tmp/"+ classPrefixes[j] + identifiers[i] + "Array.java"), source.getBytes());
+				//Files.write(Paths.get("./tmp/"+ classPrefixes[j] + identifiers[i] + "Array.java"), source.getBytes());
 		    }
         }
 	}

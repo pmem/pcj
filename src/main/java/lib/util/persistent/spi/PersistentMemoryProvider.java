@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import lib.util.persistent.Transaction;
 import lib.xpersistent.XPersistentMemory;
 import lib.util.persistent.PersistentHeap;
-import lib.xpersistent.XHeap;
 
 public abstract class PersistentMemoryProvider {
     private static final ConcurrentHashMap<String, PersistentMemoryProvider> providers;

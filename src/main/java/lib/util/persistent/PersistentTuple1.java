@@ -19,16 +19,17 @@
  * Boston, MA  02110-1301, USA.
  */
 
-
-
 package lib.util.persistent;
 
-import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
+import lib.util.persistent.front.PersistentClass;
 
-public class PersistentTuple1<T1 extends PersistentObject> extends PersistentObject {
-    private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>(); 
+@PersistentClass
+public class PersistentTuple1<T1 extends PersistentObject>
+  extends PersistentObject {
+    private static final long serialVersionUID = 1L;
+    private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>();
     public static final ObjectType<PersistentTuple1> TYPE = ObjectType.fromFields(PersistentTuple1.class, FIELD1);
 
     public PersistentTuple1() {

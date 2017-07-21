@@ -23,10 +23,7 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
-import java.lang.reflect.Array;
 import java.util.Arrays;
-import lib.xpersistent.*;
-import lib.util.persistent.spi.PersistentMemoryProvider;
 
 public final class PersistentArray<T extends PersistentObject> extends AbstractPersistentArray {
     private static final ArrayType<PersistentArray> TYPE = new ArrayType<>(PersistentArray.class, Types.OBJECT);

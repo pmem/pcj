@@ -28,13 +28,13 @@ import static lib.util.persistent.Trace.*;
 import lib.xpersistent.XTransaction;
 
 public interface Transaction extends AutoCloseable {
-	public interface Update {
+	interface Update {
 		public void run();
 	}
 
-	public enum State {None, Initializing, Active, Committed, Aborted}
+	enum State {None, Initializing, Active, Committed, Aborted}
 
-    public static void run(PersistentMemoryProvider provider, Update update, PersistentObject... toLock) {
+    static void run(PersistentMemoryProvider provider, Update update, PersistentObject... toLock) {
         boolean success = false;
         TransactionInfo info = XTransaction.tlInfo.get();
         while (!success && info.attempts <= Config.MAX_TRANSACTION_RETRIES) {
@@ -65,7 +65,7 @@ public interface Transaction extends AutoCloseable {
                 t.commit();
             }
             if (!success) {
-                info.attempts++;     
+                info.attempts++;
                 Stats.transactions.totalRetries++;
                 Stats.transactions.updateMaxRetries(info.attempts - 1);
                 int sleepTime = info.retryDelay + Util.randomInt(info.retryDelay);
@@ -96,19 +96,24 @@ public interface Transaction extends AutoCloseable {
         }
     }
 
-    public static void run(Update update, PersistentObject... toLock) {
+    static void run(Update update, PersistentObject... toLock) {
+        // FIXME: Compatible only with the default provider
         run(PersistentMemoryProvider.getDefaultProvider(), update, toLock);
     }
 
-	public static Transaction newInstance() {
+	static Transaction newInstance() {
+        // FIXME: Compatible only with the default provider
 		return PersistentMemoryProvider.getDefaultProvider().newTransaction();
 	}
+    static Transaction newInstance(PersistentMemoryProvider provider) {
+        return provider.newTransaction();
+    }
 
-	public Transaction update(Update update);
-    public Transaction start(boolean block, PersistentObject... toLock);
-	public void commit();
-	public void abort();
-	public State state();
+	Transaction update(Update update);
+    Transaction start(boolean block, PersistentObject... toLock);
+	void commit();
+	void abort();
+	State state();
 
 	default void close() {commit();}
 }

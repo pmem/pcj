@@ -23,7 +23,6 @@ package lib.util.persistent.types;
 
 import java.util.List;
 import java.util.ArrayList;
-import lib.util.persistent.PersistentValue;
 
 public class ValueType implements Container {
     private final List<PersistentType> types;
@@ -86,6 +85,11 @@ public class ValueType implements Container {
     @Override 
     public boolean equals(Object obj) {
         return obj instanceof ValueType && ((ValueType)obj).getTypes().equals(getTypes());
+    }
+
+    @Override
+    public int hashCode() {
+        return getTypes().hashCode();
     }
 
     @Override 

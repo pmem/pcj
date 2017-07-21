@@ -24,11 +24,14 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.Types;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentDouble extends PersistentObject implements Comparable<PersistentDouble> { 
+@PersistentClass
+public final class PersistentDouble extends PersistentObject
+  implements Comparable<PersistentDouble> {
     private static final DoubleField DOUBLE = new DoubleField();
     private static final ObjectType<PersistentDouble> TYPE = ObjectType.fromFields(PersistentDouble.class, DOUBLE);
+    private static final long serialVersionUID = 1L;
 
     public PersistentDouble(double x) {
         super(TYPE);

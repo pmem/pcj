@@ -26,7 +26,7 @@ import lib.util.persistent.PersistentObject;
 public class ObjectField<T extends PersistentObject> extends PersistentField {
    private Class<T> cls;
 
-	public ObjectField(ObjectType<T> type) {
+ 	public ObjectField(ObjectType<T> type) {
 		super(type);
 	}
 

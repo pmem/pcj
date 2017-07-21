@@ -24,8 +24,12 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentBooleanArray extends AbstractPersistentArray {
+@PersistentClass
+public final class PersistentBooleanArray
+  extends AbstractPersistentArray {
+    private static final long serialVersionUID = 1L;
     private static final ArrayType<PersistentBooleanArray> TYPE = new ArrayType<>(PersistentBooleanArray.class, Types.BOOLEAN);
 
     public PersistentBooleanArray(int size) {

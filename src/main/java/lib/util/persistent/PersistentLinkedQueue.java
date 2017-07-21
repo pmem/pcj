@@ -21,16 +21,13 @@
 
 package lib.util.persistent;
 
-import lib.util.persistent.types.*;
+import lib.util.persistent.front.PersistentClass;
+import lib.util.persistent.types.ObjectField;
 import lib.util.persistent.types.ObjectType;
-import java.util.concurrent.atomic.*;
-import java.lang.StringBuilder;
-import java.util.Collection;
-import java.util.Queue;
-import java.util.NoSuchElementException;
-import java.util.ArrayList;
-import java.util.Iterator;
 
+import java.util.*;
+
+@PersistentClass
 public class PersistentLinkedQueue <E extends PersistentObject> extends PersistentObject implements Iterable<E> {	
 
 	private static final ObjectField<PersistentAtomicReference> HEAD = new ObjectField<>(PersistentAtomicReference.class);

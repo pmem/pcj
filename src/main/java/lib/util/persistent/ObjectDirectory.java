@@ -46,6 +46,7 @@ public class ObjectDirectory {
     }
 
     public static void initialize() {
+        // FIXME: Compatible only with the default provider
         map = PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot().getObjectDirectory();
     }
 }

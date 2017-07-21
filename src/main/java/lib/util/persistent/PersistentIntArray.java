@@ -24,8 +24,12 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.front.PersistentClass;
 
-public final class PersistentIntArray extends AbstractPersistentArray {
+@PersistentClass
+public final class PersistentIntArray
+  extends AbstractPersistentArray {
+    private static final long serialVersionUID = 1L;
     private static final ArrayType<PersistentIntArray> TYPE = new ArrayType<>(PersistentIntArray.class, Types.INT);
 
     public PersistentIntArray(int size) {
