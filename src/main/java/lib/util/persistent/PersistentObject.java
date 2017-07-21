@@ -52,7 +52,6 @@ import lib.xpersistent.XRoot;
 import lib.xpersistent.UncheckedPersistentMemoryRegion;
 import java.util.Random;
 import static lib.util.persistent.Trace.*;
-import java.util.concurrent.TimeoutException;
 
 import sun.misc.Unsafe;
 
@@ -305,8 +304,7 @@ public class PersistentObject implements Persistent<PersistentObject>, Serializa
         MemoryRegion srcRegion = value.getPointer().region();
         //trace("setValueField src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + dstOffset, f.getType().getSize());
         synchronized(srcRegion) {
-            // FIXME: circulare dependency between package XRoot and this package
-            ((XHeap)heap).memcpy(srcRegion, 0, dstRegion, dstOffset, f.getType().getSize());
+            heap.memcpy(srcRegion, 0, dstRegion, dstOffset, f.getType().getSize());
         }
     }
 
@@ -474,7 +472,7 @@ public class PersistentObject implements Persistent<PersistentObject>, Serializa
         PersistentObject obj = ObjectCache.get(address, true);
         Transaction.run(() -> {
             int rc = obj.getRefCount();
-            trace(address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
+            //trace(address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
             if (obj.getRefCount() < count) {
                 throw new HeapCorruptedError("refcount < count");
             }
@@ -532,7 +530,7 @@ public class PersistentObject implements Persistent<PersistentObject>, Serializa
     }
 
     public static boolean monitorEnter(List<PersistentObject> toLock, List<PersistentObject> locked, boolean block) {
-        trace("monitorEnter (lists), starting toLock = %d, locked = %d, block = %s", toLock.size(), locked.size(), block);
+        //trace("monitorEnter (lists), starting toLock = %d, locked = %d, block = %s", toLock.size(), locked.size(), block);
         // toLock.sort((x, y) -> Long.compare(x.getPointer().addr(), y.getPointer().addr()));
         boolean success = true;
         for (PersistentObject obj : toLock) {

@@ -22,8 +22,6 @@
 package lib.util.persistent;
 
 import lib.util.persistent.types.*;
-import lib.util.persistent.types.Types;
-import lib.util.persistent.types.ArrayType;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -46,9 +44,7 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.AbstractCollection;
 import java.util.NoSuchElementException;
-import java.util.concurrent.atomic.AtomicReference;
 import lib.util.persistent.front.PersistentClass;
-import static lib.util.persistent.Persistent.*;
 
 public class PersistentSkipListMap<K extends PersistentObject, V extends PersistentObject> extends PersistentObject implements ConcurrentNavigableMap<K,V> {
     private KeySet<K> keySet;

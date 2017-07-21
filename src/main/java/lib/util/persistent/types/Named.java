@@ -21,9 +21,6 @@
 
 package lib.util.persistent.types;
 
-import lib.util.persistent.PersistentObject;
-import lib.util.persistent.PersistentString;
-
 public interface Named {
     String getName();
 

@@ -22,9 +22,7 @@
 package lib.xpersistent;
 
 import lib.util.persistent.*;
-import lib.util.persistent.spi.PersistentMemoryProvider;
 import java.util.ArrayList;
-import static lib.util.persistent.Trace.trace;
 
 public class XTransaction implements Transaction {
 

@@ -24,8 +24,6 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ValueArrayType;
 import lib.util.persistent.types.ArrayType;
-import lib.util.persistent.types.ValueType;
-import java.lang.reflect.Array;
 
 public final class PersistentValueArray<T extends PersistentValue> extends AbstractPersistentArray {
     public static final ArrayType<PersistentValueArray> TYPE = new ArrayType<>(PersistentValueArray.class, Types.VALUE);

@@ -23,7 +23,6 @@ package lib.util.persistent.types;
 
 import java.util.List;
 import java.util.ArrayList;
-import lib.util.persistent.PersistentValue;
 
 public class ValueType implements Container {
     private final List<PersistentType> types;

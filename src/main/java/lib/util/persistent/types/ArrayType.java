@@ -22,7 +22,6 @@
 package lib.util.persistent.types;
 
 import lib.util.persistent.PersistentObject;
-import java.util.ArrayList;
 
 public class ArrayType<T extends PersistentObject> extends ObjectType<T> { 
     protected PersistentType elementType;

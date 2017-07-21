@@ -23,7 +23,6 @@
 
 package lib.util.persistent;
 
-import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 import lib.util.persistent.front.PersistentClass;

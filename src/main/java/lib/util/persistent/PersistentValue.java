@@ -31,7 +31,6 @@ import lib.util.persistent.types.CharField;
 import lib.util.persistent.types.BooleanField;
 import lib.util.persistent.types.ValueField;
 import lib.util.persistent.types.ValueType;
-import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
 // TODO: factor common accessor code out of PersistentValue and PersistentObject
@@ -74,7 +73,7 @@ public abstract class PersistentValue implements Persistent<PersistentValue> {
         MemoryRegion dstRegion = heap.allocateRegion(f.getType().getSize());
         // System.out.println(String.format("getValueField @ index %d, src addr = %d, dst addr = %d, size = %d", f.getIndex(), srcRegion.addr(), dstRegion.addr(), f.getType().getSize()));
         synchronized(srcRegion) {
-            ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, offset(f.getIndex()), dstRegion, 0, f.getType().getSize());
+            heap.memcpy(srcRegion, offset(f.getIndex()), dstRegion, 0, f.getType().getSize());
         }
         return (T)new ValuePointer((ValueType)f.getType(), dstRegion, f.cls()).deref();
     }
@@ -95,7 +94,7 @@ public abstract class PersistentValue implements Persistent<PersistentValue> {
         // System.out.println(String.format("setValueField @index %d, src addr = %d, dst addr = %d, size = %d", f.getIndex(), srcRegion.addr(), dstRegion.addr() + dstOffset, f.getType().getSize()));
         synchronized(dstRegion) {
             synchronized(srcRegion) {
-                ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, 0, dstRegion, dstOffset, f.getType().getSize());
+                heap.memcpy(srcRegion, 0, dstRegion, dstOffset, f.getType().getSize());
             }
         }
     }

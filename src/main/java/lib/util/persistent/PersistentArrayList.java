@@ -22,8 +22,6 @@
 package lib.util.persistent;
 
 import lib.util.persistent.types.*;
-import lib.util.persistent.types.Types;
-import lib.util.persistent.types.ArrayType;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.ListIterator;
@@ -31,8 +29,6 @@ import java.util.function.Consumer;
 import java.util.NoSuchElementException;
 import java.util.ConcurrentModificationException;
 import java.util.Objects;
-import java.util.*;
-import static lib.util.persistent.Persistent.*;
 
 public class PersistentArrayList<T extends PersistentObject> extends PersistentObject implements Iterable<T> {
     static final int DEFAULT_CAPACITY = 10;

@@ -68,7 +68,7 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
             MemoryRegion dstRegion = heap.allocateRegion(size);
             // System.out.println(String.format("getValueElement src addr = %d, dst addr = %d, size = %d", srcRegion.addr() + offset, dstRegion.addr(), size));
             synchronized(srcRegion) {
-                ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, offset, dstRegion, 0, size);
+                heap.memcpy(srcRegion, offset, dstRegion, 0, size);
             }
             return cls.cast(new ValuePointer(type, dstRegion, cls).deref());
         } catch (Exception e) {throw new RuntimeException("unable to extract type from class " + cls);}
@@ -95,7 +95,7 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
         // System.out.println(String.format("setValueElement src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + dstOffset, size));
         synchronized(dstRegion) {
             synchronized(srcRegion) {
-                ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, 0, dstRegion, dstOffset, size);
+                heap.memcpy(srcRegion, 0, dstRegion, dstOffset, size);
             }
         }
     }

@@ -21,8 +21,6 @@
 
 package lib.util.persistent;
 
-import java.util.Random;
-
 public class Config {
     public static final int MONITOR_ENTER_TIMEOUT = 30; // ms
     public static final int MAX_MONITOR_ENTER_TIMEOUT = 125; // ms

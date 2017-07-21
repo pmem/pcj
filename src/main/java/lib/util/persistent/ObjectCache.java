@@ -107,7 +107,7 @@ public class ObjectCache {
 
         public PRef(T obj, boolean forAdmin) {
             super(obj, queue);
-            trace("created PRef object for address " + obj.getPointer().addr());
+            //trace("created PRef object for address " + obj.getPointer().addr());
             this.address = obj.getPointer().addr();
             this.forAdmin = forAdmin;
             prefs.put(this.address, this);

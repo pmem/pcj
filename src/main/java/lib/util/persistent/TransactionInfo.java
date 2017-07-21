@@ -21,10 +21,8 @@
 
 package lib.util.persistent;
 
-import lib.util.persistent.PersistentObject;
 import lib.xpersistent.XTransaction;
 import java.util.ArrayList;
-import static lib.util.persistent.Trace.trace;
 
 public class TransactionInfo {
     public XTransaction transaction;

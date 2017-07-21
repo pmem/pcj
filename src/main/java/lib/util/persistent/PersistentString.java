@@ -23,7 +23,6 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.front.PersistentClass;
 
 @PersistentClass
