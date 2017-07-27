@@ -222,20 +222,6 @@ Examples of these 3 usages are shown below.
    will appear as if the addMovie method was never called.  On the other hand, once execution returns from the addMovie 
    method, a developer can be sure both adds performed inside the method are complete and the data is persistent.
 
-   Methods in build-in classes are thread-safe but if the addMovie method might be called by multiple threads with  
-   overlapping writes, these transactions can be isolated to ensure always-consistent sets of data.  A Transaction may 
-   include a list of persistent objects.  Locks on objects in this list will be acquired prior to executing the body of 
-   the transaction. These locks will be released regardless of success or failure of the transaction.
-                                                                                                                               
-     public void addMovie(PersistentString movie) {
-         Transaction.run(() -> {
-             movies.add(movie);
-             movieIndex.add(movie);
-         }, movies, movieIndex);
-     }
-                                                                                                                               
-   Of course, other Java locking mechanisms (synchronized blocks) can be used instead.
-
    To summarize, the "recipe" for declaring and implementing persistent versions of existing or imagined regular classes:
 
    1. Inherit directly or indirectly from PersistentObject
