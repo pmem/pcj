@@ -27,7 +27,8 @@ life of a Java VM instance. Persistent classes include:
 10. Boxed primitives
 11. String
 12. AtomicReference
-  
+13. ByteBuffer
+
 This Java library uses the libpmemobj library from the Non-Volatile Memory Library (NVML). 
 For more information on NVML, please visit http://pmem.io and https://github.com/pmem/nvml.
 
