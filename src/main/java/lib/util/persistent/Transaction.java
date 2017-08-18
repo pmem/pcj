@@ -37,16 +37,16 @@ public interface Transaction extends AutoCloseable {
     public static void run(PersistentMemoryProvider provider, Update update, PersistentObject... toLock) {
         boolean success = false;
         TransactionInfo info = XTransaction.tlInfo.get();
-        while (!success && info.attempts <= Config.MAX_TRANSACTION_RETRIES) {
+        while (!success && info.attempts <= Config.MAX_TRANSACTION_ATTEMPTS) {
             Transaction t = provider.newTransaction();
             // for stats
-            Stats.transactions.total++;
+            Stats.current.transactions.total++;
             int currentDepth = info.depth;
-            if (currentDepth == 1) Stats.transactions.topLevel++;
-            Stats.transactions.maxDepth = Math.max(Stats.transactions.maxDepth, currentDepth);
+            if (currentDepth == 1) Stats.current.transactions.topLevel++;
+            Stats.current.transactions.maxDepth = Math.max(Stats.current.transactions.maxDepth, currentDepth);
             // end for stats
             try {
-                boolean block = Config.BLOCK_ON_EXCEED_MAX_TRANSACTION_RETRIES && info.attempts == Config.MAX_TRANSACTION_RETRIES;
+                boolean block = Config.BLOCK_ON_MAX_TRANSACTION_ATTEMPTS && info.attempts == Config.MAX_TRANSACTION_ATTEMPTS;
                 // trace(true, "%s about to call start, attempts = %d, depth = %d, block = %s", t, info.attempts, info.depth, block);
                 t.start(block, toLock);
                 t.update(update);
@@ -66,8 +66,8 @@ public interface Transaction extends AutoCloseable {
             }
             if (!success) {
                 info.attempts++;     
-                Stats.transactions.totalRetries++;
-                Stats.transactions.updateMaxRetries(info.attempts - 1);
+                Stats.current.transactions.totalRetries++;
+                Stats.current.transactions.updateMaxRetries(info.attempts - 1);
                 int sleepTime = info.retryDelay + Util.randomInt(info.retryDelay);
                 // trace(true, "old retryDelay = %d, new retryDelay = %d", info.retryDelay, Math.min((int)(info.retryDelay * Config.TRANSACTION_RETRY_DELAY_INCREASE_FACTOR), Config.MAX_TRANSACTION_RETRY_DELAY)); 
                 info.retryDelay = Math.min((int)(info.retryDelay * Config.TRANSACTION_RETRY_DELAY_INCREASE_FACTOR), Config.MAX_TRANSACTION_RETRY_DELAY);
@@ -77,7 +77,7 @@ public interface Transaction extends AutoCloseable {
         }
         // trace(true, "after while, depth = %d, success = %s, attempts = %d",  info.depth, success,  info.attempts);
         if (!success) {
-            Stats.transactions.failures++;
+            Stats.current.transactions.failures++;
             trace(true, "failed transaction");
             RuntimeException e = new TransactionException(String.format("failed to execute transaction after %d attempts", info.attempts));            
             if (Config.EXIT_ON_TRANSACTION_FAILURE) {

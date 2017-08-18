@@ -25,10 +25,23 @@ import lib.xpersistent.XTransaction;
 public class Stats {
     static boolean enable = false;
     static boolean disableOverride = false;
-    public static ObjectCacheStats objectCache = new ObjectCacheStats();
-    public static MemoryStats memory = new MemoryStats();
-    public static TransactionStats transactions = new TransactionStats();
-    public static LockStats locks = new LockStats();
+    public static Stats current;
+
+    public ObjectCacheStats objectCache;
+    public MemoryStats memory;
+    public TransactionStats transactions;
+    public LockStats locks;
+
+    static {
+        current = new Stats();
+    }
+
+    private Stats() {
+        objectCache = new ObjectCacheStats();
+        memory = new MemoryStats();
+        transactions = new TransactionStats();
+        locks = new LockStats();
+     }
 
     public static void enable(boolean e) {enable = e;}
     public static void disableOverride(boolean e) {disableOverride = e;}
@@ -37,36 +50,94 @@ public class Stats {
         return (enable && !disableOverride);
     }
 
+    public void clear() {
+        objectCache.clear();
+        memory.clear();
+        transactions.clear();
+        locks.clear();
+    }
+
+    public static Stats reset() {
+        Stats ans = current;
+        current = new Stats();
+        return ans;
+    }
+
     public static class ObjectCacheStats {
-        public static long simpleHits = -1;
-        public static long promotedHits = -1;
-        public static long simpleMisses = -1;
-        public static long referentMisses = -1;
+        public long simpleHits;
+        public long promotedHits;
+        public long simpleMisses;
+        public long referentMisses;
+
+        ObjectCacheStats() {
+            clear();
+        }
+
+        public void clear() {
+            simpleHits = -1;
+            promotedHits = -1;
+            simpleMisses = -1;
+            referentMisses = -1;    
+        }        
     }
 
     public static class MemoryStats {
-        public static long constructions = 0;
-        public static long reconstructions = 0;
-        public static long enqueued = 0;
+        public long constructions;
+        public long reconstructions;
+        public long enqueued;
+    
+        MemoryStats() {
+            clear();
+        }
+
+        public void clear() {
+            constructions = 0;
+            reconstructions = 0;
+            enqueued = 0;        
+        }
     }
 
-    public static class TransactionStats {
-        public static long total = -1;
-        public static long topLevel = -1;
-        public static long maxDepth = -1;
-        public static long totalRetries = 0;
-        private static long maxRetries = 0;
-        public static long failures = 0;
 
-        public static void updateMaxRetries(int retries) {
+    public static class TransactionStats {
+        public long total = -1;
+        public long topLevel = -1;
+        public long maxDepth = -1;
+        public long totalRetries = 0;
+        private long maxRetries = 0;
+        public long failures = 0;
+
+        TransactionStats() {
+            clear();
+        }
+
+        public void clear() {
+            total = -1;
+            topLevel = -1;
+            maxDepth = -1;
+            totalRetries = 0;
+            maxRetries = 0;
+            failures = 0;            
+        }
+
+        public void updateMaxRetries(int retries) {
             if (retries > maxRetries) maxRetries = retries;
         }
     }
 
     public static class LockStats {
-        public static long acquired = -1;
-        public static long timeouts = -1;
-        public static long spinIterations = -1;
+        public long acquired = -1;
+        public long timeouts = -1;
+        public long spinIterations = -1;
+
+        LockStats() {
+            clear();
+        }
+
+        public void clear() {
+            acquired = -1;
+            timeouts = - 1;
+            spinIterations = -1;
+        }
     }
 
     private static String format1 = "%,15d"; 
@@ -75,52 +146,59 @@ public class Stats {
         return String.format(value == -1 ? "%15s" : "%,15d", value == -1 ? "N/A" : value);
     }
 
-    public static void printObjectCacheStats() {
+    public static void printObjectCacheStats(Stats stats) {
         if (!enabled()) return;
         System.out.println("\n       ObjectCache Stats");
         System.out.println(  "-------------------------------"); 
-        System.out.println("simpleHits     :" + format(objectCache.simpleHits)); 
-        System.out.println("promotedHits   :" + format(objectCache.promotedHits)); 
-        System.out.println("simpleMisses   :" + format(objectCache.simpleMisses)); 
-        System.out.println("referentMisses :" + format(objectCache.referentMisses)); 
+        System.out.println("simpleHits     :" + format(stats.objectCache.simpleHits)); 
+        System.out.println("promotedHits   :" + format(stats.objectCache.promotedHits)); 
+        System.out.println("simpleMisses   :" + format(stats.objectCache.simpleMisses)); 
+        System.out.println("referentMisses :" + format(stats.objectCache.referentMisses)); 
     }
 
-    public static void printMemoryStats() {
+    public static void printMemoryStats(Stats stats) {
         if (!enabled()) return;
         System.out.println("\n         Memory Stats");
         System.out.println(  "-------------------------------"); 
-        System.out.println("constructions  :" + format(memory.constructions)); 
-        System.out.println("reconstructions:" + format(memory.reconstructions)); 
-        System.out.println("enqueued       :" + format(memory.enqueued)); 
+        System.out.println("constructions  :" + format(stats.memory.constructions)); 
+        System.out.println("reconstructions:" + format(stats.memory.reconstructions)); 
+        System.out.println("enqueued       :" + format(stats.memory.enqueued)); 
     }
 
-    public static void printTransactionStats() {
+    public static void printTransactionStats(Stats stats) {
         if (!enabled()) return;
         System.out.println("\n       Transaction Stats");
         System.out.println(  "-------------------------------");         
-        System.out.println("total          :" + format(transactions.total));
-        System.out.println("topLevel       :" + format(transactions.topLevel));
-        System.out.println("maxDepth       :" + format(transactions.maxDepth));
-        System.out.println("totalRetries   :" + format(transactions.totalRetries));
-        System.out.println("maxRetries     :" + format(transactions.maxRetries));
-        System.out.println("failures       :" + format(transactions.failures));
+        System.out.println("total          :" + format(stats.transactions.total));
+        System.out.println("topLevel       :" + format(stats.transactions.topLevel));
+        System.out.println("maxDepth       :" + format(stats.transactions.maxDepth));
+        System.out.println("totalRetries   :" + format(stats.transactions.totalRetries));
+        System.out.println("maxRetries     :" + format(stats.transactions.maxRetries));
+        System.out.println("failures       :" + format(stats.transactions.failures));
     }
 
-    public static void printLockStats() {
+    public static void printLockStats(Stats stats) {
         if (!enabled()) return;
         System.out.println("\n          Lock Stats");
         System.out.println(  "-------------------------------");         
-        System.out.println("aquired        :" + format(locks.acquired));
-        System.out.println("timeouts       :" + format(locks.timeouts));
-        System.out.println("spinIterations :" + format(locks.spinIterations));
+        System.out.println("aquired        :" + format(stats.locks.acquired));
+        System.out.println("timeouts       :" + format(stats.locks.timeouts));
+        System.out.println("spinIterations :" + format(stats.locks.spinIterations));
     }
 
     public static void printStats() {
+        printStats(null, current);
+    }
+
+    public static void printStats(String header, Stats stats) {
         if (!enabled()) return;
-        printObjectCacheStats();
-        printMemoryStats();
-        printTransactionStats();
-        printLockStats();
+        if (header != null) {
+            System.out.format("\n\n=======  %s =============\n", header); 
+        }
+        // printObjectCacheStats(stats);
+        printMemoryStats(stats);
+        printTransactionStats(stats);
+        // printLockStats(stats);
         System.out.println();
     }        
 }

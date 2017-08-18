@@ -86,6 +86,40 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeMemoryRegionMemcpy
     } TX_END
 }
 
+JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeToByteArrayMemcpy
+  (JNIEnv *env, jobject obj, jlong src_region, jlong src_offset, jbyteArray dest_array, jint dest_offset, jint length)
+{
+    PMEMoid src_oid = {get_uuid_lo(), src_region};
+    jbyte* src = (jbyte*)((void*)((uint64_t)pmemobj_direct(src_oid)+(uint64_t)src_offset));
+    env->SetByteArrayRegion(dest_array, dest_offset, length, src);
+    // for (int i = 0; i < length; i++) {
+    //     printf("reading byte %d at offset %lu\n", *(char*)(src+i), src_offset+i);
+    //     fflush(stdout);
+    // }
+}
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeFromByteArrayMemcpy
+  (JNIEnv *env, jobject obj, jbyteArray src_array, jint src_offset, jlong dest_region, jlong dest_offset, jint length)
+{
+    PMEMoid dest_oid = {get_uuid_lo(), dest_region};
+    jbyte* dest = (jbyte*)((void*)((uint64_t)pmemobj_direct(dest_oid)+(uint64_t)dest_offset));
+
+    jboolean is_copy;
+    jbyte* bytes = env->GetByteArrayElements(src_array, &is_copy);
+
+    TX_BEGIN(pool) {
+        TX_MEMCPY((void*)dest, (void*)(bytes+src_offset), length);
+    } TX_ONABORT {
+        throw_persistence_exception(env, "Failed to memcpy! ");
+    } TX_FINALLY {
+        if (is_copy) env->ReleaseByteArrayElements(src_array, bytes, 0);
+    } TX_END
+    // for (int i = 0; i < length; i++) {
+    //     printf("wrote byte %d to offset %lu\n", *(char*)(dest+i), dest_offset+i);
+    //     fflush(stdout);
+    // }
+}
+
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
   (JNIEnv *env, jobject obj, jboolean verbose)
 {

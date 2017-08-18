@@ -41,7 +41,7 @@ public class TransactionInfo {
         state = Transaction.State.None;
         depth = 0;
         locked  = new ArrayList<PersistentObject>();
-        constructions = new ArrayList<PersistentObject>(); 
+        constructions = new ArrayList<PersistentObject>();
         attempts = 1;
         timeout = Config.MONITOR_ENTER_TIMEOUT;
         retryDelay = Config.BASE_TRANSACTION_RETRY_DELAY;

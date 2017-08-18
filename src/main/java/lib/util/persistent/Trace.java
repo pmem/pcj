@@ -50,7 +50,7 @@ public class Trace {
         boolean enabled = disableOverride ? enable : override;
         if (enabled) {
             String message = String.format(formatStr, args);
-            System.out.format("%s: %d " + message + "\n", threadInfo(), address); 
+            System.out.format("%s: %d " + message + "\n", threadInfo(), address);
         }
     }
 

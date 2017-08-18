@@ -70,6 +70,22 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeMemoryRegionMemcpy
 
 /*
  * Class:     lib_xpersistent_XHeap
+ * Method:    nativeToByteArrayMemcpy
+ * Signature: (JJ[BII)V
+ */
+JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeToByteArrayMemcpy
+  (JNIEnv *, jobject, jlong, jlong, jbyteArray, jint, jint);
+
+/*
+ * Class:     lib_xpersistent_XHeap
+ * Method:    nativeFromByteArrayMemcpy
+ * Signature: ([BIJJI)V
+ */
+JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeFromByteArrayMemcpy
+  (JNIEnv *, jobject, jbyteArray, jint, jlong, jlong, jint);
+
+/*
+ * Class:     lib_xpersistent_XHeap
  * Method:    nativeDebugPool
  * Signature: (Z)J
  */

@@ -43,7 +43,8 @@ public final class PersistentImmutableByteArray extends AbstractPersistentImmuta
     public byte[] toArray() {
         byte[] ans = new byte[length()];
         int len = length();
-        for (int i = 0; i < len; i++) ans[i] = getByteElement(i);
+//        for (int i = 0; i < len; i++) ans[i] = getByteElement(i);
+        PersistentArrays.toByteArray(this, ans, len);         
         return ans;
     }
 }

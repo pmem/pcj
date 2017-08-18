@@ -52,6 +52,8 @@ import java.util.Random;
 import static lib.util.persistent.Trace.*;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.TimeUnit;
 
 import sun.misc.Unsafe;
 
@@ -59,6 +61,7 @@ import sun.misc.Unsafe;
 public class PersistentObject implements Persistent<PersistentObject> {
     static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
     private static Random random = new Random(System.nanoTime());
+    private ReentrantLock lock;
     public static Unsafe UNSAFE;
 
     // for stats
@@ -85,7 +88,8 @@ public class PersistentObject implements Persistent<PersistentObject> {
 
     <T extends PersistentObject> PersistentObject(ObjectType<T> type, MemoryRegion region) {
         // trace(region.addr(), "creating object of type %s", type.getName());
-        Stats.memory.constructions++;
+        lock = new ReentrantLock();
+        Stats.current.memory.constructions++;
         this.pointer = new ObjectPointer<T>(type, region);
         List<PersistentType> ts = type.getTypes();
         Transaction.run(() -> {
@@ -102,7 +106,8 @@ public class PersistentObject implements Persistent<PersistentObject> {
 
     public PersistentObject(ObjectPointer<? extends PersistentObject> p) {
         // trace(p.region().addr(), "recreating object");
-        Stats.memory.reconstructions++;
+        lock = new ReentrantLock();
+        Stats.current.memory.reconstructions++;
         this.pointer = p;
     }
 
@@ -608,28 +613,6 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return success;
     }
 
-    public void monitorEnter() {
-        // trace(true, getPointer().addr(), "blocking monitorEnter for %s, attempt = %d", this, lib.xpersistent.XTransaction.tlInfo.get().attempts);
-        UNSAFE.monitorEnter(this);
-        // trace(true, getPointer().addr(), "blocking monitorEnter for %s exit", this);
-    }
-
-    public boolean monitorEnterTimeout(long timeout) {
-        boolean success = false;
-        long start = System.currentTimeMillis();
-        int count = 0;
-        do {
-            success = UNSAFE.tryMonitorEnter(this);
-            if (success) break;
-            count++;
-            Stats.locks.spinIterations++;
-            // if (count > 2000) try {count = 0; Thread.sleep(1);} catch (InterruptedException ie) {ie.printStackTrace();}
-        } while (System.currentTimeMillis() - start < timeout);  
-        // if (success) Stats.locks.acquired++;
-        // else Stats.locks.timeouts++;
-        return success;
-    }
-
     public boolean monitorEnterTimeout() {
         TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
         int max = info.timeout + random.nextInt(info.timeout);
@@ -643,8 +626,73 @@ public class PersistentObject implements Persistent<PersistentObject> {
         return success;
     }
 
+    // public void monitorEnter() {
+    //     // trace(true, getPointer().addr(), "blocking monitorEnter for %s, attempt = %d", this.getPointer().addr(), lib.xpersistent.XTransaction.tlInfo.get().attempts);
+    //     UNSAFE.monitorEnter(this);
+    //     // trace(true, getPointer().addr(), "blocking monitorEnter for %s exit", this.getPointer().addr());
+    // }
+
+    public void monitorEnter() {
+        // trace(true, getPointer().addr(), "blocking monitorEnter for %s, attempt = %d", this.getPointer().addr(), lib.xpersistent.XTransaction.tlInfo.get().attempts);
+        if (Config.USE_SEPARATE_TRANSACTION_LOCKS) lock.lock();
+        else UNSAFE.monitorEnter(this);
+        // trace(true, getPointer().addr(), "blocking monitorEnter for %s exit", this.getPointer().addr());
+    }
+
+    // public boolean monitorEnterTimeout(long timeout) {
+    //     if (Config.USE_BLOCKING_LOCKS_FOR_DEBUG) {
+    //         monitorEnter();
+    //         return true;
+    //     }
+    //     boolean success = false;
+    //     long start = System.currentTimeMillis();
+    //     int count = 0;
+    //     do {
+    //         success = UNSAFE.tryMonitorEnter(this);
+    //         if (success) break;
+    //         count++;
+    //         // Stats.current.locks.spinIterations++;
+    //         // if (count > 2000) try {count = 0; Thread.sleep(1);} catch (InterruptedException ie) {ie.printStackTrace();}
+    //     } while (System.currentTimeMillis() - start < timeout);
+    //     // if (success) Stats.current.locks.acquired++;
+    //     // else Stats.current.locks.timeouts++;
+    //     return success;
+    // }
+
+    public boolean monitorEnterTimeout(long timeout) {
+        if (Config.USE_BLOCKING_LOCKS_FOR_DEBUG) {
+            monitorEnter();
+            return true;
+        }
+        if (Config.USE_SEPARATE_TRANSACTION_LOCKS) {
+            try {
+                return lock.tryLock(timeout, TimeUnit.MILLISECONDS);
+            }
+            catch (InterruptedException ie) {throw new RuntimeException(ie.getMessage());}   
+        } 
+        // fallthrough
+        boolean success = false;
+        long start = System.currentTimeMillis();
+        int count = 0;
+        do {
+            success = UNSAFE.tryMonitorEnter(this);
+            if (success) break;
+            count++;
+            // Stats.current.locks.spinIterations++;
+            // if (count > 2000) try {count = 0; Thread.sleep(1);} catch (InterruptedException ie) {ie.printStackTrace();}
+        } while (System.currentTimeMillis() - start < timeout);
+        // if (success) Stats.current.locks.acquired++;
+        // else Stats.current.locks.timeouts++;
+        return success;
+    }
+
+    // public void monitorExit() {
+    //     UNSAFE.monitorExit(this);
+    //     // trace(getPointer().addr(), "released");
+    // }
+
     public void monitorExit() {
-        UNSAFE.monitorExit(this);
-        // trace(getPointer().addr(), "released");
+        if (Config.USE_SEPARATE_TRANSACTION_LOCKS) lock.unlock();
+        else UNSAFE.monitorExit(this);
     }
 }

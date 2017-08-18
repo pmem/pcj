@@ -76,7 +76,7 @@ public class XTransaction implements Transaction {
         ArrayList<PersistentObject> objs = new ArrayList<>();
         ArrayList<PersistentObject> lockedObjs = new ArrayList<>();
         for (PersistentObject obj : toLock) {
-            if (obj != null) objs.add(obj); 
+            if (obj != null) objs.add(obj);
         }
         boolean didLock = PersistentObject.monitorEnter(objs, lockedObjs, block);
         if (!didLock && !block) {

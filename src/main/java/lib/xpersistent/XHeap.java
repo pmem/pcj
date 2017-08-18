@@ -96,6 +96,14 @@ public class XHeap implements PersistentHeap {
         nativeMemoryRegionMemcpy(srcRegion.addr(), srcOffset, destRegion.addr(), destOffset, length);
     }
 
+    public void memcpy(MemoryRegion srcRegion, long srcOffset, byte[] destArray, int destOffset, int length) {
+        nativeToByteArrayMemcpy(srcRegion.addr(), srcOffset, destArray, destOffset, length);
+    }
+
+    public void memcpy(byte[] srcArray, int srcOffset, MemoryRegion destRegion, long destOffset, int length) {
+        nativeFromByteArrayMemcpy(srcArray, srcOffset, destRegion.addr(), destOffset, length);
+    }
+
     public void setDebugMode(boolean debug) {
         this.debug = debug;
     }
@@ -124,5 +132,7 @@ public class XHeap implements PersistentHeap {
     private synchronized native long nativeGetMemoryRegion(long size);
     private synchronized native void nativeFree(long addr);
     private synchronized native void nativeMemoryRegionMemcpy(long srcRegion, long srcOffset, long destRegion, long destOffset, long length);
+    private synchronized native void nativeToByteArrayMemcpy(long srcRegion, long srcOffset, byte[] destArray, int destOffset, int length);
+    private synchronized native void nativeFromByteArrayMemcpy(byte[] srcArray, int srcOffset, long destRegion, long destOffset, int length);
     private synchronized native long nativeDebugPool(boolean verbose);
 }

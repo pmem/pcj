@@ -21,6 +21,10 @@
 
 package lib.util.persistent;
 
+import lib.xpersistent.*;
+import lib.util.persistent.spi.PersistentMemoryProvider;
+import lib.util.persistent.types.Types;
+
 public class PersistentArrays{
     private PersistentArrays(){}
 
@@ -88,4 +92,26 @@ public class PersistentArrays{
         });
     }
 
+    public static void toByteArray(PersistentObject src, byte[] dest, int length) {
+        toByteArray(src, 0, dest, 0, length);
+    }
+
+    public static void toByteArray(PersistentObject src, int srcIndex, byte[] dest, int offset, int length) {
+        XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
+        MemoryRegion from = src.getPointer().region();
+        heap.memcpy(from, ((AbstractPersistentImmutableArray)src).elementOffset(srcIndex), dest, offset, length);  
+    }
+
+    public static void fromByteArray(byte[] src, int offset, PersistentObject dest, int destIndex, int length) {
+        XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
+        MemoryRegion to = dest.getPointer().region();
+        heap.memcpy(src, offset, to, ((AbstractPersistentImmutableArray)dest).elementOffset(destIndex), length);
+    }
+
+    public static void toPersistentByteArray(PersistentObject src, int srcIndex, PersistentObject dest, int destIndex, int length) {
+        XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
+        MemoryRegion to = dest.getPointer().region();
+        MemoryRegion from = src.getPointer().region();
+        heap.memcpy(from, ((AbstractPersistentImmutableArray)src).elementOffset(srcIndex), to, ((AbstractPersistentImmutableArray)dest).elementOffset(destIndex), length);
+    }
 }

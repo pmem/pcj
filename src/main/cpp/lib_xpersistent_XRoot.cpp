@@ -139,6 +139,8 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativePrintAllObjects
 
 static int decrement_from_vm_offsets(uint64_t addr, uint64_t count, void* arg)
 {
+    // printf("decrement_from_vm_offsets addr %lu count %lu\n", addr, count);
+    // fflush(stdout);
     TOID(struct hashmap_tx) all_objects = *(TOID(struct hashmap_tx)*)arg;
     env_global->CallVoidMethod(class_global, mid, (jlong)addr, (jint) count);
     return 0;

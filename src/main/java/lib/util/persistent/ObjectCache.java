@@ -56,7 +56,7 @@ public class ObjectCache {
                 while (true) {
                     PRef<?> qref = (PRef)queue.remove();
                     trace(qref.getAddress(), "object enqueued");
-                    Stats.memory.enqueued++;
+                    Stats.current.memory.enqueued++;
                     prefs.remove(qref.getAddress());
                     if (!qref.isForAdmin()) {
                         Transaction.run(() -> {
@@ -138,7 +138,7 @@ public class ObjectCache {
         ref = (Ref<T>)cache.get(address);
         if (ref == null || (obj = (T)ref.get()) == null) {   
             // trace(address, "MISS: " + (ref == null ? "simple" : "null referent"));
-            // if (ref == null) Stats.objectCache.simpleMisses++; else Stats.objectCache.referentMisses++;
+            // if (ref == null) Stats.current.objectCache.simpleMisses++; else Stats.current.objectCache.referentMisses++;
             obj = objectForAddress(address, forAdmin);
             ref = new Ref(obj, forAdmin);
             cache.put(address, ref);
@@ -148,9 +148,9 @@ public class ObjectCache {
                 ref.setForAdmin(false);
                 obj = (T)ref.get();
                 obj.initForGC();
-                // Stats.objectCache.promotedHits++;
+                // Stats.current.objectCache.promotedHits++;
         }
-        // else Stats.objectCache.simpleHits++;
+        // else Stats.current.objectCache.simpleHits++;
         assert(obj != null);
         return ref;
     }
@@ -173,7 +173,10 @@ public class ObjectCache {
                 if (!forAdmin) box.get().initForGC();       
             }
             catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-                throw new RuntimeException("failed to call reflected constructor");
+                if (e instanceof InvocationTargetException && e.getCause() instanceof TransactionRetryException){
+                    throw new TransactionRetryException();
+                }
+                else throw new RuntimeException("failed to call reflected constructor"+e);
             }
             if (!forAdmin) XTransaction.addNewObject(box.get());
         });
