@@ -23,11 +23,13 @@ life of a Java VM instance. Persistent classes include:
 6.  LinkedList
 7.  LinkedQueue
 8.  SkipListMap
-9.  ObjectDirectory
-10. Boxed primitives
-11. String
-12. AtomicReference
-13. ByteBuffer
+9.  FPTree
+10. SIHashMap
+11. ObjectDirectory
+12. Boxed primitives
+13. String
+14. AtomicReference
+15. ByteBuffer
 
 This Java library uses the libpmemobj library from the Non-Volatile Memory Library (NVML). 
 For more information on NVML, please visit http://pmem.io and https://github.com/pmem/nvml.
@@ -40,7 +42,7 @@ For a brief introduction on use of the library, please see [Introduction.txt](In
 The following are the prerequisites for building this Java library:
 
 1. Linux operating system (tested on CentOS 7.2 and Ubuntu 16.04)
-2. Non-Volatile Memory Library (NVML) (must be version 1.2: https://github.com/pmem/nvml/releases/tag/1.2)
+2. Non-Volatile Memory Library (NVML)
 3. Java 8 or above
 4. Build tools - g++ compiler and make
 
@@ -83,25 +85,22 @@ directory in your Java classpath and the project's ```target/cppbuild``` directo
    ```
 
 ## NOTES ON FUNCTIONALITY ##
-1. While we believe that the programming model and general style of the APIs presented here is 
-   headed in the right direction, the current implementation includes some choices that were made 
-   with expediency in mind.  For example:
-
-   - extensive use of JNI native methods
-   - extensive use of synchronized methods for thread safety
-   - use of reference counting for automatic object deallocation
-
-2. By default, the mount point to the NVML pool is ```/mnt/mem``` directory. To modify this path, you 
+1. By default, the mount point to the NVML pool is ```/mnt/mem``` directory. To modify this path, you 
    can change the value for ```PATH``` in ```pcj/src/main/cpp/persistent_heap.cpp```.
 
-3. ```PersistentString``` objects are backed by a byte array and only supports ASCII characters.
+2. ```PersistentString``` objects are backed by a byte array and only supports ASCII characters.
 
 ## CONTRIBUTING ##
-Thanks for your interest! Right now, substantial architectural changes are still happening in the project.  This makes it difficult to contribute code and difficult to effectively process pull requests.  We expect these changes to settle out around December of this year and we look forward to code contributions once this happens.  We will update this README then.
+Thanks for your interest! Right now, substantial architectural changes are still happening in the
+project.  This makes it difficult to contribute code and difficult to effectively process pull
+requests.  We expect these changes to settle out around December of this year and we look forward to
+code contributions once this happens.  We will update this README then.
+
 In the meantime, we would love to hear your comments and suggestions via the contacts listed below.
 
 ## Contacts ##
-
-For more information on this library, contact Lei Fan (lei.t.fan@intel.com) or Steve Dohrmann (steve.dohrmann@intel.com).
+For more information on this library, contact Lei Fan (lei.t.fan@intel.com), Steve Dohrmann
+(steve.dohrmann@intel.com), Olasoji Denloye (olasoji.denloye@intel.com), or Vamsi Parasa
+(srinivas.vamsi.parasa@intel.com).
 
 \* Other names and brands may be claimed as the property of others.
