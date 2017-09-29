@@ -40,8 +40,8 @@ import static lib.util.persistent.Trace.*;
 
 
 public class ObjectCache {
-    private static final Map<Long, Reference<? extends PersistentObject>> cache;
-    private static ReferenceQueue<PersistentObject> queue;
+    private static final Map<Long, Reference<? extends AnyPersistent>> cache;
+    private static ReferenceQueue<AnyPersistent> queue;
     private static Map<Long, PRef<?>> prefs;
     private static final PersistentHeap heap;
     private static Thread collector;
@@ -62,10 +62,12 @@ public class ObjectCache {
                         Transaction.run(() -> {
                             long address = qref.getAddress();
                             deregisterObject(address);
-                            PersistentObject obj = get(address, true);
-                            Transaction.run(() -> {
-                                obj.deleteReference();
-                            }, obj);
+                            AnyPersistent obj = get(address, true);
+                            if (obj != null) {
+                                Transaction.run(() -> {
+                                    obj.deleteReference();
+                                }, obj);
+                            }
                         });
                     }
                 }
@@ -77,7 +79,7 @@ public class ObjectCache {
         collector.start();
     }
 
-    public static class Ref<T extends PersistentObject> extends SoftReference<T> {
+    public static class Ref<T extends AnyPersistent> extends SoftReference<T> {
         private long address;
         private boolean forAdmin;
 
@@ -97,7 +99,7 @@ public class ObjectCache {
         public String toString() {return String.format("Ref(%d, %s)\n", address, isForAdmin());}
     }
 
-    public static class PRef<T extends PersistentObject> extends PhantomReference<T> {
+    public static class PRef<T extends AnyPersistent> extends PhantomReference<T> {
         private long address;
         private boolean forAdmin;
 
@@ -119,19 +121,19 @@ public class ObjectCache {
         public String toString() {return String.format("PRef(%d, %s)\n", address, isForAdmin());}
     }
 
-    public static <T extends PersistentObject> T get(long address) {
+    public static <T extends AnyPersistent> T get(long address) {
         return get(address, false);
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends PersistentObject> T get(long address, boolean forAdmin) {
+    public static <T extends AnyPersistent> T get(long address, boolean forAdmin) {
         // trace(address, "ObjectCache.get()");
         Ref<?> ref = getReference(address, forAdmin);
         return ref == null ? null :(T)ref.get();
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends PersistentObject> Ref<T> getReference(long address, boolean forAdmin) {
+    private static <T extends AnyPersistent> Ref<T> getReference(long address, boolean forAdmin) {
         T obj = null;
         Ref ref = null;
         if (address == 0) return null;
@@ -156,12 +158,12 @@ public class ObjectCache {
     }
 
     @SuppressWarnings("unchecked")
-    static <T extends PersistentObject> T objectForAddress(long address, boolean forAdmin) {
+    static <T extends AnyPersistent> T objectForAddress(long address, boolean forAdmin) {
         // trace("objectForAddress(address: %d, forAdmin: %s)", address, forAdmin); 
         MemoryRegion valueRegion = new UncheckedPersistentMemoryRegion(address);
         long typeNameAddr = valueRegion.getLong(0);
         MemoryRegion typeNameRegion = new UncheckedPersistentMemoryRegion(typeNameAddr);
-        String typeName = PersistentObject.typeNameFromRegion(typeNameRegion);
+        String typeName = AnyPersistent.typeNameFromRegion(typeNameRegion);
         ObjectType<T> type = Types.typeForName(typeName);
         Class<T> cls = type.cls();
         Box<T> box = new Box<>(null);
@@ -188,7 +190,7 @@ public class ObjectCache {
         cache.remove(address);
     }
 
-    static <T extends PersistentObject> void add(T obj) {
+    static <T extends AnyPersistent> void add(T obj) {
         // trace(obj.getPointer().addr(), "ObjectCache.add");
         long address = obj.getPointer().addr();
         Ref<T> ref = new Ref<>(obj);
@@ -196,8 +198,9 @@ public class ObjectCache {
         XTransaction.addNewObject(obj);        
     }
 
-    static <T extends PersistentObject> void registerObject(T obj) {
+    static <T extends AnyPersistent> void registerObject(T obj) {
         // trace(obj.getPointer().addr(), "register object");
+        assert(!obj.getPointer().type().isValueBased());
         ((XRoot)(heap.getRoot())).registerObject(obj.getPointer().region().addr());
     }
 
@@ -206,8 +209,8 @@ public class ObjectCache {
         ((XRoot)(heap.getRoot())).deregisterObject(addr);
     }
 
-    public static void committedConstruction(PersistentObject obj) {
+    public static void committedConstruction(AnyPersistent obj) {
         // trace(obj.getPointer().addr(), "committedConstruction called");
-        new PRef<PersistentObject>(obj);
+        new PRef<AnyPersistent>(obj);
     }
 }

@@ -45,7 +45,7 @@ public class PersistentLinkedQueueTest {
     private static String threadSafeId(String id) {
    	 return id + "_" + Thread.currentThread().getId();
     }
-    
+
     @SuppressWarnings("unchecked")
     private static PersistentLinkedQueue<PersistentInteger> getLinkedQueue() {
    	  String id = threadSafeId("tests.persistent_linked_queue");

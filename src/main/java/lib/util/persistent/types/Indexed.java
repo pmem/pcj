@@ -21,7 +21,7 @@
 
 package lib.util.persistent.types;
 
-import lib.util.persistent.PersistentObject;
+import lib.util.persistent.AnyPersistent;
 
 public interface Indexed extends PersistentType {
     public long getOffset(int index);

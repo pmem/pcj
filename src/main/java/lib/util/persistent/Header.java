@@ -38,5 +38,5 @@ public class Header {
         Types.BYTE,        // REF_COLOR
     };
 
-    public static final ObjectType<PersistentObject> TYPE = new ObjectType<>(PersistentObject.class, TYPES);
+    public static final ObjectType<AnyPersistent> TYPE = new ObjectType<>(AnyPersistent.class, TYPES);
 }

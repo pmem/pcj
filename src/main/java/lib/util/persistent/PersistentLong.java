@@ -26,7 +26,7 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.Types;
 
-public final class PersistentLong extends PersistentObject implements Comparable<PersistentLong> { 
+public final class PersistentLong extends PersistentImmutableObject implements Comparable<PersistentLong> { 
     private static final LongField LONG = new LongField();
     private static final ObjectType<PersistentLong> TYPE = ObjectType.fromFields(PersistentLong.class, LONG);
 

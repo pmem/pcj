@@ -22,7 +22,7 @@
 package tests;
 
 import lib.util.persistent.*;
-import static lib.util.persistent.Persistent.*;
+import static lib.util.persistent.Util.*;
 
 public class PersistentTupleTest {
 

@@ -64,7 +64,7 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeHashmapPut
   (JNIEnv *env, jobject obj, jlong map_offset, jlong key, jlong value)
 {
     TOID(struct hashmap_tx) hm;
-    PMEMoid oid = {get_uuid_lo(), map_offset};
+    PMEMoid oid = {get_uuid_lo(), (uint64_t)map_offset};
     TOID_ASSIGN(hm, oid);
 
     NEPMEMoid ret = hm_tx_insert(pool, hm, (uint64_t)key, (uint64_t)value);
@@ -79,7 +79,7 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeHashmapGet
   (JNIEnv *env, jobject obj, jlong map_offset, jlong key)
 {
     TOID(struct hashmap_tx) hm;
-    PMEMoid oid = {get_uuid_lo(), map_offset};
+    PMEMoid oid = {get_uuid_lo(), (uint64_t)map_offset};
     TOID_ASSIGN(hm, oid);
 
     NEPMEMoid ret = hm_tx_get(pool, hm, (uint64_t)key);
@@ -94,7 +94,7 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeHashmapRemove
   (JNIEnv *env, jobject obj, jlong map_offset, jlong key)
 {
     TOID(struct hashmap_tx) hm;
-    PMEMoid oid = {get_uuid_lo(), map_offset};
+    PMEMoid oid = {get_uuid_lo(), (uint64_t)map_offset};
     TOID_ASSIGN(hm, oid);
 
     NEPMEMoid ret = hm_tx_remove(pool, hm, (uint64_t)key);
@@ -119,7 +119,7 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeHashmapClear
   (JNIEnv *env, jobject obj, jlong map_offset)
 {
     TOID(struct hashmap_tx) hm;
-    PMEMoid oid = {get_uuid_lo(), map_offset};
+    PMEMoid oid = {get_uuid_lo(), (uint64_t)map_offset};
     TOID_ASSIGN(hm, oid);
 
     hm_tx_clear(pool, hm);
@@ -129,8 +129,8 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativePrintAllObjects
   (JNIEnv *env, jobject obj, jlong all_objects_offset, jlong vm_offsets_offset)
 {
     TOID(struct hashmap_tx) vm_offsets, all_objects;
-    PMEMoid vm_oid = {get_uuid_lo(), vm_offsets_offset};
-    PMEMoid obj_oid = {get_uuid_lo(), all_objects_offset};
+    PMEMoid vm_oid = {get_uuid_lo(), (uint64_t)vm_offsets_offset};
+    PMEMoid obj_oid = {get_uuid_lo(), (uint64_t)all_objects_offset};
     TOID_ASSIGN(vm_offsets, vm_oid);
     TOID_ASSIGN(all_objects, obj_oid);
 
@@ -150,14 +150,14 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeCleanVMOffsets
   (JNIEnv *env, jobject obj, jlong vm_offsets_offset, jlong all_objects_offset)
 {
     TOID(struct hashmap_tx) vm_offsets, all_objects;
-    PMEMoid vm_oid = {get_uuid_lo(), vm_offsets_offset};
-    PMEMoid obj_oid = {get_uuid_lo(), all_objects_offset};
+    PMEMoid vm_oid = {get_uuid_lo(), (uint64_t)vm_offsets_offset};
+    PMEMoid obj_oid = {get_uuid_lo(), (uint64_t)all_objects_offset};
     TOID_ASSIGN(vm_offsets, vm_oid);
     TOID_ASSIGN(all_objects, obj_oid);
 
-    class_global = env->FindClass("lib/util/persistent/PersistentObject");
+    class_global = env->FindClass("lib/util/persistent/AnyPersistent");
     if (class_global == NULL) {
-        throw_persistence_exception(env, "Cannot find PersistentObject class! ");
+        throw_persistence_exception(env, "Cannot find AnyPersistent class! ");
         return;
     }
 
@@ -183,7 +183,7 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeImportCandidates
   (JNIEnv *env, jobject obj, jlong candidates_offset, jobject root)
 {
     TOID(struct hashmap_tx) candidates_toid;
-    PMEMoid candidates_oid = {get_uuid_lo(), candidates_offset};
+    PMEMoid candidates_oid = {get_uuid_lo(), (uint64_t)candidates_offset};
     TOID_ASSIGN(candidates_toid, candidates_oid);
 
     class_global = env->FindClass("lib/xpersistent/XRoot");

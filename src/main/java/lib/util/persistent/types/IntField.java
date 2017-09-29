@@ -21,8 +21,4 @@
 
 package lib.util.persistent.types;
 
-public class IntField extends PrimitiveField {
-    public IntField() {
-      super(Types.INT);
-   }
-}
+public class IntField extends FinalIntField {}

@@ -27,51 +27,49 @@ import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.front.PersistentClass;
 
 @PersistentClass
-public final class PersistentString extends PersistentObject implements Comparable<PersistentString> {
-    private static final IntField LENGTH = new IntField();
-    private static final ObjectField<PersistentImmutableByteArray> BYTES = new ObjectField<>(PersistentImmutableByteArray.class);
+public final class PersistentString extends PersistentImmutableObject implements Comparable<PersistentString>, ComparableWith<String> {
+    private static final FinalIntField LENGTH = new FinalIntField();
+    private static final FinalObjectField<PersistentImmutableByteArray> BYTES = new FinalObjectField<>(PersistentImmutableByteArray.class);
     private static final ObjectType<PersistentString> TYPE = ObjectType.fromFields(PersistentString.class, LENGTH, BYTES);
+    private final String s;
 
     public PersistentString(String s) {
-        super(TYPE);
-        setIntField(LENGTH, s.length());
-        setObjectField(BYTES, new PersistentImmutableByteArray(s.getBytes()));
+        super(TYPE, (PersistentImmutableObject obj) -> {
+            obj.initIntField(LENGTH, s.length());
+            obj.initObjectField(BYTES, new PersistentImmutableByteArray(s.getBytes()));
+        });
+        this.s = s;
     }
 
     public PersistentString(ObjectPointer<PersistentString> p) {
         super(p);
+        PersistentImmutableByteArray ba = getObjectField(BYTES);
+        s = new String(ba.toArray());
     }
 
     public int length() {
-        return getIntField(LENGTH);
+        return s.length();
     }
 
     public String toString() {
-        PersistentImmutableByteArray ba = getObjectField(BYTES);
-        return new String(ba.toArray());
+        return s;
     }
 
     public int hashCode() {
-        byte[] ba = this.getBytes();
-        int h = 0;
-        for (int i = 0; i < ba.length; i++) {
-            h = 31 * h + ba[i];
-        }
-        return h;
+        return s.hashCode();
     }
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof PersistentString && ((PersistentString)o).toString().equals(this.toString());
+        return o instanceof PersistentString && ((PersistentString)o).toString().equals(s);
     }
 
     public byte[] getBytes() {
-        PersistentImmutableByteArray ba = getObjectField(BYTES);
-        return ba.toArray();
+        return s.getBytes();
     }
 
     public int compareTo(PersistentString anotherString) {
-        int len1 = length();
+        /*int len1 = length();
         int len2 = anotherString.length();
         int lim = Math.min(len1, len2);
         byte[] v1 = getBytes();
@@ -86,6 +84,11 @@ public final class PersistentString extends PersistentObject implements Comparab
             }
             k++;
         }
-        return len1 - len2;
+        return len1 - len2;*/
+        return s.compareTo(anotherString.toString());
+    }
+
+    public int compareWith(String anotherString) {
+        return anotherString.compareTo(s);
     }
 }

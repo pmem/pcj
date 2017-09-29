@@ -66,14 +66,14 @@ public class XHeap implements PersistentHeap {
         nativeCloseHeap();
     }
 
-    public synchronized MemoryRegion allocateRegion(long size) {
+    public MemoryRegion allocateRegion(long size) {
         if (!open) open();
         long addr = nativeGetMemoryRegion(size);
         MemoryRegion reg = new UncheckedPersistentMemoryRegion(addr);
         return reg;
     }
 
-    public synchronized void freeRegion(MemoryRegion region) {
+    public void freeRegion(MemoryRegion region) {
         if (!open) open();
         nativeFree(region.addr());
     }
@@ -89,7 +89,6 @@ public class XHeap implements PersistentHeap {
     public synchronized void initRoot() {
         if (!open) open();
         if (this.root == null) this.root = new XRoot(this);
-        ((XRoot)this.root).init();
     }
 
     public void memcpy(MemoryRegion srcRegion, long srcOffset, MemoryRegion destRegion, long destOffset, long length) {
@@ -122,15 +121,14 @@ public class XHeap implements PersistentHeap {
         Transaction.run(() -> {
             XRoot rt = (XRoot)(getRoot());
             rt.cleanVMOffsets();
-            CycleCollector.getCandidates().addAll(rt.importCandidates());
             CycleCollector.collect();
         });
     }
 
     private synchronized native void nativeOpenHeap();
     private synchronized native void nativeCloseHeap();
-    private synchronized native long nativeGetMemoryRegion(long size);
-    private synchronized native void nativeFree(long addr);
+    private native long nativeGetMemoryRegion(long size);
+    private native void nativeFree(long addr);
     private synchronized native void nativeMemoryRegionMemcpy(long srcRegion, long srcOffset, long destRegion, long destOffset, long length);
     private synchronized native void nativeToByteArrayMemcpy(long srcRegion, long srcOffset, byte[] destArray, int destOffset, int length);
     private synchronized native void nativeFromByteArrayMemcpy(byte[] srcArray, int srcOffset, long destRegion, long destOffset, int length);

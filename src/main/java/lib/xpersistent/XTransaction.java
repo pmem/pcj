@@ -32,6 +32,7 @@ public class XTransaction implements Transaction {
 
     static {
         System.loadLibrary("Persistent");
+        lib.util.persistent.spi.PersistentMemoryProvider.getDefaultProvider().getHeap().open();
     }
 
     XTransaction() {
@@ -41,7 +42,7 @@ public class XTransaction implements Transaction {
         info.depth++;
     }
 
-    public static void addNewObject(PersistentObject obj) {
+    public static void addNewObject(AnyPersistent obj) {
         // trace(obj.getPointer().addr(), "addNewObject called");
         tlInfo.get().constructions.add(obj);
     }
@@ -54,7 +55,7 @@ public class XTransaction implements Transaction {
         return this;
     }
 
-    public void addLockedObject(PersistentObject obj) {
+    public void addLockedObject(AnyPersistent obj) {
         TransactionInfo info = tlInfo.get();
         info.locked.add(obj);
     }
@@ -62,23 +63,23 @@ public class XTransaction implements Transaction {
     private void releaseLocks() {
         // trace("releaseLocks called, depth = %d, this = %s", depth.get(), this);
         TransactionInfo info = tlInfo.get();
-        ArrayList<PersistentObject> toUnlock = info.locked;
+        ArrayList<AnyPersistent> toUnlock = info.locked;
         for (int i = toUnlock.size() - 1; i >= 0; i--) {
-            PersistentObject obj = toUnlock.get(i);
+            AnyPersistent obj = toUnlock.get(i);
             obj.monitorExit();
         }
         toUnlock.clear();
     }
 
-    public Transaction start(boolean block, PersistentObject... toLock) {
+    public Transaction start(boolean block, AnyPersistent... toLock) {
         TransactionInfo info = tlInfo.get();
         // trace("start transaction, block = %s, depth = %d, this = %s", block, info.depth, this);
-        ArrayList<PersistentObject> objs = new ArrayList<>();
-        ArrayList<PersistentObject> lockedObjs = new ArrayList<>();
-        for (PersistentObject obj : toLock) {
+        ArrayList<AnyPersistent> objs = new ArrayList<>();
+        ArrayList<AnyPersistent> lockedObjs = new ArrayList<>();
+        for (AnyPersistent obj : toLock) {
             if (obj != null) objs.add(obj);
         }
-        boolean didLock = PersistentObject.monitorEnter(objs, lockedObjs, block);
+        boolean didLock = AnyPersistent.monitorEnter(objs, lockedObjs, block);
         if (!didLock && !block) {
             // trace("failed to get transaction locks");
             // assert(lockedObjs.isEmpty());
@@ -94,8 +95,8 @@ public class XTransaction implements Transaction {
     }
 
     public void commit() {
-        // trace("commit called, state = %s, depth = %d, this = %s", state.get(), depth.get(), this);
         TransactionInfo info = tlInfo.get();
+        // trace("commit called, state = %s, depth = %d, this = %s", info.state, info.depth, this);
         if (info.depth == 1) {
             if (info.state == Transaction.State.None) {
                 return;
@@ -106,7 +107,7 @@ public class XTransaction implements Transaction {
             }
             nativeEndTransaction();
             info.state = Transaction.State.Committed;
-            for (PersistentObject obj : info.constructions) {
+            for (AnyPersistent obj : info.constructions) {
                 ObjectCache.committedConstruction(obj);
             }
             info.constructions.clear();

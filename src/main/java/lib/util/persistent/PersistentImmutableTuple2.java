@@ -27,9 +27,9 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class PersistentImmutableTuple2<T1 extends PersistentObject, T2 extends PersistentObject> extends PersistentObject {
-    private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD2 = new ObjectField<>();
+public class PersistentImmutableTuple2<T1 extends AnyPersistent, T2 extends AnyPersistent> extends PersistentObject {
+    private static final ObjectField<AnyPersistent> FIELD1 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD2 = new ObjectField<>();
     public static final ObjectType<PersistentImmutableTuple2> TYPE = ObjectType.fromFields(PersistentImmutableTuple2.class, FIELD1, FIELD2);
 
     public PersistentImmutableTuple2(T1 t1, T2 t2) {

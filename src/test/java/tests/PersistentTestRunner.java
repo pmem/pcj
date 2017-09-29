@@ -54,6 +54,7 @@ public class PersistentTestRunner {
                 if (ret) passCount++;
             } catch (InvocationTargetException e) {
                 System.out.println(testClass.getName() + " tests failed.");
+                // e.printStackTrace();
             } catch (Exception e) {
                 e.printStackTrace();
                 System.exit(-1);

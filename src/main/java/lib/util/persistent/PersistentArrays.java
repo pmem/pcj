@@ -29,7 +29,7 @@ public class PersistentArrays{
     private PersistentArrays(){}
 
     @SuppressWarnings("unchecked")
-    public static <T extends PersistentObject> PersistentArray<T> copyOf(PersistentArray<T> original, int newLength) {
+    public static <T extends AnyPersistent> PersistentArray<T> copyOf(PersistentArray<T> original, int newLength) {
 //        return (PersistentArray<T>) copyOf(original, newLength, original.getClass());
         if (original.equals(null))
             throw new NullPointerException("Cannot copy Null Array");
@@ -48,7 +48,7 @@ public class PersistentArrays{
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends PersistentObject> PersistentArray<T> copyOfRange(PersistentArray<T> original, int from, int to) {
+    public static <T extends AnyPersistent> PersistentArray<T> copyOfRange(PersistentArray<T> original, int from, int to) {
         //return copyOfRange(original, from, to, (Class<? extends T>) original.getClass());
         int newLength = to - from;
         if (original.equals(null))
@@ -68,7 +68,7 @@ public class PersistentArrays{
     }
 
      @SuppressWarnings("unchecked")
-    public static synchronized <T extends PersistentObject> void ArrayCopy(PersistentArray<T> src, int srcPos, PersistentArray<T> dest, int destPos, int length){
+    public static synchronized <T extends AnyPersistent> void ArrayCopy(PersistentArray<T> src, int srcPos, PersistentArray<T> dest, int destPos, int length){
         if (src.equals(null) || dest.equals(null))
             throw new NullPointerException("Cannot copy to or from Null Array");
         if (srcPos < 0 || destPos < 0 || length < 0)
@@ -92,23 +92,23 @@ public class PersistentArrays{
         });
     }
 
-    public static void toByteArray(PersistentObject src, byte[] dest, int length) {
+    public static void toByteArray(AnyPersistent src, byte[] dest, int length) {
         toByteArray(src, 0, dest, 0, length);
     }
 
-    public static void toByteArray(PersistentObject src, int srcIndex, byte[] dest, int offset, int length) {
+    public static void toByteArray(AnyPersistent src, int srcIndex, byte[] dest, int offset, int length) {
         XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
         MemoryRegion from = src.getPointer().region();
         heap.memcpy(from, ((AbstractPersistentImmutableArray)src).elementOffset(srcIndex), dest, offset, length);  
     }
 
-    public static void fromByteArray(byte[] src, int offset, PersistentObject dest, int destIndex, int length) {
+    public static void fromByteArray(byte[] src, int offset, AnyPersistent dest, int destIndex, int length) {
         XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
         MemoryRegion to = dest.getPointer().region();
         heap.memcpy(src, offset, to, ((AbstractPersistentImmutableArray)dest).elementOffset(destIndex), length);
     }
 
-    public static void toPersistentByteArray(PersistentObject src, int srcIndex, PersistentObject dest, int destIndex, int length) {
+    public static void toPersistentByteArray(AnyPersistent src, int srcIndex, AnyPersistent dest, int destIndex, int length) {
         XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
         MemoryRegion to = dest.getPointer().region();
         MemoryRegion from = src.getPointer().region();

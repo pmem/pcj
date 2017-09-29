@@ -21,8 +21,4 @@
 
 package lib.util.persistent.types;
 
-public class ShortField extends PrimitiveField {
-    public ShortField() {
-        super(Types.SHORT);
-    }
-}
+public class ShortField extends FinalShortField {}

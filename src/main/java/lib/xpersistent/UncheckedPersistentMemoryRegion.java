@@ -38,40 +38,17 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
         return this.addr;
     }
 
+    public void addr(long addr) { this.addr = addr; }
+
     public void checkAccess(int mode) throws IllegalAccessException {}
     public void checkAlive() {}
     public void checkBounds(long offset) throws IndexOutOfBoundsException {}
 
-    public long getBits(long offset, long size, boolean isSigned) {
-        if (size < 0 || size > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Invalid size: " + size);
-        }
-
-        long bits = 0;
-        bits = nativeGetLong(this.addr, offset, (int)size);
-
-        switch ((int)size) {
-        case 1:
-            return isSigned ? bits : Byte.toUnsignedLong((byte)bits);
-        case 2:
-            return isSigned ? bits : Short.toUnsignedLong((short)bits);
-        case 4:
-            return isSigned ? bits : Integer.toUnsignedLong((int)bits);
-        case 8:
-            return bits;
-
-        default:
-            throw new IllegalArgumentException("Invalid size: " + size);
-        }
+    private long getBits(long offset, long size, boolean isSigned) {
+        return nativeGetLong(this.addr, offset, (int)size);
     }
 
-    public void putBits(long offset, long size, long value) {
-        if (size < 0 || size > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Invalid size: " + size);
-        }
-        if (size != 1 && size != 2 && size != 4 && size != 8) {
-            throw new IllegalArgumentException("Invalid size: " + size);
-        }
+    private void putBits(long offset, long size, long value) {
         nativePutLong(this.addr, offset, value, (int)size);
     }
 

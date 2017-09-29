@@ -32,7 +32,7 @@ import java.util.Spliterator;
 import java.util.function.Consumer;
 import lib.util.persistent.types.*;
 
-public class PersistentHashMap<K extends PersistentObject, V extends PersistentObject> extends PersistentObject {
+public class PersistentHashMap<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject {
     static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
     static final int MAXIMUM_CAPACITY = 1 << 30;
     static final float DEFAULT_LOAD_FACTOR = 0.75f;
@@ -43,10 +43,10 @@ public class PersistentHashMap<K extends PersistentObject, V extends PersistentO
     private static ObjectField<PersistentArray> TABLE = new ObjectField<>(PersistentArray.class);
     public static final ObjectType<PersistentHashMap> TYPE = ObjectType.fromFields(PersistentHashMap.class, SIZE, THRESHOLD, LOAD_FACTOR, TABLE);
 
-    public static class Node<K extends PersistentObject, V extends PersistentObject> extends PersistentObject implements Map.Entry<K, V> {
+    public static class Node<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements Map.Entry<K, V> {
         private static final IntField HASH = new IntField();
-        private static final ObjectField<PersistentObject> KEY = new ObjectField<>();
-        private static final ObjectField<PersistentObject> VALUE = new ObjectField<>();
+        private static final ObjectField<AnyPersistent> KEY = new ObjectField<>();
+        private static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
         private static final ObjectField<Node> NEXT = new ObjectField<>();
         public static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, HASH, KEY, VALUE, NEXT);
 

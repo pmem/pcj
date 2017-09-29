@@ -30,7 +30,6 @@ public class AnnotationTest {
 
    public static void main(String[] args) {
       Foo foo = new Foo();
-      Bar bar = new Bar();
    }
 
    @PersistentClass
@@ -47,22 +46,8 @@ public class AnnotationTest {
       }
    }
 
-   @PersistentClass
-   public static class Bar extends PersistentValue {
-      private static final IntField I = new IntField();
-      public static final ValueType TYPE = ValueType.fromFields(I);
-
-      public Bar() {
-         super(TYPE, Bar.class);
-      }
-
-      protected Bar(ValuePointer<Bar> p) {
-         super(p);
-      }
-   }
-
    // @PersistentClass
-   public static class Zoo<T extends PersistentObject> extends PersistentObject {
+   public static class Zoo<T extends AnyPersistent> extends PersistentObject {
       private static final IntField I = new IntField();
       private static final ObjectType<Zoo> TYPE = ObjectType.fromFields(Zoo.class, I);
 

@@ -27,8 +27,8 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class PersistentTuple1<T1 extends PersistentObject> extends PersistentObject {
-    private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>(); 
+public class PersistentTuple1<T1 extends AnyPersistent> extends PersistentObject {
+    private static final ObjectField<AnyPersistent> FIELD1 = new ObjectField<>(); 
     public static final ObjectType<PersistentTuple1> TYPE = ObjectType.fromFields(PersistentTuple1.class, FIELD1);
 
     public PersistentTuple1() {

@@ -21,8 +21,4 @@
 
 package lib.util.persistent.types;
 
-public class DoubleField extends PrimitiveField {
-    public DoubleField() {
-      super(Types.DOUBLE);
-   }
-}
+public class DoubleField extends FinalDoubleField {}

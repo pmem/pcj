@@ -26,7 +26,7 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.Types;
 
-public final class PersistentByte extends PersistentObject implements Comparable<PersistentByte> { 
+public final class PersistentByte extends PersistentImmutableObject implements Comparable<PersistentByte> { 
     private static final ByteField BYTE = new ByteField();
     private static final ObjectType<PersistentByte> TYPE = ObjectType.fromFields(PersistentByte.class, BYTE);
 

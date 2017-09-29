@@ -28,7 +28,7 @@ import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
 abstract class AbstractPersistentArray extends AbstractPersistentImmutableArray {
-    AbstractPersistentArray(ArrayType<? extends PersistentObject> type, int count) {
+    AbstractPersistentArray(ArrayType<? extends AnyPersistent> type, int count) {
         super(type, count);
     }
 
@@ -42,7 +42,7 @@ abstract class AbstractPersistentArray extends AbstractPersistentImmutableArray 
     @Override double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(check(index))));}
     @Override char getCharElement(int index) {return (char)getInt(elementOffset(check(index)));}
     @Override boolean getBooleanElement(int index) {return getByte(elementOffset(check(index))) == (byte)0 ? false : true;}
-    @Override PersistentObject getObjectElement(int index) {return getObject(elementOffset(check(index)));}
+    @Override AnyPersistent getObjectElement(int index) {return getObject(elementOffset(check(index)), getElementType());}
 
     void setByteElement(int index, byte value) {setByte(elementOffset(check(index)), value);}
     void setShortElement(int index, short value) {setShort(elementOffset(check(index)), value);}
@@ -52,8 +52,7 @@ abstract class AbstractPersistentArray extends AbstractPersistentImmutableArray 
     void setDoubleElement(int index, double value) {setLong(elementOffset(check(index)), Double.doubleToLongBits(value));}
     void setCharElement(int index, char value) {setInt(elementOffset(check(index)), (int)value);}
     void setBooleanElement(int index, boolean value) {setByte(elementOffset(check(index)), value ? (byte)1 : (byte)0);}
-    void setObjectElement(int index, PersistentObject value) {setObject(elementOffset(check(index)), value);}
-    void setValueElement(int index, PersistentValue value) {super.setValueElement(index, value);}
+    void setObjectElement(int index, AnyPersistent value) {setObject(elementOffset(check(index)), value);}
 
     @Override public int length() {
         return getInt(ArrayType.LENGTH_OFFSET);

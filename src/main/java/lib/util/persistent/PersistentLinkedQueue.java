@@ -31,7 +31,7 @@ import java.util.NoSuchElementException;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-public class PersistentLinkedQueue <E extends PersistentObject> extends PersistentObject implements Iterable<E> {	
+public class PersistentLinkedQueue <E extends AnyPersistent> extends PersistentObject implements Iterable<E> {	
 
 	private static final ObjectField<PersistentAtomicReference> HEAD = new ObjectField<>(PersistentAtomicReference.class);
 	private static final ObjectField<PersistentAtomicReference> TAIL = new ObjectField<>(PersistentAtomicReference.class);
@@ -331,7 +331,7 @@ public class PersistentLinkedQueue <E extends PersistentObject> extends Persiste
 		if (v == null) throw new NullPointerException();
 	}
 
-	public static class PersistentNode<E extends PersistentObject> extends PersistentObject {
+	public static class PersistentNode<E extends AnyPersistent> extends PersistentObject {
 		private static final ObjectField<PersistentAtomicReference> ITEM = new ObjectField<>(PersistentAtomicReference.class);
 		private static final ObjectField<PersistentAtomicReference> NEXT = new ObjectField<>(PersistentAtomicReference.class);
 		public static final ObjectType<PersistentNode> TYPE = ObjectType.fromFields(PersistentNode.class, ITEM, NEXT);

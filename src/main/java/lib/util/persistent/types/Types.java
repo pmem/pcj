@@ -21,9 +21,7 @@
 
 package lib.util.persistent.types;
 
-import lib.util.persistent.PersistentObject;
-import lib.util.persistent.PersistentValue;
-import lib.util.persistent.Persistent;
+import lib.util.persistent.AnyPersistent;
 import java.lang.reflect.Field;
 
 public class Types {
@@ -41,9 +39,10 @@ public class Types {
 
     public static final String TYPE_FIELD_NAME = "TYPE";
     public static final String OLD_TYPE_FIELD_NAME = "type";
-	
+
     @SuppressWarnings("unchecked")
-    public static synchronized <T extends Persistent<?>> PersistentType typeForClass(Class<T> cls) {
+    public static synchronized <T extends AnyPersistent> PersistentType typeForClass(Class<T> cls) {
+        if (cls == AnyPersistent.class) return null;
         try {
             Field typeField = null;
             // TODO: remove inner try and catch when old name gone
@@ -56,7 +55,6 @@ public class Types {
             typeField.setAccessible(true);
             PersistentType type = (PersistentType)typeField.get(null);
             typeField.setAccessible(false);
-            if (type == null) throw new RuntimeException("type field is null in " + cls);
             return type;
         } 
         catch (NoSuchFieldException e) {throw new RuntimeException("no type field in " + cls);}
@@ -64,17 +62,12 @@ public class Types {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends PersistentObject> ObjectType<T> objectTypeForClass(Class<T> cls) {
+    public static <T extends AnyPersistent> ObjectType<T> objectTypeForClass(Class<T> cls) {
         return (ObjectType<T>)typeForClass(cls);
     }
 
     @SuppressWarnings("unchecked")
-    public static ValueType valueTypeForClass(Class<? extends PersistentValue> cls) {
-        return (ValueType)typeForClass(cls);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static synchronized <T extends PersistentObject> ObjectType<T> typeForName(String name) {
+    public static synchronized <T extends AnyPersistent> ObjectType<T> typeForName(String name) {
         try {
             Class<T> cls = (Class<T>)Class.forName(name);
             return objectTypeForClass(cls);

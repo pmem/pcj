@@ -21,8 +21,4 @@
 
 package lib.util.persistent.types;
 
-public class CharField extends PrimitiveField {
-    public CharField() {
-      super(Types.CHAR);
-   }
-}
+public class CharField extends FinalCharField {}

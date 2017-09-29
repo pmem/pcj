@@ -146,28 +146,36 @@ public class Stats {
         return String.format(value == -1 ? "%15s" : "%,15d", value == -1 ? "N/A" : value);
     }
 
+    public static void printObjectCacheStats() {printObjectCacheStats(current);}
+
     public static void printObjectCacheStats(Stats stats) {
         if (!enabled()) return;
-        System.out.println("\n       ObjectCache Stats");
+        System.out.println("       ObjectCache Stats");
         System.out.println(  "-------------------------------"); 
         System.out.println("simpleHits     :" + format(stats.objectCache.simpleHits)); 
         System.out.println("promotedHits   :" + format(stats.objectCache.promotedHits)); 
         System.out.println("simpleMisses   :" + format(stats.objectCache.simpleMisses)); 
         System.out.println("referentMisses :" + format(stats.objectCache.referentMisses)); 
+        System.out.println();
     }
+
+    public static void printMemoryStats() {printMemoryStats(current);}
 
     public static void printMemoryStats(Stats stats) {
         if (!enabled()) return;
-        System.out.println("\n         Memory Stats");
+        System.out.println("         Memory Stats");
         System.out.println(  "-------------------------------"); 
         System.out.println("constructions  :" + format(stats.memory.constructions)); 
         System.out.println("reconstructions:" + format(stats.memory.reconstructions)); 
         System.out.println("enqueued       :" + format(stats.memory.enqueued)); 
+        System.out.println();
     }
+
+    public static void printTransactionStats() {printTransactionStats(current);}
 
     public static void printTransactionStats(Stats stats) {
         if (!enabled()) return;
-        System.out.println("\n       Transaction Stats");
+        System.out.println("       Transaction Stats");
         System.out.println(  "-------------------------------");         
         System.out.println("total          :" + format(stats.transactions.total));
         System.out.println("topLevel       :" + format(stats.transactions.topLevel));
@@ -175,15 +183,19 @@ public class Stats {
         System.out.println("totalRetries   :" + format(stats.transactions.totalRetries));
         System.out.println("maxRetries     :" + format(stats.transactions.maxRetries));
         System.out.println("failures       :" + format(stats.transactions.failures));
+        System.out.println();
     }
+
+    public static void printLockStats() {printLockStats(current);}
 
     public static void printLockStats(Stats stats) {
         if (!enabled()) return;
-        System.out.println("\n          Lock Stats");
+        System.out.println("          Lock Stats");
         System.out.println(  "-------------------------------");         
         System.out.println("aquired        :" + format(stats.locks.acquired));
         System.out.println("timeouts       :" + format(stats.locks.timeouts));
         System.out.println("spinIterations :" + format(stats.locks.spinIterations));
+        System.out.println();
     }
 
     public static void printStats() {
@@ -193,7 +205,7 @@ public class Stats {
     public static void printStats(String header, Stats stats) {
         if (!enabled()) return;
         if (header != null) {
-            System.out.format("\n\n=======  %s =============\n", header); 
+            System.out.format("\n======= %s ===========\n\n", header); 
         }
         // printObjectCacheStats(stats);
         printMemoryStats(stats);

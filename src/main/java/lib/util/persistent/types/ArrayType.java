@@ -21,10 +21,10 @@
 
 package lib.util.persistent.types;
 
-import lib.util.persistent.PersistentObject;
+import lib.util.persistent.AnyPersistent;
 import java.util.ArrayList;
 
-public class ArrayType<T extends PersistentObject> extends ObjectType<T> { 
+public class ArrayType<T extends AnyPersistent> extends ObjectType<T> { 
     protected PersistentType elementType;
     protected long elementSize;
     public static final long LENGTH_OFFSET = ObjectType.FIELDS_OFFSET;

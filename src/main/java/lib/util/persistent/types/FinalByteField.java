@@ -19,10 +19,10 @@
  * Boston, MA  02110-1301, USA.
  */
 
-package lib.xpersistent;
+package lib.util.persistent.types;
 
-import lib.util.persistent.Persistent;
-
-public interface XPersistent extends Persistent {
-    public long getOffset();
+public class FinalByteField extends PersistentField {
+    public FinalByteField() {
+      super(Types.BYTE);
+   }
 }

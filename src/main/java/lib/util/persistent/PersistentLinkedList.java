@@ -27,7 +27,7 @@ import java.lang.StringBuilder;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class PersistentLinkedList<E extends PersistentObject> extends PersistentObject implements Iterable<E> {
+public class PersistentLinkedList<E extends AnyPersistent> extends PersistentObject implements Iterable<E> {
 	
     private static final IntField SIZE = new IntField();
     private static final ObjectField<PersistentEntry> HEADER = new ObjectField<>(PersistentEntry.class);
@@ -167,9 +167,9 @@ public class PersistentLinkedList<E extends PersistentObject> extends Persistent
 		return sb.toString();
 	}
 	
-	public static class PersistentEntry<E extends PersistentObject> extends PersistentObject {
+	public static class PersistentEntry<E extends AnyPersistent> extends PersistentObject {
 				
-		private static final ObjectField<PersistentObject> ELEMENT = new ObjectField<>();
+		private static final ObjectField<AnyPersistent> ELEMENT = new ObjectField<>();
 		private static final ObjectField<PersistentEntry> NEXT = new ObjectField<>(PersistentEntry.class);
 	    public static final ObjectType<PersistentEntry> TYPE = ObjectType.fromFields(PersistentEntry.class, ELEMENT, NEXT);
 	   		    

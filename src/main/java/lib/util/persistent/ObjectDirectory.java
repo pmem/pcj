@@ -24,7 +24,7 @@ package lib.util.persistent;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
 public class ObjectDirectory {
-    static PersistentHashMap<PersistentString, PersistentObject> map;
+    static PersistentHashMap<PersistentString, AnyPersistent> map;
 
     static {
         lib.util.persistent.spi.PersistentMemoryProvider.getDefaultProvider().getHeap().open();
@@ -32,16 +32,16 @@ public class ObjectDirectory {
 
 
     @SuppressWarnings("unchecked")
-    public static <T extends PersistentObject> T get(String s, Class<T> cls) {
+    public static <T extends AnyPersistent> T get(String s, Class<T> cls) {
         return (T)map.get(new PersistentString(s + cls.getName()));
     }
 
-    public static <T extends PersistentObject> void put(String s, T obj) {
+    public static <T extends AnyPersistent> void put(String s, T obj) {
         map.put(new PersistentString(s + obj.getClass().getName()), obj);
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends PersistentObject> T remove(String s, Class<T> cls) {
+    public static <T extends AnyPersistent> T remove(String s, Class<T> cls) {
         return (T)map.remove(new PersistentString(s + cls.getName()));
     }
 

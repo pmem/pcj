@@ -26,7 +26,7 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.Types;
 
-public final class PersistentBoolean extends PersistentObject implements Comparable<PersistentBoolean> { 
+public final class PersistentBoolean extends PersistentImmutableObject implements Comparable<PersistentBoolean> { 
     private static final BooleanField BOOLEAN = new BooleanField();
     private static final ObjectType<PersistentBoolean> TYPE = ObjectType.fromFields(PersistentBoolean.class, BOOLEAN);
 

@@ -44,9 +44,7 @@ public class Processor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> elements, RoundEnvironment env) {
         TypeElement persistentObjectType = processingEnv.getElementUtils().getTypeElement("lib.util.persistent.PersistentObject");
-        TypeElement persistentValueType = processingEnv.getElementUtils().getTypeElement("lib.util.persistent.PersistentValue");
         TypeElement objectPointerType = processingEnv.getElementUtils().getTypeElement("lib.util.persistent.ObjectPointer");
-        TypeElement valuePointerType = processingEnv.getElementUtils().getTypeElement("lib.util.persistent.ValuePointer");
         TypeElement objectTypeType = processingEnv.getElementUtils().getTypeElement("lib.util.persistent.types.ObjectType");
         TypeElement valueTypeType = processingEnv.getElementUtils().getTypeElement("lib.util.persistent.types.ValueType");
         for (Element element : env.getElementsAnnotatedWith(PersistentClass.class)) {
@@ -60,10 +58,10 @@ public class Processor extends AbstractProcessor {
             boolean classIsFinal = classModifiers.contains(Modifier.FINAL);
             TypeMirror baseClass = classElement.asType();
             TypeElement superClass = null;
-            while (!baseClass.equals(persistentObjectType.asType()) && !baseClass.equals(persistentValueType.asType())) {
+            while (!baseClass.equals(persistentObjectType.asType())) {
                 superClass = processingEnv.getElementUtils().getTypeElement(baseClass.toString());
                 if (superClass == null) {
-                    error(processingEnv, classElement, "class must directly or indirectly extend PersistentObject or PersistentValue");
+                    error(processingEnv, classElement, "class must directly or indirectly extend PersistentObject");
                     break;
                 }
                 baseClass = superClass.getSuperclass();
@@ -71,11 +69,10 @@ public class Processor extends AbstractProcessor {
             if (superClass == null) continue;
             TypeMirror superType = baseClass;
             TypeElement pointerType = null;
-            if (superType.equals(persistentValueType.asType())) pointerType = valuePointerType;
-            else if (superType.equals(persistentObjectType.asType())) pointerType = objectPointerType;
+            if (superType.equals(persistentObjectType.asType())) pointerType = objectPointerType;
             TypeElement thisClassType = processingEnv.getElementUtils().getTypeElement(classElement.toString());
             DeclaredType pointerOfThis = null;
-            if (classIsFinal || superType.equals(persistentValueType.asType())) {
+            if (classIsFinal) {
                 pointerOfThis = processingEnv.getTypeUtils().getDeclaredType(pointerType, thisClassType.asType());
             }
             else {

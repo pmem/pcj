@@ -27,23 +27,23 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class PersistentImmutableTuple16<T1 extends PersistentObject, T2 extends PersistentObject, T3 extends PersistentObject, T4 extends PersistentObject, T5 extends PersistentObject, T6 extends PersistentObject, T7 extends PersistentObject, T8 extends PersistentObject, T9 extends PersistentObject, T10 extends PersistentObject, T11 extends PersistentObject, T12 extends PersistentObject, T13 extends PersistentObject, T14 extends PersistentObject, T15 extends PersistentObject, T16 extends PersistentObject> extends PersistentObject {
-    private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD2 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD3 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD4 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD5 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD6 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD7 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD8 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD9 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD10 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD11 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD12 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD13 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD14 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD15 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD16 = new ObjectField<>();
+public class PersistentImmutableTuple16<T1 extends AnyPersistent, T2 extends AnyPersistent, T3 extends AnyPersistent, T4 extends AnyPersistent, T5 extends AnyPersistent, T6 extends AnyPersistent, T7 extends AnyPersistent, T8 extends AnyPersistent, T9 extends AnyPersistent, T10 extends AnyPersistent, T11 extends AnyPersistent, T12 extends AnyPersistent, T13 extends AnyPersistent, T14 extends AnyPersistent, T15 extends AnyPersistent, T16 extends AnyPersistent> extends PersistentObject {
+    private static final ObjectField<AnyPersistent> FIELD1 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD2 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD3 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD4 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD5 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD6 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD7 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD8 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD9 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD10 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD11 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD12 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD13 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD14 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD15 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD16 = new ObjectField<>();
     public static final ObjectType<PersistentImmutableTuple16> TYPE = ObjectType.fromFields(PersistentImmutableTuple16.class, FIELD1, FIELD2, FIELD3, FIELD4, FIELD5, FIELD6, FIELD7, FIELD8, FIELD9, FIELD10, FIELD11, FIELD12, FIELD13, FIELD14, FIELD15, FIELD16);
 
     public PersistentImmutableTuple16(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15, T16 t16) {

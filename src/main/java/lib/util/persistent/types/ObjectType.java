@@ -24,21 +24,23 @@ package lib.util.persistent.types;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
-import lib.util.persistent.PersistentObject;
+import lib.util.persistent.AnyPersistent;
 import lib.util.persistent.ObjectDirectory;
 import lib.util.persistent.PersistentString;
 import lib.util.persistent.Header;
 import java.lang.reflect.Field;
+import static lib.util.persistent.Trace.*;
 
-public class ObjectType<T extends PersistentObject> implements Named, Container {
+public class ObjectType<T extends AnyPersistent> implements Named, Container {
     public static long FIELDS_OFFSET = Header.TYPE.getAllocationSize(); // room for header fields;
     private final List<PersistentType> types;
     private List<PersistentType> staticTypes;
     private final long[] offsets;
     private final long size;
-    private final Class<T> cls;
+    protected final Class<T> cls;
     private int baseIndex;
-    private PersistentObject statics;
+    private AnyPersistent statics;
+    private boolean valueBased;
 
     private ObjectType(Class<T> cls, List<PersistentType> declaredTypes) {
         this.cls = cls;
@@ -66,20 +68,37 @@ public class ObjectType<T extends PersistentObject> implements Named, Container 
         this(cls, Header.TYPES);
     }
 
+    public ObjectType(Class<T> cls, ValueType valueType) {
+        this(cls, new ArrayList<>());
+        this.valueBased = true;
+    }
+
     public Class<T> cls() {
         return cls;
     }
 
+    public boolean isValueBased() {return valueBased;}
+
     // orig name
-    public static <U extends PersistentObject> ObjectType<U> fromFields(Class<U> cls, PersistentField... fs) {
+    public static <U extends AnyPersistent> ObjectType<U> fromFields(Class<U> cls, PersistentField... fs) {
         return withFields(cls, fs);
     }
 
-    public static <U extends PersistentObject> ObjectType<U> withFields(Class<U> cls, PersistentField... fs) {
+    public static <U extends AnyPersistent> ObjectType<U> withFields(Class<U> cls, PersistentField... fs) {
         return Header.TYPE.extendWith(cls, fs);
     }
 
-    public <U extends PersistentObject> ObjectType<U> extendWith(Class<U> cls, PersistentType... ts) {
+    public static <U extends AnyPersistent> ObjectType<U> withValueFields(Class<U> cls, PersistentField... fs) {
+        ValueType vt = ValueType.withFields(fs);
+        return fromValueType(cls, vt);
+    }
+
+    public static <U extends AnyPersistent> ObjectType<U> fromValueType(Class<U> cls, ValueType valueType) {
+        // System.out.println("fromValueType, vt.allocationSize =  " + valueType.getSize());
+        return new ValueBasedObjectType<U>(cls, valueType);
+    }
+
+    public <U extends AnyPersistent> ObjectType<U> extendWith(Class<U> cls, PersistentType... ts) {
         List<PersistentType> newTs = new ArrayList<>(types);
         newTs.addAll(Arrays.asList(ts));
         ObjectType<U> ans = new ObjectType<>(cls, newTs);
@@ -87,7 +106,7 @@ public class ObjectType<T extends PersistentObject> implements Named, Container 
         return ans;
     }
 
-    public <U extends PersistentObject> ObjectType<U> extendWith(Class<U> cls, PersistentField... fs) {
+    public <U extends AnyPersistent> ObjectType<U> extendWith(Class<U> cls, PersistentField... fs) {
         List<PersistentType> ts = new ArrayList<>(types);
         for (int i = 0; i < fs.length; i++) {
             fs[i].setIndex(fieldCount() + i);
@@ -109,6 +128,12 @@ public class ObjectType<T extends PersistentObject> implements Named, Container 
         }
         return ans;
     }
+
+    public static <A extends B, B extends AnyPersistent> ObjectType<A> extendClassWith(Class<A> thisClass, Class<B> superClass, PersistentField... fs) {
+        ObjectType<B> baseType = Types.objectTypeForClass(superClass);
+        return baseType.extendWith(thisClass, fs);
+    }
+
 
     public long getAllocationSize() {
         return size;
@@ -132,6 +157,7 @@ public class ObjectType<T extends PersistentObject> implements Named, Container 
 
 
     @Override public long getOffset(int index) {
+        // trace(true, "%s getOffset(%d) -> %d", this, index, offsets[index]);
         return offsets[index];
     }
 
@@ -143,7 +169,7 @@ public class ObjectType<T extends PersistentObject> implements Named, Container 
         return baseIndex;
     }
 
-    public PersistentObject statics() {
+    public AnyPersistent statics() {
         return statics;
     }
 

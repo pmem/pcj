@@ -23,25 +23,27 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.LongField;
 import lib.util.persistent.types.ValueType;
+import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.front.PersistentClass;
 
 @PersistentClass
-public final class Long256 extends PersistentValue {
+public final class Long256 extends PersistentObject {
     private static final LongField X0 = new LongField();
     private static final LongField X1 = new LongField();
     private static final LongField X2 = new LongField();
     private static final LongField X3 = new LongField();
-    public static final ValueType TYPE = ValueType.fromFields(X0, X1, X2, X3);
+    private static final ValueType VT = ValueType.fromFields(X0, X1, X2, X3);
+    private static final ObjectType<Long256> TYPE = ObjectType.fromValueType(Long256.class, VT);
 
     public Long256(long x0, long x1, long x2, long x3) {
-        super(TYPE, Long256.class);
+        super(TYPE);
         setX0(x0);
         setX1(x1);
         setX2(x2);
         setX3(x3);
     }
 
-    private Long256(ValuePointer<Long256> p) {
+    private Long256(ObjectPointer<Long256> p) {
         super(p);
     }
 
@@ -56,6 +58,6 @@ public final class Long256 extends PersistentValue {
     public void setX3(long x3) {setLongField(X3, x3);}
 
     public String toString() {
-        return "{" + getX0() + ", " + getX1() + ", " + getX2() + ", " + getX3() + "}";
+        return "Long256(" + getX0() + ", " + getX1() + ", " + getX2() + ", " + getX3() + ")";
     } 
 }

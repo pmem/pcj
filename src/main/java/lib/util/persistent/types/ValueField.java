@@ -21,21 +21,6 @@
 
 package lib.util.persistent.types;
 
-import lib.util.persistent.PersistentValue;
 
-public class ValueField<T extends PersistentValue> extends PersistentField {
-    private final Class<T> cls;
+public interface ValueField {} // unused for now
 
-    public static <U extends PersistentValue> ValueField<U> forClass(Class<U> cls) {
-        return new ValueField<U>(cls, Types.valueTypeForClass(cls));
-    }
-
-    private ValueField(Class<T> cls, ValueType t) {
-            super(t);
-            this.cls = cls;
-    }
-
-    public Class<T> cls() {
-        return cls;
-    }
-}

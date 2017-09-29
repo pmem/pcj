@@ -32,9 +32,9 @@ import java.util.NoSuchElementException;
 import java.util.ConcurrentModificationException;
 import java.util.Objects;
 import java.util.*;
-import static lib.util.persistent.Persistent.*;
+import static lib.util.persistent.Util.*;
 
-public class PersistentArrayList<T extends PersistentObject> extends PersistentObject implements Iterable<T> {
+public class PersistentArrayList<T extends AnyPersistent> extends PersistentObject implements Iterable<T> {
     static final int DEFAULT_CAPACITY = 10;
     private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
     protected int modCount = 0;
@@ -118,7 +118,7 @@ public class PersistentArrayList<T extends PersistentObject> extends PersistentO
         setDataArray(defaultCapacityEmptyArray());
     }
     
-    //public PersistentArrayList(Collection<? extends PersistentObject> c) {
+    //public PersistentArrayList(Collection<? extends AnyPersistent> c) {
     @SafeVarargs
     @SuppressWarnings("unchecked")
     public PersistentArrayList(T... ts) {
@@ -231,7 +231,7 @@ public class PersistentArrayList<T extends PersistentObject> extends PersistentO
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized <T extends PersistentObject> T[] toArray(T[] a) {
+    public synchronized <T extends AnyPersistent> T[] toArray(T[] a) {
         if (a.length < size())
             return (T[]) (PersistentArrays.copyOf(getDataArray(), size())).toArray(a);
         a = (T[]) (PersistentArrays.copyOf(getDataArray(),size())).toArray(a);
@@ -355,7 +355,7 @@ public class PersistentArrayList<T extends PersistentObject> extends PersistentO
     public synchronized boolean addAll(Collection<? extends T> c) {
         final Box<Integer> numNew = new Box<>();
         Transaction.run(() -> {
-            PersistentObject[] a = c.toArray(new PersistentObject[c.size()]);
+            AnyPersistent[] a = c.toArray(new AnyPersistent[c.size()]);
             numNew.set(a.length);
             ensureCapacityInternal(size() + numNew.get());  // Increments modCount
             getDataArray().insert(size(), a);
@@ -370,7 +370,7 @@ public class PersistentArrayList<T extends PersistentObject> extends PersistentO
 
         final Box<Integer> numNew = new Box<>();
         Transaction.run(() -> {
-            PersistentObject[] a = c.toArray(new PersistentObject[c.size()]);
+            AnyPersistent[] a = c.toArray(new AnyPersistent[c.size()]);
             numNew.set(a.length);
             ensureCapacityInternal(size() + numNew.get());  // Increments modCount
 
@@ -469,7 +469,7 @@ public class PersistentArrayList<T extends PersistentObject> extends PersistentO
             int i = cursor - 1;
             if (i < 0)
                 throw new NoSuchElementException();
-            PersistentObject[] elementData = PersistentArrayList.this.getDataArray().toArray(new PersistentObject[0]);
+            AnyPersistent[] elementData = PersistentArrayList.this.getDataArray().toArray(new AnyPersistent[0]);
             if (i >= elementData.length)
                 throw new ConcurrentModificationException();
             cursor = i;
@@ -518,7 +518,7 @@ public class PersistentArrayList<T extends PersistentObject> extends PersistentO
             int i = cursor;
             if (i >= size())
                 throw new NoSuchElementException();
-            PersistentObject[] elementData = PersistentArrayList.this.getDataArray().toArray(new PersistentObject[0]);
+            AnyPersistent[] elementData = PersistentArrayList.this.getDataArray().toArray(new AnyPersistent[0]);
             if (i >= elementData.length)
                 throw new ConcurrentModificationException();
             cursor = i + 1;
@@ -549,7 +549,7 @@ public class PersistentArrayList<T extends PersistentObject> extends PersistentO
             if (i >= size()) {
                 return;
             }
-            final PersistentObject[] elementData = PersistentArrayList.this.getDataArray().toArray(new PersistentObject[0]);
+            final AnyPersistent[] elementData = PersistentArrayList.this.getDataArray().toArray(new AnyPersistent[0]);
             if (i >= elementData.length) {
                 throw new ConcurrentModificationException();
             }

@@ -27,15 +27,15 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class PersistentImmutableTuple8<T1 extends PersistentObject, T2 extends PersistentObject, T3 extends PersistentObject, T4 extends PersistentObject, T5 extends PersistentObject, T6 extends PersistentObject, T7 extends PersistentObject, T8 extends PersistentObject> extends PersistentObject {
-    private static final ObjectField<PersistentObject> FIELD1 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD2 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD3 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD4 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD5 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD6 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD7 = new ObjectField<>();
-    private static final ObjectField<PersistentObject> FIELD8 = new ObjectField<>();
+public class PersistentImmutableTuple8<T1 extends AnyPersistent, T2 extends AnyPersistent, T3 extends AnyPersistent, T4 extends AnyPersistent, T5 extends AnyPersistent, T6 extends AnyPersistent, T7 extends AnyPersistent, T8 extends AnyPersistent> extends PersistentObject {
+    private static final ObjectField<AnyPersistent> FIELD1 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD2 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD3 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD4 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD5 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD6 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD7 = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> FIELD8 = new ObjectField<>();
     public static final ObjectType<PersistentImmutableTuple8> TYPE = ObjectType.fromFields(PersistentImmutableTuple8.class, FIELD1, FIELD2, FIELD3, FIELD4, FIELD5, FIELD6, FIELD7, FIELD8);
 
     public PersistentImmutableTuple8(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8) {

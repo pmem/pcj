@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import lib.util.persistent.front.PersistentClass;
 import examples.misc.*;
-import static lib.util.persistent.Persistent.*;
+import static lib.util.persistent.Util.*;
 
 public class TestCases {
     static boolean verbose = false;
@@ -233,29 +233,9 @@ public class TestCases {
             assert(InnerStatic.getId() == 567);
             if (verbose) { System.out.println("InnerStatic.getId() = " + InnerStatic.getId()); }
 
-            //ValueType experiment
-            Long256 l256 = new Long256(298374, 349857, 23094, 2983749);
-            if (verbose) { System.out.println(l256); }
-            l256 = null;
-            System.gc();
-
-            PersistentValueArray<DecoratedKey> va = new PersistentValueArray<>(DecoratedKey.class, 100);
-            va.set(10, new DecoratedKey(13, 349785));
-            DecoratedKey dk = va.get(10, DecoratedKey.class);
-            if (verbose) { System.out.println("dk = " + dk); }
-            va = null;
-            System.gc();
-
-            VTE vte = new VTE();
-            if (verbose) { System.out.println(vte); }
-            vte = null;
-            System.gc();
-
             SelfRef sr0 = new SelfRef(13, null, persistent("hello"));
             SelfRef sr1 = new SelfRef(12, sr0, persistent("world"));
             if (verbose) { System.out.println(sr1); }
-
-            // examples.misc.TestNestedValues.main(new String[0]);
 
             // test PersistentLong
             PersistentLong tpl1 = new PersistentLong(12345);
@@ -424,7 +404,7 @@ public class TestCases {
     public static class Mixed extends PersistentObject {
         private static final StringField S = new StringField();
         private static final IntField X = new IntField();
-        public static final ObjectType<Mixed> TYPE = ObjectType.fromFields(Mixed.class, S, X);
+        private static final ObjectType<Mixed> TYPE = ObjectType.fromFields(Mixed.class, S, X);
 
         // constructor
         public Mixed(PersistentString s, int x) {
@@ -467,7 +447,7 @@ public class TestCases {
     public static class ExtendedMix extends Mixed {
         private static final StringField ES = new StringField();
         private static final IntField EI = new IntField();
-        public static final ObjectType<ExtendedMix> TYPE = Mixed.TYPE.extendWith(ExtendedMix.class, ES, EI);
+        private static final ObjectType<ExtendedMix> TYPE = ObjectType.extendClassWith(ExtendedMix.class, Mixed.class, ES, EI);
 
         public ExtendedMix(PersistentString s, int x, PersistentString es, int ei) {
             super(TYPE, s, x);
@@ -767,51 +747,51 @@ public class TestCases {
 
     // ValueType experiment
 
-    @PersistentClass
-    public static class DecoratedKey extends PersistentValue {
-        private static final IntField CATEGORY = new IntField();
-        private static final LongField OFFSET = new LongField();
-        public static final ValueType TYPE = ValueType.fromFields(CATEGORY, OFFSET);
+    // @PersistentClass
+    // public static class DecoratedKey extends PersistentValue {
+    //     private static final IntField CATEGORY = new IntField();
+    //     private static final LongField OFFSET = new LongField();
+    //     public static final ValueType TYPE = ValueType.fromFields(CATEGORY, OFFSET);
 
-        public DecoratedKey(int category, long offset) {
-            super(TYPE, DecoratedKey.class);
-            setIntField(CATEGORY, category);
-            setLongField(OFFSET, offset);
-        }
+    //     public DecoratedKey(int category, long offset) {
+    //         super(TYPE, DecoratedKey.class);
+    //         setIntField(CATEGORY, category);
+    //         setLongField(OFFSET, offset);
+    //     }
 
-        protected DecoratedKey(ValuePointer<DecoratedKey> p) {super(p);}
+    //     protected DecoratedKey(ValuePointer<DecoratedKey> p) {super(p);}
 
-        public String toString() {
-            return String.format("DecoratedKey(%d, %d)", getIntField(CATEGORY), getLongField(OFFSET));
-        }
-    }
+    //     public String toString() {
+    //         return String.format("DecoratedKey(%d, %d)", getIntField(CATEGORY), getLongField(OFFSET));
+    //     }
+    // }
 
-    @PersistentClass
-    public static final class VTE extends PersistentObject {
-        private static final StringField NAME = new StringField();
-        private static final ValueField<Long256> VEC = ValueField.forClass(Long256.class);
-        private static final ValueField<DecoratedKey> KEY = ValueField.forClass(DecoratedKey.class);
-        private static final ObjectField<PersistentValueArray> ARR_KEYS = new ObjectField<>(PersistentValueArray.class);
-        private static final ObjectType<VTE> TYPE = ObjectType.fromFields(VTE.class, NAME, VEC, KEY, ARR_KEYS);
+    // @PersistentClass
+    // public static final class VTE extends PersistentObject {
+    //     private static final StringField NAME = new StringField();
+    //     private static final ValueField<Long256> VEC = ValueField.forClass(Long256.class);
+    //     private static final ValueField<DecoratedKey> KEY = ValueField.forClass(DecoratedKey.class);
+    //     private static final ObjectField<PersistentValueArray> ARR_KEYS = new ObjectField<>(PersistentValueArray.class);
+    //     private static final ObjectType<VTE> TYPE = ObjectType.fromFields(VTE.class, NAME, VEC, KEY, ARR_KEYS);
 
-        public VTE() {
-            super(TYPE);
-            setObjectField(NAME, persistent("Bob"));
-            setValueField(VEC, new Long256(10, 20, 30, 40));
-            setValueField(KEY, new DecoratedKey(77, 1234567890));
-            PersistentValueArray<DecoratedKey> ka = new PersistentValueArray<>(DecoratedKey.class, 100);
-            ka.set(10, new DecoratedKey(130, 3497850));
-            setObjectField(ARR_KEYS, ka);
-        }
+    //     public VTE() {
+    //         super(TYPE);
+    //         setObjectField(NAME, persistent("Bob"));
+    //         setValueField(VEC, new Long256(10, 20, 30, 40));
+    //         setValueField(KEY, new DecoratedKey(77, 1234567890));
+    //         PersistentValueArray<DecoratedKey> ka = new PersistentValueArray<>(DecoratedKey.class, 100);
+    //         ka.set(10, new DecoratedKey(130, 3497850));
+    //         setObjectField(ARR_KEYS, ka);
+    //     }
 
-        private VTE(ObjectPointer<VTE> p) {super(p);}
+    //     private VTE(ObjectPointer<VTE> p) {super(p);}
 
-        @SuppressWarnings("unchecked")
-        public String toString() {
-            PersistentValueArray<DecoratedKey> ka = getObjectField(ARR_KEYS);
-            return String.format("VTE(%s, %s, %s, %s)", getObjectField(NAME), getValueField(VEC), getValueField(KEY), ka.get(10, DecoratedKey.class));
-        }
-    }
+    //     @SuppressWarnings("unchecked")
+    //     public String toString() {
+    //         PersistentValueArray<DecoratedKey> ka = getObjectField(ARR_KEYS);
+    //         return String.format("VTE(%s, %s, %s, %s)", getObjectField(NAME), getValueField(VEC), getValueField(KEY), ka.get(10, DecoratedKey.class));
+    //     }
+    // }
 
     // Self-referencing type
     @PersistentClass

@@ -40,7 +40,7 @@ function test2_recreation {
     echo "Testing creation of table test2..."
     res2=`$cmdline $path/select_script2`
     if [[ $res2 =~ "Column family test2 does not exist" ]]; then
-        echo "Inserting 1000 elements into example database, table test2; this may take several seconds."
+        echo "Inserting 1000 elements into example database, table test2; this may take some time."
         eval $cmdline $path/insert_script2
         res1=`$cmdline $path/select_script2`
         pass_count="$((pass_count+1))"
@@ -58,4 +58,4 @@ test1_persistence
 test2_recreation
 cd tools/validate
 
-echo "Test result: $pass_count/$total_count passed!"
+echo "Test result: $pass_count/$total_count passed."

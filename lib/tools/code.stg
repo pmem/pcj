@@ -48,7 +48,7 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.Types;
 
-public final class Persistent<class> extends PersistentObject implements Comparable\<Persistent<class>\> { 
+public final class Persistent<class> extends PersistentImmutableObject implements Comparable\<Persistent<class>\> { 
     private static final <identifier>Field <field> = new <identifier>Field();
     private static final ObjectType\<Persistent<class>\> TYPE = ObjectType.fromFields(Persistent<class>.class, <field>);
 
@@ -257,7 +257,7 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\> extends PersistentObject {
+public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\> extends PersistentMutableObject {
     <range:{ x | private static final ObjectField\<PersistentObject> FIELD<x> = new ObjectField\<>();};separator="\n"> 
     public static final ObjectType\<<class_prefix>Tuple<n>\> TYPE = ObjectType.fromFields(<class_prefix>Tuple<n>.class, <range:{x | FIELD<x>};separator=", ">);
 
@@ -338,7 +338,7 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\> extends PersistentObject {
+public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\> extends PersistentImmutableObject {
     <range:{ x | private static final ObjectField\<PersistentObject> FIELD<x> = new ObjectField\<>();};separator="\n">
     public static final ObjectType\<<class_prefix>Tuple<n>\> TYPE = ObjectType.fromFields(<class_prefix>Tuple<n>.class, <range:{x | FIELD<x>};separator=", ">);
 

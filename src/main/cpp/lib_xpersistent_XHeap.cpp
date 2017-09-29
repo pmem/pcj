@@ -59,7 +59,7 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeGetMemoryRegion
 JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeFree
   (JNIEnv *env, jobject obj, jlong region_offset)
 {
-    PMEMoid oid = {get_uuid_lo(), region_offset};
+    PMEMoid oid = {get_uuid_lo(), (uint64_t)region_offset};
     TOID(char) bytes;
     TOID_ASSIGN(bytes, oid);
 
@@ -73,8 +73,8 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeFree
 JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeMemoryRegionMemcpy
   (JNIEnv *env, jobject obj, jlong src_region, jlong src_offset, jlong dest_region, jlong dest_offset, jlong length)
 {
-    PMEMoid src_oid = {get_uuid_lo(), src_region};
-    PMEMoid dest_oid = {get_uuid_lo(), dest_region};
+    PMEMoid src_oid = {get_uuid_lo(), (uint64_t)src_region};
+    PMEMoid dest_oid = {get_uuid_lo(), (uint64_t)dest_region};
 
     void* src = (void*)((uint64_t)pmemobj_direct(src_oid)+(uint64_t)src_offset);
     void* dest = (void*)((uint64_t)pmemobj_direct(dest_oid)+(uint64_t)dest_offset);
@@ -89,7 +89,7 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeMemoryRegionMemcpy
 JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeToByteArrayMemcpy
   (JNIEnv *env, jobject obj, jlong src_region, jlong src_offset, jbyteArray dest_array, jint dest_offset, jint length)
 {
-    PMEMoid src_oid = {get_uuid_lo(), src_region};
+    PMEMoid src_oid = {get_uuid_lo(), (uint64_t)src_region};
     jbyte* src = (jbyte*)((void*)((uint64_t)pmemobj_direct(src_oid)+(uint64_t)src_offset));
     env->SetByteArrayRegion(dest_array, dest_offset, length, src);
     // for (int i = 0; i < length; i++) {
@@ -101,7 +101,7 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeToByteArrayMemcpy
 JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeFromByteArrayMemcpy
   (JNIEnv *env, jobject obj, jbyteArray src_array, jint src_offset, jlong dest_region, jlong dest_offset, jint length)
 {
-    PMEMoid dest_oid = {get_uuid_lo(), dest_region};
+    PMEMoid dest_oid = {get_uuid_lo(), (uint64_t)dest_region};
     jbyte* dest = (jbyte*)((void*)((uint64_t)pmemobj_direct(dest_oid)+(uint64_t)dest_offset));
 
     jboolean is_copy;

@@ -23,16 +23,30 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ObjectType;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import lib.xpersistent.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
-public final class PersistentArray<T extends PersistentObject> extends AbstractPersistentArray {
+public class PersistentArray<T extends AnyPersistent> extends AbstractPersistentArray {
     private static final ArrayType<PersistentArray> TYPE = new ArrayType<>(PersistentArray.class, Types.OBJECT);
+
+    public static <A extends PersistentArray, T extends AnyPersistent> ArrayType<A> typeForClasses(Class<A> arrayClass, Class<T> elementClass) {
+        return new ArrayType<>(arrayClass, Types.typeForClass(elementClass));
+    }
 
     public PersistentArray(int size) {
         super(TYPE, size);
+    }
+
+
+    public PersistentArray(Class<? extends PersistentObject> elementClass, int size) {
+        super(new ArrayType<PersistentArray>(PersistentArray.class, Types.objectTypeForClass(elementClass)), size);
+    }
+
+    protected PersistentArray(ArrayType<? extends PersistentArray<T>> type, int size) {
+        super(type, size);
     }
 
     @SafeVarargs
@@ -41,7 +55,7 @@ public final class PersistentArray<T extends PersistentObject> extends AbstractP
         for (int i = 0; i < ts.length; i++) setObjectElement(i, ts[i]);
     }
 
-    protected PersistentArray(ObjectPointer<PersistentArray<T>> pointer) {
+    protected PersistentArray(ObjectPointer<? extends PersistentArray<T>> pointer) {
         super(pointer);
     }
 

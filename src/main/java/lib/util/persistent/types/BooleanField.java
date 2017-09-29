@@ -21,8 +21,4 @@
 
 package lib.util.persistent.types;
 
-public class BooleanField extends PrimitiveField {
-    public BooleanField() {
-      super(Types.BOOLEAN);
-   }
-}
+public class BooleanField extends FinalBooleanField {}

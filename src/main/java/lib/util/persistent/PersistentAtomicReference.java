@@ -25,9 +25,9 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 import java.util.concurrent.atomic.*;
 
-public final class PersistentAtomicReference<T extends PersistentObject> extends PersistentObject {
+public final class PersistentAtomicReference<T extends AnyPersistent> extends PersistentObject {
 
-	private static final ObjectField<PersistentObject> VALUE = new ObjectField<>();
+	private static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
 	private static final ObjectType<PersistentAtomicReference> TYPE = ObjectType.fromFields(PersistentAtomicReference.class, VALUE);
 
 	public PersistentAtomicReference() {
@@ -43,12 +43,12 @@ public final class PersistentAtomicReference<T extends PersistentObject> extends
 		super(p);
 	}
 
-	public synchronized void set(T t) {
+	public void set(T t) {
 		setObjectField(VALUE, t);
 	}
 
 	@SuppressWarnings("unchecked")
-	public synchronized T get() {
+	public T get() {
 		return (T)getObjectField(VALUE);
 	}
 

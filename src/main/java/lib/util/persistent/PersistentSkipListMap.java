@@ -48,9 +48,9 @@ import java.util.AbstractCollection;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicReference;
 import lib.util.persistent.front.PersistentClass;
-import static lib.util.persistent.Persistent.*;
+import static lib.util.persistent.Util.*;
 
-public class PersistentSkipListMap<K extends PersistentObject, V extends PersistentObject> extends PersistentObject implements ConcurrentNavigableMap<K,V> {
+public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements ConcurrentNavigableMap<K,V>, PersistentSortedMap<K,V> {
     private KeySet<K> keySet;
     private EntrySet<K,V> entrySet;
     private Values<V> values;
@@ -60,7 +60,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
 
     private static Statics statics;
     private static final ObjectField<PersistentAtomicReference> HEAD = new ObjectField<>(PersistentAtomicReference.class);
-    private static final ObjectField<PersistentObject> BASE_HEADER = new ObjectField<>();
+    private static final ObjectField<AnyPersistent> BASE_HEADER = new ObjectField<>();
     public static final ObjectType<PersistentSkipListMap> TYPE = ObjectType.fromFields(PersistentSkipListMap.class, HEAD, BASE_HEADER);
 
     static {
@@ -80,10 +80,10 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
 
         public Statics (ObjectPointer<Statics> p) { super(p); }
 
-        public PersistentObject baseHeader() { return getObjectField(BASE_HEADER); }
+        public AnyPersistent baseHeader() { return getObjectField(BASE_HEADER); }
     }   
 
-    public static PersistentObject baseHeader() { return statics.baseHeader(); }
+    public static AnyPersistent baseHeader() { return statics.baseHeader(); }
 
     @SuppressWarnings("unchecked")
     public HeadIndex<K,V> head() { return (HeadIndex<K,V>)getObjectField(HEAD).get(); }
@@ -107,8 +107,8 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
     /* ---------------- Nodes -------------- */
 
     @PersistentClass
-    public static final class Node<K extends PersistentObject,V extends PersistentObject> extends PersistentObject {
-        private static final ObjectField<PersistentObject> KEY = new ObjectField<>();
+    public static final class Node<K extends AnyPersistent,V extends AnyPersistent> extends PersistentObject {
+        private static final ObjectField<AnyPersistent> KEY = new ObjectField<>();
         private static final ObjectField<PersistentAtomicReference> VALUE = new ObjectField<>(PersistentAtomicReference.class);
         private static final ObjectField<PersistentAtomicReference> NEXT = new ObjectField<>(PersistentAtomicReference.class);
         private static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, KEY, VALUE, NEXT);
@@ -116,7 +116,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
 
         //Creates regular node
         @SuppressWarnings("unchecked")
-        Node (K key, PersistentObject value, Node<K,V> next) {
+        Node (K key, AnyPersistent value, Node<K,V> next) {
             super(TYPE);
             setObjectField(KEY, key);
             setObjectField(VALUE, new PersistentAtomicReference(value));
@@ -132,7 +132,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             setObjectField(NEXT, new PersistentAtomicReference(next));
         }
 
-        public Node (ObjectPointer<Node> p) { super(p);} 
+        public Node (ObjectPointer<Node> p) { super(p); } 
 
         @SuppressWarnings("unchecked")
         K key(){ return (K) getObjectField(KEY); }
@@ -140,13 +140,13 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         @SuppressWarnings("unchecked")
         Node<K,V> next() { return (Node<K,V>)getObjectField(NEXT).get(); }
 
-        PersistentObject value(){ return getObjectField(VALUE).get(); }
+        AnyPersistent value(){ return getObjectField(VALUE).get(); }
 
         @SuppressWarnings("unchecked")
         private void next(Node<K,V> n){ getObjectField(NEXT).set(n); }
 
         @SuppressWarnings("unchecked")
-        boolean casValue(PersistentObject cmp, PersistentObject val) {
+        boolean casValue(AnyPersistent cmp, AnyPersistent val) {
             return getObjectField(VALUE).compareAndSet(cmp, val);
         }
 
@@ -182,7 +182,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         }
 
         V getValidValue() {
-            PersistentObject v = value();
+            AnyPersistent v = value();
             if (v == this || v == baseHeader())
                 return null;
             @SuppressWarnings("unchecked") V vv = (V)v;
@@ -190,7 +190,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         }
 
         AbstractMap.SimpleImmutableEntry<K,V> createSnapshot() {
-            PersistentObject v = value();
+            AnyPersistent v = value();
             if (v == null || v == this || v == baseHeader())
                 return null;
             @SuppressWarnings("unchecked") V vv = (V)v;
@@ -200,7 +200,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
     }
 
     /* ---------------- Indexing -------------- */
-    public static class Index<K extends PersistentObject, V extends PersistentObject> extends PersistentObject {
+    public static class Index<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject {
         private static final ObjectField<Node> NODE = new ObjectField<>(Node.class);
         private static final ObjectField<Index> DOWN = new ObjectField<>(Index.class);
         private static final ObjectField<PersistentAtomicReference> RIGHT = new ObjectField<>(PersistentAtomicReference.class);
@@ -211,6 +211,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             this(TYPE, node, down, right);
         }
 
+        @SuppressWarnings("unchecked")
         public Index(ObjectPointer<? extends Index> p) { super(p); }
 
         @SuppressWarnings("unchecked")
@@ -255,7 +256,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
 
     /* ---------------- Head nodes -------------- */
 
-    public static final class HeadIndex<K extends PersistentObject,V extends PersistentObject> extends Index<K,V> {
+    public static final class HeadIndex<K extends AnyPersistent,V extends AnyPersistent> extends Index<K,V> {
         private static final IntField LEVEL = new IntField();
         private static final ObjectType TYPE = Index.TYPE.extendWith(HeadIndex.class, LEVEL);
  
@@ -273,13 +274,13 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
     /* ---------------- Comparison utilities -------------- */
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    static final int cpr(Comparator c, PersistentObject x, PersistentObject y) {
+    static final int cpr(Comparator c, Object x, AnyPersistent y) {
         return (c != null) ? c.compare(x, y) : ((Comparable)x).compareTo(y);
     }
 
     /* ---------------- Traversal -------------- */
 
-    private Node<K,V> findPredecessor(PersistentObject key, Comparator<? super K> cmp) {
+    private Node<K,V> findPredecessor(Object key, Comparator<? super K> cmp) {
         if (key == null)
             throw new NullPointerException(); // don't postpone errors
         for (;;) {
@@ -307,13 +308,13 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         }
     }
 
-    private Node<K,V> findNode(PersistentObject key) {
+    private Node<K,V> findNode(AnyPersistent key) {
         if (key == null)
             throw new NullPointerException(); // don't postpone errors
         Comparator<? super K> cmp = comparator;
         outer: for (;;) {
             for (Node<K,V> b = findPredecessor(key, cmp), n = b.next();;) {
-                PersistentObject v; int c;
+                AnyPersistent v; int c;
                 if (n == null)
                     break outer;
                 Node<K,V> f = n.next();
@@ -336,13 +337,50 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         return null;
     }
 
-    private V doGet(PersistentObject key) {
+    private V doGet(AnyPersistent key) {
         if (key == null)
             throw new NullPointerException();
         Comparator<? super K> cmp = comparator;
         outer: for (;;) {
             for (Node<K,V> b = findPredecessor(key, cmp), n = b.next();;) {
-                PersistentObject v; int c;
+                AnyPersistent v; int c;
+                if (n == null)
+                    break outer;
+                Node<K,V> f = n.next();
+                if (n != b.next())                // inconsistent read
+                    break;
+                if ((v = n.value()) == null) {    // n is deleted
+                    n.helpDelete(b, f);
+                    break;
+                }
+                if (b.value() == null || v == n)  // b is deleted
+                    break;
+                if ((c = cpr(cmp, key, n.key())) == 0) {
+                    @SuppressWarnings("unchecked") V vv = (V)v;
+                    return vv;
+                }
+                if (c < 0)
+                    break outer;
+                b = n;
+                n = f;
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked") 
+    private V doGet(Object key) {
+        if (key == null)
+            throw new NullPointerException();
+        Comparator<? super K> cmp = comparator;
+        if (comparator == null) {
+            cmp = (Object x, Object y) -> {
+                return ((ComparableWith)y).compareWith(x);
+            };
+        }
+        outer: for (;;) {
+            for (Node<K,V> b = findPredecessor(key, cmp), n = b.next();;) {
+                AnyPersistent v; int c;
                 if (n == null)
                     break outer;
                 Node<K,V> f = n.next();
@@ -398,7 +436,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             for (Node<K,V> b = findPredecessor(key, cmp), n = b.next();;) {
 
                 if (n != null) {
-                    PersistentObject v; int c;
+                    AnyPersistent v; int c;
                     Node<K,V> f = n.next();
                     if (n != b.next())               // inconsistent read
                         break;
@@ -511,13 +549,13 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
 
     /* ---------------- Deletion -------------- */
 
-    final V doRemove(PersistentObject key, PersistentObject value) {
+    final V doRemove(AnyPersistent key, AnyPersistent value) {
         if (key == null)
             throw new NullPointerException();
         Comparator<? super K> cmp = comparator;
         outer: for (;;) {
             for (Node<K,V> b = findPredecessor(key, cmp), n = b.next();;) {
-                PersistentObject v; int c;
+                AnyPersistent v; int c;
                 if (n == null)
                     break outer;
                 Node<K,V> f = n.next();
@@ -588,7 +626,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             Node<K,V> f = n.next();
             if (n != b.next())
                 continue;
-            PersistentObject v = n.value();
+            AnyPersistent v = n.value();
             if (v == null) {
                 n.helpDelete(b, f);
                 continue;
@@ -632,7 +670,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
                 Node<K,V> f = n.next();
                 if (n != b.next())                    // inconsistent read
                     break;
-                PersistentObject v = n.value();
+                AnyPersistent v = n.value();
                 if (v == null) {                    // n is deleted
                     n.helpDelete(b, f);
                     break;
@@ -687,7 +725,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
                     Node<K,V> f = n.next();            // inconsistent read
                     if (n != b.next())
                         break;
-                    PersistentObject v = n.value();
+                    AnyPersistent v = n.value();
                     if (v == null) {                 // n is deleted
                         n.helpDelete(b, f);
                         break;
@@ -736,7 +774,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             throw new NullPointerException();
         for (;;) {
             for (Node<K,V> b = findPredecessor(key, cmp), n = b.next();;) {
-                PersistentObject v;
+                AnyPersistent v;
                 if (n == null)
                     return ((rel & LT) == 0 || b.isBaseHeader()) ? null : b;
                 Node<K,V> f = n.next();
@@ -935,7 +973,12 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         return doGet((K)key);
     }
 
-    public V getOrDefault(PersistentObject key, V defaultValue) {
+    @SuppressWarnings("unchecked")
+    public <L, K extends ComparableWith<L>> V get(L key, Class<K> cls) {
+        return doGet(key);
+    }
+
+    public V getOrDefault(AnyPersistent key, V defaultValue) {
         V v;
         return (v = doGet(key)) == null ? defaultValue : v;
     }
@@ -996,7 +1039,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
                               BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
         if (key == null || remappingFunction == null)
             throw new NullPointerException();
-        Node<K,V> n; PersistentObject v;
+        Node<K,V> n; AnyPersistent v;
         while ((n = findNode(key)) != null) {
             if ((v = n.value()) != null) {
                 @SuppressWarnings("unchecked") V vv = (V) v;
@@ -1017,7 +1060,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         if (key == null || remappingFunction == null)
             throw new NullPointerException();
         for (;;) {
-            Node<K,V> n; PersistentObject v; V r;
+            Node<K,V> n; AnyPersistent v; V r;
             if ((n = findNode(key)) == null) {
                 if ((r = remappingFunction.apply(key, null)) == null)
                     break;
@@ -1042,7 +1085,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         if (key == null || value == null || remappingFunction == null)
             throw new NullPointerException();
         for (;;) {
-            Node<K,V> n; PersistentObject v; V r;
+            Node<K,V> n; AnyPersistent v; V r;
             if ((n = findNode(key)) == null) {
                 if (doPut(key, value, true) == null)
                     return value;
@@ -1093,7 +1136,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
 
     /* ---------------- AbstractMap Overrides -------------- */
 
-    public boolean equals(PersistentObject o) {
+    public boolean equals(AnyPersistent o) {
         if (o == this)
             return true;
         if (!(o instanceof PersistentSkipListMap))
@@ -1103,9 +1146,9 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             for (Map.Entry<K,V> e : this.entrySet())
                 if (! e.getValue().equals(m.get(e.getKey())))
                     return false;
-            for (Map.Entry<? extends PersistentObject,? extends PersistentObject> e : m.entrySet()) {
-                PersistentObject k = e.getKey();
-                PersistentObject v = e.getValue();
+            for (Map.Entry<? extends AnyPersistent,? extends AnyPersistent> e : m.entrySet()) {
+                AnyPersistent k = e.getKey();
+                AnyPersistent v = e.getValue();
                 if (k == null || v == null || !v.equals(get(k)))
                     return false;
             }
@@ -1145,7 +1188,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         if (key == null || oldValue == null || newValue == null)
             throw new NullPointerException();
         for (;;) {
-            Node<K,V> n; PersistentObject v;
+            Node<K,V> n; AnyPersistent v;
             if ((n = findNode(key)) == null)
                 return false;
             if ((v = n.value()) != null) {
@@ -1161,7 +1204,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         if (key == null || value == null)
             throw new NullPointerException();
         for (;;) {
-            Node<K,V> n; PersistentObject v;
+            Node<K,V> n; AnyPersistent v;
             if ((n = findNode(key)) == null)
                 return null;
             if ((v = n.value()) != null && n.casValue(v, value)) {
@@ -1310,7 +1353,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         /** Initializes ascending iterator for entire range. */
         Iter() {
             while ((next = findFirst()) != null) {
-                PersistentObject x = next.value();
+                AnyPersistent x = next.value();
                 if (x != null && x != next) {
                     @SuppressWarnings("unchecked") V vv = (V)x;
                     nextValue = vv;
@@ -1329,7 +1372,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
                 throw new NoSuchElementException();
             lastReturned = next;
             while ((next = next.next()) != null) {
-                PersistentObject x = next.value();
+                AnyPersistent x = next.value();
                 if (x != null && x != next) {
                     @SuppressWarnings("unchecked") V vv = (V)x;
                     nextValue = vv;
@@ -1397,10 +1440,10 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         return list;
     }
 
-    static final class KeySet<E extends PersistentObject>
+    static final class KeySet<E extends AnyPersistent>
             extends AbstractSet<E> implements NavigableSet<E> {
-        final ConcurrentNavigableMap<E,? extends PersistentObject> m;
-        KeySet(ConcurrentNavigableMap<E,? extends PersistentObject> map) { m = map; }
+        final ConcurrentNavigableMap<E,? extends AnyPersistent> m;
+        KeySet(ConcurrentNavigableMap<E,? extends AnyPersistent> map) { m = map; }
         public int size() { return m.size(); }
         public boolean isEmpty() { return m.isEmpty(); }
         public boolean contains(Object o) { return m.containsKey(o); }
@@ -1424,9 +1467,9 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         @SuppressWarnings("unchecked")
         public Iterator<E> iterator() {
             if (m instanceof PersistentSkipListMap)
-                return ((PersistentSkipListMap<E,PersistentObject>)m).keyIterator();
+                return ((PersistentSkipListMap<E,AnyPersistent>)m).keyIterator();
             else
-                return ((PersistentSkipListMap.SubMap<E,PersistentObject>)m).keyIterator();
+                return ((PersistentSkipListMap.SubMap<E,AnyPersistent>)m).keyIterator();
         }
         public boolean equals(Object o) {
             if (o == this)
@@ -1481,7 +1524,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         }
     }
 
-    static final class Values<E extends PersistentObject> extends AbstractCollection<E> {
+    static final class Values<E extends AnyPersistent> extends AbstractCollection<E> {
         final ConcurrentNavigableMap<?, E> m;
         Values(ConcurrentNavigableMap<?, E> map) {
             m = map;
@@ -1516,7 +1559,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         }
     }
 
-    static final class EntrySet<K1 extends PersistentObject,V1 extends PersistentObject> extends AbstractSet<Map.Entry<K1,V1>> {
+    static final class EntrySet<K1 extends AnyPersistent,V1 extends AnyPersistent> extends AbstractSet<Map.Entry<K1,V1>> {
         final ConcurrentNavigableMap<K1, V1> m;
         EntrySet(ConcurrentNavigableMap<K1, V1> map) {
             m = map;
@@ -1578,7 +1621,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         }
     }
 
-    static final class SubMap<K extends PersistentObject,V extends PersistentObject> extends AbstractMap<K,V>
+    static final class SubMap<K extends AnyPersistent,V extends AnyPersistent> extends AbstractMap<K,V>
         implements ConcurrentNavigableMap<K,V>, Cloneable {
 
     /** Underlying map */
@@ -1615,19 +1658,19 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             this.isDescending = isDescending;
         }
 
-        boolean tooLow(PersistentObject key, Comparator<? super K> cmp) {
+        boolean tooLow(AnyPersistent key, Comparator<? super K> cmp) {
             int c;
             return (lo != null && ((c = cpr(cmp, key, lo)) < 0 ||
                                    (c == 0 && !loInclusive)));
         }
 
-        boolean tooHigh(PersistentObject key, Comparator<? super K> cmp) {
+        boolean tooHigh(AnyPersistent key, Comparator<? super K> cmp) {
             int c;
             return (hi != null && ((c = cpr(cmp, key, hi)) > 0 ||
                                    (c == 0 && !hiInclusive)));
         }
 
-        boolean inBounds(PersistentObject key, Comparator<? super K> cmp) {
+        boolean inBounds(AnyPersistent key, Comparator<? super K> cmp) {
             return !tooLow(key, cmp) && !tooHigh(key, cmp);
         }
 
@@ -1806,12 +1849,12 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             }
         }
 
-        public boolean containsKey(PersistentObject key) {
+        public boolean containsKey(AnyPersistent key) {
             if (key == null) throw new NullPointerException();
             return inBounds(key, m.comparator) && m.containsKey(key);
         }
 
-        public V get(PersistentObject key) {
+        public V get(AnyPersistent key) {
             if (key == null) throw new NullPointerException();
             return (!inBounds(key, m.comparator)) ? null : m.get(key);
         }
@@ -1821,7 +1864,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             return m.put(key, value);
         }
 
-        public V remove(PersistentObject key) {
+        public V remove(AnyPersistent key) {
             return (!inBounds(key, m.comparator)) ? null : m.remove(key);
         }
 
@@ -2073,7 +2116,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
                     next = isDescending ? hiNode(cmp) : loNode(cmp);
                     if (next == null)
                         break;
-                    PersistentObject x = next.value();
+                    AnyPersistent x = next.value();
                     if (x != null && x != next) {
                         if (! inBounds(next.key(), cmp))
                             next = null;
@@ -2106,7 +2149,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
                     next = next.next();
                     if (next == null)
                         break;
-                    PersistentObject x = next.value();
+                    AnyPersistent x = next.value();
                     if (x != null && x != next) {
                         if (tooHigh(next.key(), cmp))
                             next = null;
@@ -2125,7 +2168,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
                     next = m.findNear(lastReturned.key(), LT, cmp);
                     if (next == null)
                         break;
-                    PersistentObject x = next.value();
+                    AnyPersistent x = next.value();
                     if (x != null && x != next) {
                         if (tooLow(next.key(), cmp))
                             next = null;
@@ -2219,18 +2262,20 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
 
     public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
         if (function == null) throw new NullPointerException();
-        V v;
-        for (Node<K,V> n = findFirst(); n != null; n = n.next()) {
-            while ((v = n.getValidValue()) != null) {
-                V r = function.apply(n.key(), v);
-                if (r == null) throw new NullPointerException();
-                if (n.casValue(v, r))
-                    break;
+        Transaction.run(() -> {
+            V v;
+            for (Node<K,V> n = findFirst(); n != null; n = n.next()) {
+                while ((v = n.getValidValue()) != null) {
+                    V r = function.apply(n.key(), v);
+                    if (r == null) throw new NullPointerException();
+                    if (n.casValue(v, r))
+                        break;
+                }
             }
-        }
+        });
     }
 
-    abstract static class CSLMSpliterator<K extends PersistentObject,V extends PersistentObject> {
+    abstract static class CSLMSpliterator<K extends AnyPersistent,V extends AnyPersistent> {
         final Comparator<? super K> comparator;
         final K fence;     // exclusive upper bound for keys, or null if to end
         Index<K,V> row;    // the level to split out
@@ -2245,7 +2290,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         public final long estimateSize() { return (long)est; }
     }
 
-    static final class KeySpliterator<K extends PersistentObject,V extends PersistentObject> extends CSLMSpliterator<K,V>
+    static final class KeySpliterator<K extends AnyPersistent,V extends AnyPersistent> extends CSLMSpliterator<K,V>
         implements Spliterator<K> {
         KeySpliterator(Comparator<? super K> comparator, Index<K,V> row,
                        Node<K,V> origin, K fence, int est) {
@@ -2333,7 +2378,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         }
     }
 
-    static final class ValueSpliterator<K extends PersistentObject,V extends PersistentObject> extends CSLMSpliterator<K,V>
+    static final class ValueSpliterator<K extends AnyPersistent,V extends AnyPersistent> extends CSLMSpliterator<K,V>
         implements Spliterator<V> {
         ValueSpliterator(Comparator<? super K> comparator, Index<K,V> row,
                        Node<K,V> origin, K fence, int est) {
@@ -2369,7 +2414,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             Node<K,V> e = current;
             current = null;
             for (; e != null; e = e.next()) {
-                K k; PersistentObject v;
+                K k; AnyPersistent v;
                 if ((k = e.key()) != null && f != null && cpr(cmp, f, k) <= 0)
                     break;
                 if ((v = e.value()) != null && v != e) {
@@ -2385,7 +2430,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             K f = fence;
             Node<K,V> e = current;
             for (; e != null; e = e.next()) {
-                K k; PersistentObject v;
+                K k; AnyPersistent v;
                 if ((k = e.key()) != null && f != null && cpr(cmp, f, k) <= 0) {
                     e = null;
                     break;
@@ -2419,7 +2464,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
         }
     }
 
-    static final class EntrySpliterator<K extends PersistentObject,V extends PersistentObject> extends CSLMSpliterator<K,V>
+    static final class EntrySpliterator<K extends AnyPersistent,V extends AnyPersistent> extends CSLMSpliterator<K,V>
         implements Spliterator<Map.Entry<K,V>> {
         EntrySpliterator(Comparator<? super K> comparator, Index<K,V> row,
                          Node<K,V> origin, K fence, int est) {
@@ -2455,7 +2500,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             Node<K,V> e = current;
             current = null;
             for (; e != null; e = e.next()) {
-                K k; PersistentObject v;
+                K k; AnyPersistent v;
                 if ((k = e.key()) != null && f != null && cpr(cmp, f, k) <= 0)
                     break;
                 if ((v = e.value()) != null && v != e) {
@@ -2472,7 +2517,7 @@ public class PersistentSkipListMap<K extends PersistentObject, V extends Persist
             K f = fence;
             Node<K,V> e = current;
             for (; e != null; e = e.next()) {
-                K k; PersistentObject v;
+                K k; AnyPersistent v;
                 if ((k = e.key()) != null && f != null && cpr(cmp, f, k) <= 0) {
                     e = null;
                     break;

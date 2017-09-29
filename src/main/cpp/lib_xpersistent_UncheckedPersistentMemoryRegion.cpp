@@ -26,7 +26,7 @@
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativeGetLong
   (JNIEnv *env, jobject obj, jlong region_offset, jlong offset, jint size)
 {
-    PMEMoid oid = {get_uuid_lo(), region_offset};
+    PMEMoid oid = {get_uuid_lo(), (uint64_t)region_offset};
 
     jlong ret = 0;
     char* valChar;
@@ -64,7 +64,7 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nat
 JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutLong
   (JNIEnv *env, jobject obj, jlong region_offset, jlong offset, jlong value, jint size)
 {
-    PMEMoid oid = {get_uuid_lo(), region_offset};
+    PMEMoid oid = {get_uuid_lo(), (uint64_t)region_offset};
 
     void* dest = (void*)((uint64_t)pmemobj_direct(oid)+(uint64_t)offset);
     void* src = &value;

@@ -21,8 +21,4 @@
 
 package lib.util.persistent.types;
 
-public class FloatField extends PrimitiveField {
-    public FloatField() {
-      super(Types.FLOAT);
-   }
-}
+public class FloatField extends FinalFloatField {}

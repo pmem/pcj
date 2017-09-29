@@ -32,13 +32,13 @@ import lib.util.persistent.spi.PersistentMemoryProvider;
 
 abstract class AbstractPersistentImmutableArray extends PersistentObject {
 
-    protected AbstractPersistentImmutableArray(ArrayType<? extends PersistentObject> type, int count, Object data) {
+    protected AbstractPersistentImmutableArray(ArrayType<? extends AnyPersistent> type, int count, Object data) {
         super(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize(count)));
         setInt(ArrayType.LENGTH_OFFSET, count);
         initializeElements(data, type.getElementType());
     }
 
-    protected AbstractPersistentImmutableArray(ArrayType<? extends PersistentObject> type, int count) {
+    protected AbstractPersistentImmutableArray(ArrayType<? extends AnyPersistent> type, int count) {
         super(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize(count)));
         setInt(ArrayType.LENGTH_OFFSET, count);
         for (int i = 0; i < count; i++) {initializeElement(i, type.getElementType());}
@@ -56,23 +56,7 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
     double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(check(index))));}
     char getCharElement(int index) {return (char)getInt(elementOffset(check(index)));}
     boolean getBooleanElement(int index) {return getByte(elementOffset(check(index))) == (byte)0 ? false : true;}
-    PersistentObject getObjectElement(int index) {return getObject(elementOffset(check(index)));}
-
-    @SuppressWarnings("unchecked")
-    protected PersistentValue getValueElement(int index, Class<? extends PersistentValue> cls) {
-        try {
-            ValueType type = Types.valueTypeForClass(cls);
-            long size = type.getSize();
-            MemoryRegion srcRegion = getPointer().region();
-            long offset = elementOffset(index, type.getSize());
-            MemoryRegion dstRegion = heap.allocateRegion(size);
-            // System.out.println(String.format("getValueElement src addr = %d, dst addr = %d, size = %d", srcRegion.addr() + offset, dstRegion.addr(), size));
-            synchronized(srcRegion) {
-                ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, offset, dstRegion, 0, size);
-            }
-            return cls.cast(new ValuePointer(type, dstRegion, cls).deref());
-        } catch (Exception e) {throw new RuntimeException("unable to extract type from class " + cls);}
-    }
+    AnyPersistent getObjectElement(int index) {return getObject(elementOffset(check(index)));}
 
     private void setByteElement(int index, byte value) {setByte(elementOffset(check(index)), value);}
     private void setShortElement(int index, short value) {setShort(elementOffset(check(index)), value);}
@@ -83,21 +67,12 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
     private void setCharElement(int index, char value) {setInt(elementOffset(check(index)), (int)value);}
     private void setBooleanElement(int index, boolean value) {setByte(elementOffset(check(index)), value ? (byte)1 : (byte)0);}
 
-    void setObjectElement(int index, PersistentObject value) {
+    void setObjectElement(int index, AnyPersistent value) {
         setObject(elementOffset(check(index)), value);
     }
 
-    synchronized <T extends PersistentValue> void setValueElement(int index, T value) {
-        long size = value.getPointer().type().getSize();
-        MemoryRegion dstRegion = getPointer().region();
-        long dstOffset = elementOffset(index);
-        MemoryRegion srcRegion = value.getPointer().region();
-        // System.out.println(String.format("setValueElement src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + dstOffset, size));
-        synchronized(dstRegion) {
-            synchronized(srcRegion) {
-                ((lib.xpersistent.XHeap)heap).memcpy(srcRegion, 0, dstRegion, dstOffset, size);
-            }
-        }
+    public PersistentType getElementType() {
+        return ((ArrayType)getPointer().type()).getElementType();
     }
 
     public int length() {
@@ -168,11 +143,11 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
             for (int i = 0; i < array.length; i++) setBooleanElement(i, array[i]);
         }
         else if (t instanceof ObjectType) {
-            PersistentObject[] array = (PersistentObject[])data;
+            AnyPersistent[] array = (AnyPersistent[])data;
             for (int i = 0; i < array.length; i++) setObjectElement(i, array[i]);
         }
         else if (t instanceof ArrayType) {
-            PersistentObject[] array = (PersistentObject[])data;
+            AnyPersistent[] array = (AnyPersistent[])data;
             for (int i = 0; i < array.length; i++) setObjectElement(i, array[i]);
         }
     }

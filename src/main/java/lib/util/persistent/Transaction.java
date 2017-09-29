@@ -22,6 +22,10 @@
 package lib.util.persistent;
 
 import lib.util.persistent.spi.PersistentMemoryProvider;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import static lib.util.persistent.Trace.*;
 
 // temp 
@@ -31,10 +35,15 @@ public interface Transaction extends AutoCloseable {
 	public interface Update {
 		public void run();
 	}
+    ExecutorService outerThreadPool = Executors.newCachedThreadPool((Runnable r) -> {
+        Thread t = new Thread(r);
+        t.setDaemon(true);
+        return t;
+    });
 
 	public enum State {None, Initializing, Active, Committed, Aborted}
 
-    public static void run(PersistentMemoryProvider provider, Update update, PersistentObject... toLock) {
+    public static void run(PersistentMemoryProvider provider, Update update, AnyPersistent... toLock) {
         boolean success = false;
         TransactionInfo info = XTransaction.tlInfo.get();
         while (!success && info.attempts <= Config.MAX_TRANSACTION_ATTEMPTS) {
@@ -96,8 +105,24 @@ public interface Transaction extends AutoCloseable {
         }
     }
 
-    public static void run(Update update, PersistentObject... toLock) {
+    public static void run(Update update, AnyPersistent... toLock) {
         run(PersistentMemoryProvider.getDefaultProvider(), update, toLock);
+    }
+
+    public static void runOuter(Update update, PersistentObject... toLock) {
+        Box<Throwable> errorBox = new Box<>();
+
+        Future<?> outer = outerThreadPool.submit(() -> {
+            XTransaction.tlInfo.get().init();
+            try {Transaction.run(update, toLock);}
+            catch (Throwable error) {errorBox.set(error);}
+        });
+
+        try { outer.get();} 
+        catch (InterruptedException ie) {throw new RuntimeException(ie);}
+        catch (ExecutionException ee) {throw new RuntimeException(ee);}
+        Throwable error = errorBox.get();
+        if (error != null) throw new RuntimeException(error);
     }
 
 	public static Transaction newInstance() {
@@ -105,7 +130,7 @@ public interface Transaction extends AutoCloseable {
 	}
 
 	public Transaction update(Update update);
-    public Transaction start(boolean block, PersistentObject... toLock);
+    public Transaction start(boolean block, AnyPersistent... toLock);
 	public void commit();
 	public void abort();
 	public State state();

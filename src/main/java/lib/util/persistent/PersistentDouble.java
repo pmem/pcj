@@ -26,7 +26,7 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.Types;
 
-public final class PersistentDouble extends PersistentObject implements Comparable<PersistentDouble> { 
+public final class PersistentDouble extends PersistentImmutableObject implements Comparable<PersistentDouble> { 
     private static final DoubleField DOUBLE = new DoubleField();
     private static final ObjectType<PersistentDouble> TYPE = ObjectType.fromFields(PersistentDouble.class, DOUBLE);
 

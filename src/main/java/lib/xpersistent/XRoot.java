@@ -23,6 +23,7 @@ package lib.xpersistent;
 
 import lib.util.persistent.*;
 import lib.util.persistent.types.*;
+import lib.xpersistent.PersistentConcurrentHashMapInternal.EntryIterator;
 import lib.util.persistent.spi.*;
 import java.util.HashSet;
 import lib.util.persistent.PersistentLong;
@@ -34,14 +35,12 @@ public final class XRoot implements Root {
 
     private HashSet<Long> candidatesSet;
 
-    private final PersistentHashMap<PersistentString, PersistentObject> objectDirectory;
-    private long vmOffsets;     // represented as the raw offset to vmOffsets hashmap
-    private long prevVMOffsets; // VMOffsets hashmap of the previous VM iteration
-    private long allObjects;    // represented as the raw offset to allObjects hashmap
-    private long candidates;    // represented as the raw offset to candidates hashmap
+    private final PersistentHashMap<PersistentString, AnyPersistent> objectDirectory;
 
-    private PersistentLong registrationLock;
-    private PersistentLong candidatesLock;
+    PersistentConcurrentHashMapInternal vmOffsets;
+    PersistentConcurrentHashMapInternal prevVMOffsets;
+    PersistentConcurrentHashMapInternal allObjects;
+    PersistentConcurrentHashMapInternal candidates;
 
     @SuppressWarnings("unchecked")
     public XRoot(XHeap heap) {
@@ -49,106 +48,79 @@ public final class XRoot implements Root {
         if (nativeRootExists()) {
             region = new UncheckedPersistentMemoryRegion(nativeGetRootOffset());
             objectDirectory = PersistentObject.fromPointer(new ObjectPointer<PersistentHashMap>(PersistentHashMap.TYPE, new UncheckedPersistentMemoryRegion(region.getLong(0))));
-            this.prevVMOffsets = region.getLong(8);
-            this.vmOffsets = nativeAllocateHashmap();
-            region.putLong(8, this.vmOffsets);
-            allObjects = region.getLong(16);
-            candidates = region.getLong(24);
+            this.prevVMOffsets = new PersistentConcurrentHashMapInternal(region.getLong(8));
+            this.vmOffsets = new PersistentConcurrentHashMapInternal();
+            region.putLong(8, this.vmOffsets.addr());
+            allObjects = new PersistentConcurrentHashMapInternal(region.getLong(16), true);
+            candidates = new PersistentConcurrentHashMapInternal(region.getLong(24), true);
         } else {
             region = new UncheckedPersistentMemoryRegion(nativeCreateRoot(ROOT_SIZE));
             MemoryRegion objectDirectoryRegion = heap.allocateRegion(PersistentHashMap.TYPE.getAllocationSize());
             objectDirectory = PersistentObject.fromPointer(new ObjectPointer<>(PersistentHashMap.TYPE, objectDirectoryRegion));
             region.putLong(0, objectDirectoryRegion.addr());
-            this.vmOffsets = nativeAllocateHashmap();
-            this.prevVMOffsets = 0;
-            region.putLong(8, this.vmOffsets);
-            this.allObjects = nativeAllocateHashmap();
-            region.putLong(16, this.allObjects);
-            this.candidates = nativeAllocateHashmap();
-            region.putLong(24, this.candidates);
+            this.vmOffsets = new PersistentConcurrentHashMapInternal();
+            this.prevVMOffsets = null;
+            region.putLong(8, this.vmOffsets.addr());
+            this.allObjects = new PersistentConcurrentHashMapInternal();
+            region.putLong(16, this.allObjects.addr());
+            this.candidates = new PersistentConcurrentHashMapInternal();
+            region.putLong(24, this.candidates.addr());
         }
     }
 
-    public void init() {
-        registrationLock = new PersistentLong(333333333);
-        candidatesLock = new PersistentLong(444444444);
-    }        
-
-    public PersistentHashMap<PersistentString, PersistentObject> getObjectDirectory() { return objectDirectory; }
+    public PersistentHashMap<PersistentString, AnyPersistent> getObjectDirectory() { return objectDirectory; }
 
     synchronized static native boolean nativeRootExists();
     synchronized static native long nativeGetRootOffset();
     synchronized static native long nativeCreateRoot(long size);
-    synchronized static native long nativeAllocateHashmap();
-    synchronized native long nativeHashmapPut(long mapOffset, long key, long value);
-    synchronized native long nativeHashmapGet(long mapOffset, long key);
-    synchronized native long nativeHashmapRemove(long mapOffset, long key);
-    synchronized native void nativeHashmapDebug(long mapOffset);
-    synchronized native void nativeHashmapClear(long mapOffset);
-    synchronized native void nativePrintAllObjects(long allObjects, long vmOffsets);
-    synchronized native void nativeCleanVMOffsets(long vmOffsets, long allObjects);
-    synchronized native void nativeImportCandidates(long candidatesOffset, XRoot candidates);
 
     public void addToAllObjects(long addr) {
-        nativeHashmapPut(this.allObjects, addr, 0);
+        // allObjects.put(addr, 0);
     }
 
     public void removeFromAllObjects(long addr) {
-        nativeHashmapRemove(this.allObjects, addr);
+        // allObjects.remove(addr);
     }
 
     public void printAllObjects() {
-        nativePrintAllObjects(this.allObjects, this.vmOffsets);
+        // nativePrintAllObjects(this.allObjects, this.vmOffsets);
     }
 
     public void addToCandidates(long addr) {
-        Transaction.run(() -> {
-            nativeHashmapPut(this.candidates, addr, 0);
-        }, candidatesLock);
+        candidates.put(addr, 0);
     }
 
     public void removeFromCandidates(long addr) {
-        nativeHashmapRemove(this.candidates, addr);
+        candidates.remove(addr);
     }
 
     void cleanVMOffsets() {
-        if (prevVMOffsets != 0)
-            nativeCleanVMOffsets(prevVMOffsets, allObjects);
+        if (prevVMOffsets != null) {
+            PersistentConcurrentHashMapInternal.EntryIterator iter = prevVMOffsets.iter();
+            while (iter.hasNext()) {
+                PersistentConcurrentHashMapInternal.NodeLL node = iter.next();
+                AnyPersistent.deleteResidualReferences(node.getKey(), (int)node.getValue());
+            }
+            prevVMOffsets.delete();
+        }
     }
 
     public void registerObject(long addr) {
-        Transaction.run(() -> {
-            nativeHashmapPut(vmOffsets, addr, (nativeHashmapGet(vmOffsets, addr)) + 1);
-        }, registrationLock);
+        vmOffsets.increment(addr);
     }
 
     public void deregisterObject(long addr) {
-        Transaction.run(() -> {
-            long value = nativeHashmapGet(vmOffsets, addr);
-            long newValue = value - 1;
-            if (newValue <= 0) {
-                nativeHashmapRemove(vmOffsets, addr);
-            } else {
-                nativeHashmapPut(vmOffsets, addr, newValue);
-            }
-        }, registrationLock);
+        vmOffsets.decrement(addr);
     }
 
-    public HashSet<Long> importCandidates() {
-        this.candidatesSet = new HashSet<>();
-        nativeImportCandidates(this.candidates, this);
-        return this.candidatesSet;
+    public PersistentConcurrentHashMapInternal getCandidates() {
+        PersistentConcurrentHashMapInternal oldCandidates = this.candidates;
+        this.candidates = new PersistentConcurrentHashMapInternal();
+        this.region.putLong(24, this.candidates.addr());
+        return oldCandidates;
     }
 
-    void addToCandidatesFromNative(long addr) {
-        Transaction.run(() -> {
-            this.candidatesSet.add(addr);
-        });
-    }
-
-    public void clearCandidates() {
-        Transaction.run(() -> {
-            nativeHashmapClear(this.candidates);
-        });
+    public void debugVMOffsets() {
+        vmOffsets.debugFromHead();
     }
 }

@@ -21,7 +21,7 @@
 
 package lib.util.persistent;
 
-import lib.util.persistent.PersistentObject;
+import lib.util.persistent.AnyPersistent;
 import lib.xpersistent.XTransaction;
 import java.util.ArrayList;
 import static lib.util.persistent.Trace.trace;
@@ -30,18 +30,22 @@ public class TransactionInfo {
     public XTransaction transaction;
     public Transaction.State state;
     public int depth;
-    public ArrayList<PersistentObject> locked;
-    public ArrayList<PersistentObject> constructions;
+    public ArrayList<AnyPersistent> locked;
+    public ArrayList<AnyPersistent> constructions;
     public int attempts;
     public int timeout;
     public int retryDelay;
 
     public TransactionInfo() {
+        init();
+    }
+
+    public void init() {
         transaction = null;
         state = Transaction.State.None;
         depth = 0;
-        locked  = new ArrayList<PersistentObject>();
-        constructions = new ArrayList<PersistentObject>();
+        locked  = new ArrayList<AnyPersistent>();
+        constructions = new ArrayList<AnyPersistent>();
         attempts = 1;
         timeout = Config.MONITOR_ENTER_TIMEOUT;
         retryDelay = Config.BASE_TRANSACTION_RETRY_DELAY;

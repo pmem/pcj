@@ -21,11 +21,8 @@
 
 package lib.util.persistent.types;
 
-import lib.util.persistent.PersistentValueArray;
-import lib.util.persistent.PersistentValue;
-
-public class ValueArrayType<T extends PersistentValueArray> extends ArrayType<T> { 
-    public ValueArrayType(Class<T> cls, Class<? extends PersistentValue> boxingClass) {
-        super(cls, Types.valueTypeForClass(boxingClass));
+public class FinalLongField extends PrimitiveField {
+    public FinalLongField() {
+        super(Types.LONG);
     }
 }

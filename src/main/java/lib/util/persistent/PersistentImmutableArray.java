@@ -24,15 +24,23 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
 
-public final class PersistentImmutableArray<T extends PersistentObject> extends AbstractPersistentImmutableArray {
+public final class PersistentImmutableArray<T extends AnyPersistent> extends AbstractPersistentImmutableArray {
     private static final ArrayType<PersistentImmutableArray> TYPE = new ArrayType<>(PersistentImmutableArray.class, Types.OBJECT);
+
+    public static <A extends PersistentImmutableArray, T extends PersistentObject> ArrayType<A> typeForClasses(Class<A> arrayClass, Class<T> elementClass) {
+        return new ArrayType<>(arrayClass, Types.typeForClass(elementClass));
+    }
 
     @SafeVarargs
     public PersistentImmutableArray(T... ts) {
         super(TYPE, ts.length, ts);
     }
 
-    private PersistentImmutableArray(ObjectPointer<PersistentImmutableArray<T>> pointer) {
+    public PersistentImmutableArray(ArrayType<? extends PersistentImmutableArray<T>> type, int size) {
+        super(type, size);
+    }
+
+    protected PersistentImmutableArray(ObjectPointer<? extends PersistentImmutableArray<T>> pointer) {
         super(pointer);
     }
 

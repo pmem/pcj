@@ -21,8 +21,4 @@
 
 package lib.util.persistent.types;
 
-public class LongField extends PrimitiveField {
-    public LongField() {
-        super(Types.LONG);
-    }
-}
+public class LongField extends FinalLongField {}

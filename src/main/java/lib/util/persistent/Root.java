@@ -23,5 +23,5 @@ package lib.util.persistent;
 
 public interface Root {
     // long getAddr();
-    PersistentHashMap<PersistentString, PersistentObject> getObjectDirectory();
+    PersistentHashMap<PersistentString, AnyPersistent> getObjectDirectory();
 }

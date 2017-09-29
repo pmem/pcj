@@ -26,7 +26,7 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.Types;
 
-public final class PersistentInteger extends PersistentObject implements Comparable<PersistentInteger> { 
+public final class PersistentInteger extends PersistentImmutableObject implements Comparable<PersistentInteger> { 
     private static final IntField INT = new IntField();
     private static final ObjectType<PersistentInteger> TYPE = ObjectType.fromFields(PersistentInteger.class, INT);
 

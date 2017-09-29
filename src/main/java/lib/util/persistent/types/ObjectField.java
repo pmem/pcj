@@ -21,13 +21,14 @@
 
 package lib.util.persistent.types;
 
-import lib.util.persistent.PersistentObject;
+import lib.util.persistent.AnyPersistent;
+import static lib.util.persistent.Trace.*;
 
-public class ObjectField<T extends PersistentObject> extends PersistentField {
+public class ObjectField<T extends AnyPersistent> extends PersistentField {
    private Class<T> cls;
 
 	public ObjectField(ObjectType<T> type) {
-		super(type);
+		super(type == null ? Types.OBJECT : type);
 	}
 
 	public ObjectField() {
@@ -35,11 +36,16 @@ public class ObjectField<T extends PersistentObject> extends PersistentField {
 	}
 
 	public ObjectField(Class<T> cls) {
-      this();
+      this(Types.objectTypeForClass(cls));
       this.cls = cls;
 	}
 
    protected Class<T> cls() {
       return cls;
    }
+
+   public String toString() {
+      return String.format("ObjectField(%s)", getType());
+   }
 }
+
