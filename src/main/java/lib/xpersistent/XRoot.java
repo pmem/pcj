@@ -29,9 +29,15 @@ import java.util.HashSet;
 import lib.util.persistent.PersistentLong;
 
 public final class XRoot implements Root {
+    private static final int OBJECT_DIRECTORY_OFFSET = 0;
+    private static final int PREV_VFOFFSETS_OFFSET = 8;
+    private static final int ALL_OBJECTS_OFFSET = 16;
+    private static final int CANDIDATES_OFFSET = 24;
+    private static final int CLASS_INFO_OFFSET = 32;
+    private static final long ROOT_SIZE = 40;   // 5 objects, each represented by an 8-byte pointer
+
     private final MemoryRegion region;
     private final XHeap heap;
-    private final long ROOT_SIZE = 32;   // 4 objects, each represented by an 8-byte pointer
 
     private HashSet<Long> candidatesSet;
 
@@ -41,30 +47,34 @@ public final class XRoot implements Root {
     PersistentConcurrentHashMapInternal prevVMOffsets;
     PersistentConcurrentHashMapInternal allObjects;
     PersistentConcurrentHashMapInternal candidates;
+    long rootClassInfoAddr;
 
     @SuppressWarnings("unchecked")
     public XRoot(XHeap heap) {
         this.heap = heap;
         if (nativeRootExists()) {
             region = new UncheckedPersistentMemoryRegion(nativeGetRootOffset());
-            objectDirectory = PersistentObject.fromPointer(new ObjectPointer<PersistentHashMap>(PersistentHashMap.TYPE, new UncheckedPersistentMemoryRegion(region.getLong(0))));
-            this.prevVMOffsets = new PersistentConcurrentHashMapInternal(region.getLong(8));
+            objectDirectory = PersistentObject.fromPointer(new ObjectPointer<PersistentHashMap>(PersistentHashMap.TYPE, new UncheckedPersistentMemoryRegion(region.getLong(OBJECT_DIRECTORY_OFFSET))));
+            this.prevVMOffsets = new PersistentConcurrentHashMapInternal(region.getLong(PREV_VFOFFSETS_OFFSET));
             this.vmOffsets = new PersistentConcurrentHashMapInternal();
             region.putLong(8, this.vmOffsets.addr());
-            allObjects = new PersistentConcurrentHashMapInternal(region.getLong(16), true);
-            candidates = new PersistentConcurrentHashMapInternal(region.getLong(24), true);
+            allObjects = new PersistentConcurrentHashMapInternal(region.getLong(ALL_OBJECTS_OFFSET), true);
+            candidates = new PersistentConcurrentHashMapInternal(region.getLong(CANDIDATES_OFFSET), true);
+            rootClassInfoAddr = region.getLong(CLASS_INFO_OFFSET);
         } else {
             region = new UncheckedPersistentMemoryRegion(nativeCreateRoot(ROOT_SIZE));
             MemoryRegion objectDirectoryRegion = heap.allocateRegion(PersistentHashMap.TYPE.getAllocationSize());
             objectDirectory = PersistentObject.fromPointer(new ObjectPointer<>(PersistentHashMap.TYPE, objectDirectoryRegion));
-            region.putLong(0, objectDirectoryRegion.addr());
+            region.putLong(OBJECT_DIRECTORY_OFFSET, objectDirectoryRegion.addr());
             this.vmOffsets = new PersistentConcurrentHashMapInternal();
             this.prevVMOffsets = null;
-            region.putLong(8, this.vmOffsets.addr());
+            region.putLong(PREV_VFOFFSETS_OFFSET, this.vmOffsets.addr());
             this.allObjects = new PersistentConcurrentHashMapInternal();
-            region.putLong(16, this.allObjects.addr());
+            region.putLong(ALL_OBJECTS_OFFSET, this.allObjects.addr());
             this.candidates = new PersistentConcurrentHashMapInternal();
-            region.putLong(24, this.candidates.addr());
+            region.putLong(CANDIDATES_OFFSET, this.candidates.addr());
+            this.rootClassInfoAddr = 0;
+            region.putLong(CLASS_INFO_OFFSET, rootClassInfoAddr);
         }
     }
 
@@ -116,8 +126,14 @@ public final class XRoot implements Root {
     public PersistentConcurrentHashMapInternal getCandidates() {
         PersistentConcurrentHashMapInternal oldCandidates = this.candidates;
         this.candidates = new PersistentConcurrentHashMapInternal();
-        this.region.putLong(24, this.candidates.addr());
+        this.region.putLong(CANDIDATES_OFFSET, this.candidates.addr());
         return oldCandidates;
+    }
+
+    public long getRootClassInfoAddr() {return rootClassInfoAddr;}
+    public void setRootClassInfoAddr(long addr) {
+        rootClassInfoAddr = addr;
+        region.putLong(CLASS_INFO_OFFSET, rootClassInfoAddr);
     }
 
     public void debugVMOffsets() {

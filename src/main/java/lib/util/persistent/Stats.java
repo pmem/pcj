@@ -127,7 +127,6 @@ public class Stats {
     public static class LockStats {
         public long acquired = -1;
         public long timeouts = -1;
-        public long spinIterations = -1;
 
         LockStats() {
             clear();
@@ -136,7 +135,6 @@ public class Stats {
         public void clear() {
             acquired = -1;
             timeouts = - 1;
-            spinIterations = -1;
         }
     }
 
@@ -194,7 +192,6 @@ public class Stats {
         System.out.println(  "-------------------------------");         
         System.out.println("aquired        :" + format(stats.locks.acquired));
         System.out.println("timeouts       :" + format(stats.locks.timeouts));
-        System.out.println("spinIterations :" + format(stats.locks.spinIterations));
         System.out.println();
     }
 

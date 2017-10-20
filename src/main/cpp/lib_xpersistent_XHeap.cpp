@@ -26,9 +26,11 @@
 JavaVM *jvm = NULL;
 
 JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeOpenHeap
-  (JNIEnv *env, jobject obj)
+  (JNIEnv *env, jobject obj, jstring path, jlong size)
 {
-    get_or_create_pool();
+    const char* native_path = env->GetStringUTFChars(path, 0);
+    get_or_create_pool(native_path, (size_t)size);
+    env->ReleaseStringUTFChars(path, native_path);
     jint rs = env->GetJavaVM(&jvm);
     if (rs != JNI_OK) {
         printf("Failed to get JVM from env!\n");

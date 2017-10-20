@@ -34,7 +34,7 @@ extern "C" {
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeOpenHeap
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jstring, jlong);
 
 /*
  * Class:     lib_xpersistent_XHeap

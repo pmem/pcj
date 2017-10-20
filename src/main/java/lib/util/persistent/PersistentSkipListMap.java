@@ -57,6 +57,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     private ConcurrentNavigableMap<K,V> descendingMap;
 
     final Comparator<? super K> comparator;
+    Comparator<? super K> sister_comparator;
 
     private static Statics statics;
     private static final ObjectField<PersistentAtomicReference> HEAD = new ObjectField<>(PersistentAtomicReference.class);
@@ -337,46 +338,18 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         return null;
     }
 
-    private V doGet(AnyPersistent key) {
-        if (key == null)
-            throw new NullPointerException();
-        Comparator<? super K> cmp = comparator;
-        outer: for (;;) {
-            for (Node<K,V> b = findPredecessor(key, cmp), n = b.next();;) {
-                AnyPersistent v; int c;
-                if (n == null)
-                    break outer;
-                Node<K,V> f = n.next();
-                if (n != b.next())                // inconsistent read
-                    break;
-                if ((v = n.value()) == null) {    // n is deleted
-                    n.helpDelete(b, f);
-                    break;
-                }
-                if (b.value() == null || v == n)  // b is deleted
-                    break;
-                if ((c = cpr(cmp, key, n.key())) == 0) {
-                    @SuppressWarnings("unchecked") V vv = (V)v;
-                    return vv;
-                }
-                if (c < 0)
-                    break outer;
-                b = n;
-                n = f;
-            }
-        }
-        return null;
-    }
-
     @SuppressWarnings("unchecked") 
     private V doGet(Object key) {
         if (key == null)
             throw new NullPointerException();
         Comparator<? super K> cmp = comparator;
-        if (comparator == null) {
-            cmp = (Object x, Object y) -> {
-                return ((ComparableWith)y).compareWith(x);
-            };
+        if (!(key instanceof AnyPersistent)) { 
+            if (sister_comparator == null) {
+                sister_comparator = (Object x, Object y) -> {
+                    return (((ComparableWith)y).compareWith(x) * -1); //flip back
+                };
+            }
+            cmp = sister_comparator;
         }
         outer: for (;;) {
             for (Node<K,V> b = findPredecessor(key, cmp), n = b.next();;) {
@@ -966,6 +939,11 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     @SuppressWarnings("unchecked")
     public boolean containsKey(Object key) {
         return doGet((K)key) != null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <L, K extends ComparableWith<L>> boolean containsKey(L key, Class<K> cls) {
+        return doGet(key) != null;
     }
 
     @SuppressWarnings("unchecked")

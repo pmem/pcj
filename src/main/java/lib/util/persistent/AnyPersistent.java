@@ -57,6 +57,10 @@ import java.util.function.Consumer;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import sun.misc.Unsafe;
 
@@ -98,7 +102,8 @@ public abstract class AnyPersistent {
         Transaction.run(() -> {
             for (int i = 0; i < ts.size(); i++) initializeField(offset(i), ts.get(i));
             if (!(type instanceof ValueBasedObjectType)) {
-                setTypeName(type.getName());
+                ClassInfo ci = ClassInfo.getClassInfo(type.getName());
+                setClassInfo(ci);
                 setVersion(99);
                 initForGC();
                 if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
@@ -107,7 +112,6 @@ public abstract class AnyPersistent {
                 ObjectCache.add(this);
             }
         }, this);
-        // ObjectCache.add(this);
     }
 
     protected AnyPersistent(ObjectPointer<? extends AnyPersistent> p) {
@@ -145,10 +149,8 @@ public abstract class AnyPersistent {
         // trace(addr, "free called");
         ObjectCache.remove(addr);
         MemoryRegion reg = new UncheckedPersistentMemoryRegion(addr);
-        MemoryRegion nameRegion = new UncheckedPersistentMemoryRegion(reg.getLong(Header.TYPE.getOffset(Header.TYPE_NAME)));
         Transaction.run(() -> {
-            // trace(addr, "freeing object region %d and name region %d", reg.addr(), nameRegion.addr());
-            heap.freeRegion(nameRegion);
+            // trace(addr, "freeing object region %d ", reg.addr());
             heap.freeRegion(reg);
             if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
                 ((XRoot)(heap.getRoot())).removeFromAllObjects(addr);
@@ -216,23 +218,26 @@ public abstract class AnyPersistent {
     }
 
     void setObject(long offset, AnyPersistent value) {
-        if (value != null && value.getPointer().type().isValueBased()) {
-            MemoryRegion dstRegion = getPointer().region();
-            MemoryRegion srcRegion = value.getPointer().region();
-            // trace(true, "setObject (valueBased) src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + offset, value.getType().getSize());
-            Util.memCopy(value.getPointer().type(), getPointer().type(), srcRegion, 0, dstRegion, offset, value.getType().getSize());
-        }
-        else {
+        Transaction.run(() -> {
+            AnyPersistent old = ObjectCache.get(getLong(offset), true);
             Transaction.run(() -> {
-                AnyPersistent old = ObjectCache.get(getLong(offset), true);
-                Transaction.run(() -> {
-                    if (value != null) value.addReference();
-                    if (old != null) old.deleteReference();
-                    setLong(offset, value == null ? 0 : value.getPointer().addr());
-                }, value, old);
+                if (value != null) value.addReference();
+                if (old != null) old.deleteReference();
+                setLong(offset, value == null ? 0 : value.getPointer().addr());
+            }, value, old);
+        }, this);
+    }
+
+    void setValueObject(long offset, AnyPersistent  value) {
+        if (value != null) {
+            Transaction.run(() -> {
+                MemoryRegion dstRegion = getPointer().region();
+                MemoryRegion srcRegion = value.getPointer().region();
+                // trace(true, "setObject (valueBased) src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + offset, value.getType().getSize());
+                Util.memCopy(value.getPointer().type(), getPointer().type(), srcRegion, 0, dstRegion, offset, value.getType().getSize());
             }, this);
         }
-    }
+    }        
 
     // TODO: only used interally, may go away
     void setByteField(int index, byte value) {setByte(offset(check(index, Types.BYTE)), value);}
@@ -329,18 +334,16 @@ public abstract class AnyPersistent {
         setIntField(Header.VERSION, version);
     }
 
-    protected void setTypeName(String name) {
-        Transaction.run(() -> {
-            RawString rs = new RawString(name);
-            setLongField(Header.TYPE_NAME, rs.getRegion().addr());
-        }, this);
+    protected synchronized void setClassInfo(ClassInfo classInfo) {
+        setLongField(Header.CLASS_INFO, classInfo.getRegion().addr());
     }
 
     static String typeNameFromRegion(MemoryRegion region) {
-        return new RawString(region).toString();
+        ClassInfo ci = ClassInfo.getClassInfo(region.addr());
+        return ci.className();
     }
 
-     synchronized int getRefCount() {
+    synchronized int getRefCount() {
         MemoryRegion reg = getPointer().region();
         return reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
     }
@@ -360,7 +363,7 @@ public abstract class AnyPersistent {
         Transaction.run(() -> {
             int oldCount = reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
             newCount.set(oldCount - 1);
-            // trace(getPointer().addr(), "decRefCount, type = %s, old = %d, new = %d", getPointer().type(), oldCount, newCount.get());
+            // trace(true, getPointer().addr(), "decRefCount, type = %s, old = %d, new = %d", getPointer().type(), oldCount, newCount.get());
             if (newCount.get() < 0) {
                trace(true, reg.addr(), "decRef below 0");
                new RuntimeException().printStackTrace(); System.exit(-1);}
@@ -384,7 +387,7 @@ public abstract class AnyPersistent {
             int count = 0;
             int newCount = decRefCount();
             if (newCount == 0) {
-                // trace(getPointer().addr(), "deleteReference, newCount == 0");
+                // trace(true, getPointer().addr(), "deleteReference, newCount == 0");
                 addrsToDelete.push(getPointer().addr());
                 while (!addrsToDelete.isEmpty()) {
                     long addrToDelete = addrsToDelete.pop();
@@ -393,8 +396,6 @@ public abstract class AnyPersistent {
                     while (childAddresses.hasNext()) {
                         children.add(ObjectCache.get(childAddresses.next(), true));
                     }
-                    // Transaction.run(() -> {
-                    // }, children.toArray(new AnyPersistent[0]));
                     for (AnyPersistent child : children) {
                         assert(!child.getPointer().type().isValueBased());
                         Transaction.run(() -> {
@@ -420,7 +421,7 @@ public abstract class AnyPersistent {
         assert(!obj.getPointer().type().isValueBased());
         Transaction.run(() -> {
             int rc = obj.getRefCount();
-            trace(address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
+            // trace(true, address, "deleteResidualReferences %d, refCount = %d", count, obj.getRefCount());
             if (obj.getRefCount() < count) {
                 trace(true, address, "refCount %d < count %d", obj.getRefCount(), count);
                 System.exit(-1);
@@ -431,13 +432,12 @@ public abstract class AnyPersistent {
     }
 
     static String classNameForRegion(MemoryRegion reg) {
-        long typeNameAddr = reg.getLong(0);
-        MemoryRegion typeNameRegion = new UncheckedPersistentMemoryRegion(typeNameAddr);
-        return AnyPersistent.typeNameFromRegion(typeNameRegion);
+        long classInfoAddr = reg.getLong(0);  // get class info address
+        return ClassInfo.getClassInfo(classInfoAddr).className();
     }
 
     static Iterator<Long> getChildAddressIterator(long address) {
-        trace(address, "getChildAddressIterator");
+        // trace(true, address, "getChildAddressIterator");
         MemoryRegion reg = ObjectCache.get(address, true).getPointer().region();
         String typeName = classNameForRegion(reg);
         ObjectType<?> type = Types.typeForName(typeName);
@@ -445,7 +445,8 @@ public abstract class AnyPersistent {
         ArrayList<Long> childAddresses = new ArrayList<>();
         if (type instanceof ArrayType) {
             ArrayType<?> arrType = (ArrayType)type;
-            if (arrType.getElementType() == Types.OBJECT) {
+            PersistentType et = arrType.getElementType();
+            if (et == Types.OBJECT || (et instanceof ObjectType && !((ObjectType)et).isValueBased())) {
                 trace(address, "elementType == Types.OBJECT");
                 int length = reg.getInt(ArrayType.LENGTH_OFFSET);
                 for (int i = 0; i < length; i++) {
@@ -490,33 +491,6 @@ public abstract class AnyPersistent {
         return getPointer().region().getByte(Header.TYPE.getOffset(Header.REF_COLOR));
     }
 
-    public static boolean monitorEnter(List<AnyPersistent> toLock, List<AnyPersistent> locked, boolean block) {
-        trace("monitorEnter (lists), starting toLock = %d, locked = %d, block = %s", toLock.size(), locked.size(), block);
-        // toLock.sort((x, y) -> Long.compare(x.getPointer().addr(), y.getPointer().addr()));
-        boolean success = true;
-        for (AnyPersistent obj : toLock) {
-            if (!block) {
-                if (!obj.monitorEnterTimeout()) {
-                    success = false;
-                    // trace("TIMEOUT exceeded");
-                    for(AnyPersistent lockedObj : locked) {
-                        lockedObj.monitorExit();
-                        // trace("removed locked obj %d", obj.getPointer().addr());
-                    }
-                    locked.clear();
-                    break;
-                }
-                else {
-                    locked.add(obj);
-                    // trace("added locked obj %d", obj.getPointer().addr());
-                }
-            }
-            else obj.monitorEnter();
-        }
-        // trace("monitorEnter (lists), exiting toLock = %d, locked = %d", toLock.size(), locked.size());
-        return success;
-    }
-
     public boolean monitorEnterTimeout() {
         TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
         int max = info.timeout + random.nextInt(info.timeout);
@@ -532,40 +506,27 @@ public abstract class AnyPersistent {
 
     public void monitorEnter() {
         // trace(true, getPointer().addr(), "blocking monitorEnter for %s, attempt = %d", this.getPointer().addr(), lib.xpersistent.XTransaction.tlInfo.get().attempts);
-        if (Config.USE_SEPARATE_TRANSACTION_LOCKS) lock.lock();
-        else UNSAFE.monitorEnter(this);
-        // trace(true, getPointer().addr(), "blocking monitorEnter for %s exit", this.getPointer().addr());
+        lock.lock();
     }
 
     public boolean monitorEnterTimeout(long timeout) {
-        if (Config.USE_BLOCKING_LOCKS_FOR_DEBUG) {
-            monitorEnter();
-            return true;
-        }
-        if (Config.USE_SEPARATE_TRANSACTION_LOCKS) {
+        boolean success = false;
+        if (!Config.USE_BLOCKING_LOCKS_FOR_DEBUG) {
             try {
-                return lock.tryLock(timeout, TimeUnit.MILLISECONDS);
+                success = lock.tryLock(timeout, TimeUnit.MILLISECONDS);
             }
             catch (InterruptedException ie) {throw new RuntimeException(ie.getMessage());}
         }
-        // fallthrough
-        boolean success = false;
-        long start = System.currentTimeMillis();
-        int count = 0;
-        do {
-            success = UNSAFE.tryMonitorEnter(this);
-            if (success) break;
-            count++;
-            // Stats.current.locks.spinIterations++;
-            // if (count > 2000) try {count = 0; Thread.sleep(1);} catch (InterruptedException ie) {ie.printStackTrace();}
-        } while (System.currentTimeMillis() - start < timeout);
+        else {
+            monitorEnter();
+            success = true;
+        }
         // if (success) Stats.current.locks.acquired++;
         // else Stats.current.locks.timeouts++;
         return success;
     }
 
     public void monitorExit() {
-        if (Config.USE_SEPARATE_TRANSACTION_LOCKS) lock.unlock();
-        else UNSAFE.monitorExit(this);
+        lock.unlock();
     }
 }

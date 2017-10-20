@@ -21,7 +21,7 @@
 
 package lib.util.persistent.types;
 
-abstract class PrimitiveField extends PersistentField {
+abstract class PrimitiveField extends PersistentField implements ValueBasedField {
 	protected PrimitiveField(PrimitiveType type) {
 		super(type);
 	}

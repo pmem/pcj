@@ -47,8 +47,46 @@ public class PersistentFPTree2Test {
 
 	public static boolean run() {
 		System.out.println("****************PersistentFPTree2 Tests****************");
-		return singleThreadedTest() && multiThreadedTest(args) && testPersistence(args) && testPersistence2(args);
+		return sisterTypeTest() && singleThreadedTest() && multiThreadedTest(args) && testPersistence(args) && testPersistence2(args);
 	}
+	
+	public static boolean sisterTypeTest() {
+		int I = 3;
+		int L = 4;
+		int N = 5000;
+		PersistentFPTree2<PersistentString, PersistentInteger> fpt = new PersistentFPTree2<>(I, L);
+
+		Set<Integer> s = new HashSet<>();
+		Integer[] rands = new Integer[N];
+		for(int i = 0; i < N; i++) {
+			rands[i] = ThreadLocalRandom.current().nextInt(0, N);
+			s.add(rands[i]);
+		}
+
+		if(verbose) System.out.println("Sister type test: # generated keys: " + rands.length);
+
+		for(int num : rands) {
+			fpt.put(new PersistentString(Integer.toString(num)), new PersistentInteger(num));
+		}
+
+		boolean getSuccess = true;
+		for(int num : s) {
+			PersistentInteger val = fpt.get(Integer.toString(num), PersistentString.class); 
+			if(val != null) {
+				assert(num == val.intValue());
+				getSuccess = getSuccess && (num == val.intValue());
+			}
+			else {
+				if(verbose) System.out.println("Key: " + num + " => null");
+				getSuccess = false;
+			}
+		}
+
+		if(verbose) System.out.println("GET SUCCESS: " + getSuccess);
+		else assert(getSuccess == true);
+		return true;
+	}
+
 	
 	public static boolean singleThreadedTest() {
 		int I = 3;
@@ -259,7 +297,7 @@ public class PersistentFPTree2Test {
 		PersistentLong pl = ObjectDirectory.get("pseed2", PersistentLong.class);
 		if (cfptRC == null && pl == null) {
 			cfptRC = new PersistentFPTree2<PersistentInteger, PersistentString>(I, L);
-			pl = new PersistentLong(0 /*ThreadLocalRandom.current().nextLong(N)*/);
+			pl = new PersistentLong(ThreadLocalRandom.current().nextLong(N));
 			ObjectDirectory.put(id, cfptRC);
 			ObjectDirectory.put("pseed2", pl);
 			if (verbose) System.out.println("Saving to pmem...");

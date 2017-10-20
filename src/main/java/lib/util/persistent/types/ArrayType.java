@@ -51,5 +51,11 @@ public class ArrayType<T extends AnyPersistent> extends ObjectType<T> {
     public long getElementOffset(int index, long size) {
          return ELEMENTS_OFFSET + index * size;
     }
+
+    @Override
+    public String toString() {
+        return "ArrayType(" + getName() + ", " + elementType + ")";
+    }
+
        
 }

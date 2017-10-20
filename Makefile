@@ -19,14 +19,15 @@
 # Boston, MA  02110-1301, USA.
 
 CC = g++
-JAVAC = javac
+JAVAC = javac 
 JAVA = java 
 JAVADOC = $(JAVA_HOME)/bin/javadoc
 
 JNI_INCLUDES = $(JAVA_HOME)/include $(JAVA_HOME)/include/linux
 
 CFLAGS = -O3 -DNDEBUG -fPIC
-JAVAFLAGS = -Xlint:unchecked -XDenableSunApiLintControl -proc:none
+NO_PROC = -proc:none
+JAVAFLAGS = -Xlint:unchecked -XDenableSunApiLintControl $(NO_PROC)
 LINK_FLAGS = -fPIC -O3 -DNDEBUG -shared -lpmem -lpmemobj -Wl,-rpath,/usr/local/lib:/usr/local/lib64
 
 CPP_SOURCE_DIR = src/main/cpp
@@ -41,7 +42,7 @@ CPP_BUILD_DIR = $(TARGET_DIR)/cppbuild
 CLASSES_DIR = $(TARGET_DIR)/classes
 TEST_CLASSES_DIR = $(TARGET_DIR)/test_classes
 
-BASE_CLASSPATH = $(CLASSES_DIR):lib
+BASE_CLASSPATH = $(CLASSES_DIR):lib:lib/ST-4.0.8.jar:
 
 ALL_CPP_SOURCES = $(wildcard $(CPP_SOURCE_DIR)/*.cpp)
 ALL_JAVA_SOURCES = $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*.java) $(wildcard $(JAVA_SOURCE_DIR)/$(XPACKAGE_NAME)/*.java) $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*/*.java)
@@ -61,7 +62,8 @@ cpp: $(LIBRARIES)
 java: classes
 
 examples: sources
-	$(foreach example_dir,$(ALL_EXAMPLE_DIRS), $(JAVAC) $(JAVAFLAGS) -cp $(BASE_CLASSPATH):$(example_dir) $(example_dir)/*.java;)
+	# $(foreach example_dir,$(ALL_EXAMPLE_DIRS), $(JAVAC) $(JAVAFLAGS) -cp $(BASE_CLASSPATH):$(example_dir) $(example_dir)/*.java;)
+	$(foreach example_dir,$(ALL_EXAMPLE_DIRS), $(JAVAC) $(JAVAFLAGS) -cp $(BASE_CLASSPATH) $(example_dir)/*.java;)
 
 docs:
 	rm -rf doc

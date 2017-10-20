@@ -30,7 +30,6 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import lib.util.persistent.front.PersistentClass;
-import examples.misc.*;
 import static lib.util.persistent.Util.*;
 
 public class TestCases {

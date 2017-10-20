@@ -67,6 +67,13 @@ public class Types {
     }
 
     @SuppressWarnings("unchecked")
+    public static synchronized <T extends AnyPersistent> ValueBasedObjectType<T> valueTypeForClass(Class<T> cls) {
+        ObjectType type = objectTypeForClass(cls);
+        if (!type.isValueBased()) throw new RuntimeException("Class does not refer to a value-based class");
+        return (ValueBasedObjectType)type;
+    }
+
+    @SuppressWarnings("unchecked")
     public static synchronized <T extends AnyPersistent> ObjectType<T> typeForName(String name) {
         try {
             Class<T> cls = (Class<T>)Class.forName(name);

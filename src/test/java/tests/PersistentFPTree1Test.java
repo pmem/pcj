@@ -258,7 +258,7 @@ public class PersistentFPTree1Test {
 		PersistentLong pl = ObjectDirectory.get("pseed", PersistentLong.class);
 		if (cfptRC == null && pl == null) {
 			cfptRC = new PersistentFPTree1<PersistentInteger, PersistentString>(I, L);
-			pl = new PersistentLong(0 /*ThreadLocalRandom.current().nextLong(N)*/);
+			pl = new PersistentLong(ThreadLocalRandom.current().nextLong(N));
 			ObjectDirectory.put(id, cfptRC);
 			ObjectDirectory.put("pseed", pl);
 			if (verbose) System.out.println("Saving to pmem...");

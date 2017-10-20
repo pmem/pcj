@@ -21,6 +21,19 @@
 
 package lib.util.persistent.types;
 
+import lib.util.persistent.AnyPersistent;
 
-public interface ValueField {} // unused for now
+
+public class ValueField<T extends AnyPersistent> extends ObjectField<T> implements ValueBasedField {
+
+    public ValueField(Class<T> cls) {
+      super(Types.valueTypeForClass(cls));
+    }
+
+    @Override
+    public String toString() {
+       return String.format("ValueField(%s)", getType());
+    }
+}
+
 

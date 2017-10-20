@@ -52,7 +52,10 @@ abstract class AbstractPersistentArray extends AbstractPersistentImmutableArray 
     void setDoubleElement(int index, double value) {setLong(elementOffset(check(index)), Double.doubleToLongBits(value));}
     void setCharElement(int index, char value) {setInt(elementOffset(check(index)), (int)value);}
     void setBooleanElement(int index, boolean value) {setByte(elementOffset(check(index)), value ? (byte)1 : (byte)0);}
-    void setObjectElement(int index, AnyPersistent value) {setObject(elementOffset(check(index)), value);}
+
+    void setObjectElement(int index, AnyPersistent value) {
+        setObject(elementOffset(check(index)), value);
+    }
 
     @Override public int length() {
         return getInt(ArrayType.LENGTH_OFFSET);

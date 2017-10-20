@@ -134,18 +134,18 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
     protected PersistentArrayList(ObjectPointer<? extends PersistentArrayList> p) { super(p); }
 
     @SuppressWarnings("unchecked")
-    public synchronized void trimToSize() {
+    public void trimToSize() {
         Transaction.run(() -> {
             int size = size();
             int length = getDataArray().length();
-        modCount++;
+            modCount++;
             if (size < length) {
                 if (size == 0)
                     setDataArray(emptyArray());
                 else
                     setDataArray(PersistentArrays.copyOfRange(getDataArray(), 0 ,size));
             }
-        });
+        }, this);
     }
 
     public void ensureCapacity(int minCapacity) {
@@ -174,14 +174,16 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
     }
 
     @SuppressWarnings("unchecked")
-    private synchronized void grow(int minCapacity) {
-        int oldCapacity = getDataArray().length();
-        int newCapacity = oldCapacity + (oldCapacity >> 1);
-        if (newCapacity - minCapacity < 0)
-            newCapacity = minCapacity;
-        if (newCapacity - MAX_ARRAY_SIZE > 0)
-            newCapacity = hugeCapacity(minCapacity);
-        setDataArray(PersistentArrays.copyOf(getDataArray(), newCapacity));
+    private void grow(int minCapacity) {
+        Util.synchronizedBlock(this, () -> {
+            int oldCapacity = getDataArray().length();
+            int newCapacity = oldCapacity + (oldCapacity >> 1);
+            if (newCapacity - minCapacity < 0)
+                newCapacity = minCapacity;
+            if (newCapacity - MAX_ARRAY_SIZE > 0)
+                newCapacity = hugeCapacity(minCapacity);
+            setDataArray(PersistentArrays.copyOf(getDataArray(), newCapacity));
+        });
     }
 
     private static int hugeCapacity(int minCapacity) {
@@ -192,94 +194,111 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
             MAX_ARRAY_SIZE;
     }
 
-    public synchronized int size(){
-        return getIntField(SIZE); 
+    public int size(){
+        return Util.synchronizedBlock(this, () -> {
+            return getIntField(SIZE); 
+        });
     }
 
-    public synchronized boolean isEmpty(){
-        return size() == 0; 
+    public boolean isEmpty(){
+        return Util.synchronizedBlock(this, () -> {
+            return size() == 0; 
+        });
     }
 
     public boolean contains(Object o) {
         return indexOf(o) >= 0;
     }
 
-    public synchronized int indexOf(Object o) {
-        if (o == null) {
-            for (int i = 0; i < size(); i++)
-                if (getDataArray().get(i)==null)
-                    return i;
-        } else {
-            for (int i = 0; i < size(); i++)
-                if (o.equals(getDataArray().get(i)))
-                    return i;
-        }
+    public int indexOf(Object o) {
+        return Util.synchronizedBlock(this, () -> {
+            if (o == null) {
+                for (int i = 0; i < size(); i++)
+                    if (getDataArray().get(i)==null)
+                        return i;
+            } else {
+                for (int i = 0; i < size(); i++)
+                    if (o.equals(getDataArray().get(i)))
+                        return i;
+            }
         return -1;
+        });
     }
 
-    public synchronized int lastIndexOf(Object o) {
-        if (o == null) {
-            for (int i = size()-1; i >= 0; i--)
-                if (getDataArray().get(i)==null)
-                    return i;
-        } else {
-            for (int i = size()-1; i >= 0; i--)
-                if (o.equals(getDataArray().get(i)))
-                    return i;
-        }
-        return -1;
+    public int lastIndexOf(Object o) {
+        return Util.synchronizedBlock(this, () -> {
+            if (o == null) {
+                for (int i = size()-1; i >= 0; i--)
+                    if (getDataArray().get(i)==null)
+                        return i;
+            } else {
+                for (int i = size()-1; i >= 0; i--)
+                    if (o.equals(getDataArray().get(i)))
+                        return i;
+            }
+            return -1;
+        });
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized <T extends AnyPersistent> T[] toArray(T[] a) {
-        if (a.length < size())
-            return (T[]) (PersistentArrays.copyOf(getDataArray(), size())).toArray(a);
-        a = (T[]) (PersistentArrays.copyOf(getDataArray(),size())).toArray(a);
-        if (a.length > size())
-            a[size()] = null;
-        return a;
+    public <T extends AnyPersistent> T[] toArray(T[] a) {
+        Box<T[]> abox = new Box(a);
+        return Util.synchronizedBlock(this, () -> {
+            if (abox.get().length < size())
+                return (T[]) (PersistentArrays.copyOf(getDataArray(), size())).toArray(abox.get());
+            abox.set((T[]) (PersistentArrays.copyOf(getDataArray(),size())).toArray(abox.get()));
+            if (abox.get().length > size())
+                a[size()] = null;
+            return abox.get();
+        });
     }
 
     @SuppressWarnings("unchecked")
-    synchronized T elementData(int index){
-        return (T) getDataArray().get(index);
+    T elementData(int index){
+        return Util.synchronizedBlock(this, () -> {
+            return (T) getDataArray().get(index);
+        });
     }
 
     
     @SuppressWarnings("unchecked")
-    public synchronized T get(int index){
-        rangeCheck(index);
-        return elementData(index);
+    public T get(int index){
+        return Util.synchronizedBlock(this, () -> {
+            rangeCheck(index);
+            return elementData(index);
+        });
     }
 
     @SuppressWarnings("unchecked")
-    synchronized void setElementData(int index, T element){
+    void setElementData(int index, T element){
         Transaction.run(() -> {
-            getDataArray().set(index, element);
+                getDataArray().set(index, element);
+        }, this);
+    }
+
+    public T set(int index, T element) {
+        return Util.synchronizedBlock(this, () -> {
+            rangeCheck(index);
+            final Box<T> oldValue = new Box<>();
+            Transaction.run(() -> { 
+                oldValue.set(elementData(index));
+                setElementData(index, element);
+            });
+            return oldValue.get();
         });
     }
 
-    public synchronized T set(int index, T element) {
-        rangeCheck(index);
-        final Box<T> oldValue = new Box<>();
-        Transaction.run(() -> { 
-            oldValue.set(elementData(index));
-            setElementData(index, element);
-        });
-        return oldValue.get();
-    }
-
-    public synchronized boolean add(T t) {
+    public boolean add(T t) {
         Transaction.run(() -> {
             ensureCapacityInternal(size() + 1); 
             setElementData(size(), t);
             size(size()+1);
-        });
+        }, this);
         return true;
     }
 
      @SuppressWarnings("unchecked")
-     public synchronized void add(int index, T element) {
+     public void add(int index, T element) {
         rangeCheckForAdd(index);
         Transaction.run(() -> {
             ensureCapacityInternal(size() + 1); 
@@ -287,72 +306,79 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
                         size() - index);
             setElementData(index, element);
             size(size()+1);
-        });
+        }, this);
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized T remove(int index) {
-        rangeCheck(index);
+    public T remove(int index) {
+        return Util.synchronizedBlock(this, () -> {
+            rangeCheck(index);
 
-        modCount++;
-        final Box<T> oldValue = new Box<>(); 
-        Transaction.run(() -> {
-            oldValue.set(elementData(index));
+            modCount++;
+            final Box<T> oldValue = new Box<>(); 
+            Transaction.run(() -> {
+                oldValue.set(elementData(index));
 
-            int numMoved = size() - index - 1;
-            if (numMoved > 0)
-                PersistentArrays.ArrayCopy(getDataArray(), index+1, getDataArray(), index,
-                             numMoved);
-                size(size()-1);
-                setElementData(size(), null); // clear to let GC do its work
+                int numMoved = size() - index - 1;
+                if (numMoved > 0)
+                    PersistentArrays.ArrayCopy(getDataArray(), index+1, getDataArray(), index,
+                                 numMoved);
+                    size(size()-1);
+                    setElementData(size(), null); // clear to let GC do its work
+            });
+            return oldValue.get();
         });
-
-        return oldValue.get();
     }
     
-    public synchronized boolean remove(Object o) {
-        if (o == null) {
-            for (int index = 0; index < size(); index++)
-                if (elementData(index).equals(null)) {
-                    fastRemove(index);
-                    return true;
-                }
-        } else {
-            for (int index = 0; index < size(); index++)
-                if (o.equals(elementData(index))) {
-                    fastRemove(index);
-                    return true;
-                }
-        }
-        return false;
+    public boolean remove(Object o) {
+        return Util.synchronizedBlock(this, () -> {
+            if (o == null) {
+                for (int index = 0; index < size(); index++)
+                    if (elementData(index).equals(null)) {
+                        fastRemove(index);
+                        return true;
+                    }
+            } else {
+                for (int index = 0; index < size(); index++)
+                    if (o.equals(elementData(index))) {
+                        fastRemove(index);
+                        return true;
+                    }
+            }
+            return false;
+        });
     }
 
     @SuppressWarnings("unchecked")
-    private synchronized void fastRemove(int index) {
-        modCount++;
-        Transaction.run(() -> {
-            int numMoved = size() - index - 1;
-            if (numMoved > 0)
-                PersistentArrays.ArrayCopy(getDataArray(), index+1, getDataArray(), index,
-                             numMoved);
-            size(size()-1);
-            setElementData(size(), null); // clear to let GC do its work
+    private void fastRemove(int index) {
+        Util.synchronizedBlock(this, () -> {
+            modCount++;
+            Transaction.run(() -> {
+                int numMoved = size() - index - 1;
+                if (numMoved > 0)
+                    PersistentArrays.ArrayCopy(getDataArray(), index+1, getDataArray(), index,
+                                 numMoved);
+                size(size()-1);
+                setElementData(size(), null); // clear to let GC do its work
+            });
         });
     } 
 
-    public synchronized void clear() {
-        modCount++;
-        Transaction.run(() -> {
-            // clear to let GC do its work
-            for (int i = 0; i < size(); i++)
-                setElementData(i, null);
+    public void clear() {
+        Util.synchronizedBlock(this, () -> {
+            modCount++;
+            Transaction.run(() -> {
+                // clear to let GC do its work
+                for (int i = 0; i < size(); i++)
+                    setElementData(i, null);
 
-            size(0);
+                size(0);
+            });
         });
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized boolean addAll(Collection<? extends T> c) {
+    public boolean addAll(Collection<? extends T> c) {
         final Box<Integer> numNew = new Box<>();
         Transaction.run(() -> {
             AnyPersistent[] a = c.toArray(new AnyPersistent[c.size()]);
@@ -360,12 +386,12 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
             ensureCapacityInternal(size() + numNew.get());  // Increments modCount
             getDataArray().insert(size(), a);
             size(size()+numNew.get());
-        });
+        }, this);
         return numNew.get() != 0;
     }
   
     @SuppressWarnings("unchecked")
-    public synchronized boolean addAll(int index, Collection<? extends T> c) {
+    public boolean addAll(int index, Collection<? extends T> c) {
         rangeCheckForAdd(index);
 
         final Box<Integer> numNew = new Box<>();
@@ -380,12 +406,12 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
 
             getDataArray().insert(index, a);
             size(size() + numNew.get());
-        });
+        }, this);
         return numNew.get() != 0;
     }
 
     @SuppressWarnings("unchecked")
-    protected synchronized void removeRange(int fromIndex, int toIndex) {
+    protected void removeRange(int fromIndex, int toIndex) {
         Transaction.run(() -> {
             modCount++;
             int numMoved = size() - toIndex;
@@ -398,7 +424,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
                 setElementData(i, null);
             }
             size(newSize);
-        });
+        }, this);
     }
 
     private void rangeCheck(int index) {
@@ -429,20 +455,22 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
         return new Itr();
     }
 
-    public synchronized String toString() {
-        Iterator<T> it = iterator();
-        if (! it.hasNext())
-            return "[]";
-
-        StringBuilder sb = new StringBuilder();
-        sb.append('[');
-        for (;;) {
-            T t = it.next();
-            sb.append(t == this ? "(this Collection)" : t);
+    public String toString() {
+        return Util.synchronizedBlock(this, () -> {
+            Iterator<T> it = iterator();
             if (! it.hasNext())
-                return sb.append(']').toString();
-            sb.append(',').append(' ');
-        }
+                return "[]";
+
+            StringBuilder sb = new StringBuilder();
+            sb.append('[');
+            for (;;) {
+                T t = it.next();
+                sb.append(t == this ? "(this Collection)" : t);
+                if (! it.hasNext())
+                    return sb.append(']').toString();
+                sb.append(',').append(' ');
+            }
+        });
     }
 
     private class ListItr extends Itr implements ListIterator<T> {

@@ -19,30 +19,8 @@
  * Boston, MA  02110-1301, USA.
  */
 
-#include "persistent_structs.h"
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <jni.h>
+package lib.util.persistent.types;
 
-struct root_struct {
-    TOID(char) root_memory_region;
-};
 
-extern PMEMobjpool* pool;
-extern TOID(struct root_struct) root;
-extern JavaVM *jvm;
+public interface ValueBasedField {} 
 
-POBJ_LAYOUT_BEGIN(persistent_heap);
-POBJ_LAYOUT_ROOT(persistent_heap, struct root_struct);
-POBJ_LAYOUT_END(persistent_heap);
-
-PMEMobjpool* get_or_create_pool(const char* path, size_t size);
-void close_pool();
-TOID(struct root_struct) get_root();
-void create_root(uint64_t root_size);
-int check_root_exists();
-uint64_t get_uuid_lo();

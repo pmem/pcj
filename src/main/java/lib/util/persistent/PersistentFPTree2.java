@@ -36,8 +36,10 @@ import java.util.concurrent.locks.StampedLock;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.Comparator;
 
-public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements Map <K, V> {
+public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements PersistentSortedMap <K, V> {
 	private Node<K, V> root;
 	private static final ObjectField<PersistentLeaf> HEAD_LEAF = new ObjectField<>(PersistentLeaf.class);
 	private static final IntField P_MAX_LEAF_KEYS = new IntField();
@@ -50,6 +52,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 	private final int MIN_LEAF_KEYS;
 
 	private final StampedLock rootLock;
+	private final Comparator<? super K> comparator;
 
 	private static final int[] PEARSON_LOOKUP_TABLE = {
 			110, 228, 235, 91, 67, 211, 45, 46, 79, 23, 118, 48, 32, 208, 251, 0, 255, 128, 174, 238, 94, 27, 13, 121, 66, 168, 165, 125, 25, 
@@ -63,7 +66,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 			215, 187, 31, 116, 137, 220, 68, 252, 54, 240, 209, 104, 222, 159, 227, 52, 87, 59, 250, 61, 109, 170, 65, 229, 241, 130, 173, 72
 	};
 
-	public PersistentFPTree2(int maxInternalKeys, int maxLeafKeys) {
+	public PersistentFPTree2(int maxInternalKeys, int maxLeafKeys, Comparator<? super K> comparator) {
 		super(TYPE);
 		if(maxInternalKeys <= 0) throw new IllegalArgumentException("Number of internal keys must  be > 0");
 		if(maxLeafKeys <= 0) throw new IllegalArgumentException("Number of leaf keys must be > 0");
@@ -79,10 +82,15 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		setIntField(P_MAX_INTERNAL_KEYS, MAX_INTERNAL_KEYS);
 		setObjectField(HEAD_LEAF, headLeaf);
 		this.rootLock = new StampedLock();
+		this.comparator = comparator;
+	}
+
+	public PersistentFPTree2(int maxInternalKeys, int maxLeafKeys) {
+		this(maxInternalKeys, maxLeafKeys, null);
 	}
 
 	public PersistentFPTree2() {
-		this(8, 64);
+		this(8, 64, null);
 	}
 
 	public PersistentFPTree2(ObjectPointer<? extends PersistentFPTree2> p) {
@@ -93,6 +101,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		MAX_LEAF_KEYS = getIntField(P_MAX_LEAF_KEYS);
 		MIN_LEAF_KEYS = (MAX_LEAF_KEYS + 1)/2;
 		this.rootLock = new StampedLock();
+		this.comparator = null; // how to persist the comparitor?
 		long start = System.nanoTime();
 		reconstructTree();
 		long telap = System.nanoTime() - start;
@@ -224,13 +233,19 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 	@Override 
 	@SuppressWarnings("unchecked")
 	public V get(Object key) {
-		return get((K) key);
+		return doGet((K) key);
+	}
+
+	@Override 
+	@SuppressWarnings("unchecked")
+	public <L, K extends ComparableWith<L>> V get(L sisterKey, Class<K> cls) {
+		return doGet(sisterKey);
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public V remove(Object key) {
-		return remove((K) key);
+		return doRemove((K) key);
 	}
 
 	@Override
@@ -258,15 +273,50 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		throw new UnsupportedOperationException();
 	}
 
-	@SuppressWarnings("unchecked")
+	@Override
+	public K lastKey() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public K firstKey() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public SortedMap<K,V> headMap(K toKey) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public SortedMap<K,V> tailMap(K fromKey) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public SortedMap<K,V> subMap(K fromKey, K toKey) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Comparator<? super K> comparator() {
+		return this.comparator;
+	}
+
 	private int compareKeys(K k1, K k2) {
 		if(k1 == null) throw new NullPointerException("Key 1 is null");
 		if(k2 == null) throw new NullPointerException("Key 2 is null");
-		return ((Comparable<? super K>) k1).compareTo(k2);
+		return compare(k1, k2);
 	}
 
 	@SuppressWarnings("unchecked")
-	public V remove(K key) {
+	private final int compare(Object k1, Object k2) {
+		if(k1 instanceof AnyPersistent) return (comparator == null) ? ((Comparable<? super K>)k1).compareTo((K)k2) : comparator.compare((K)k1, (K)k2);
+		else return ((ComparableWith) k2).compareWith(k1) * -1;
+	}
+
+	@SuppressWarnings("unchecked")
+	private V doRemove(K key) {
 		Node<K, V> parent, child;
 		long stampParent, stampChild;
 		long stampRoot = rootLock.readLock();
@@ -315,10 +365,10 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 	}
 
 	@SuppressWarnings("unchecked")
-	public V get(K key) {
+	private V doGet(Object key) {
 		Node<K, V> parent, child;
 		long stampParent, stampChild;
-		long stampRoot = rootLock.writeLock();
+		long stampRoot = rootLock.readLock();
 		try {
 			parent = root; 
 			stampParent = parent.readLock();
@@ -335,7 +385,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 				parent = child;
 				stampParent = stampChild;
 			} 
-			return ((LeafNode<K, V>) parent).getValue(pearsonHash(key), key); 
+			return ((LeafNode<K, V>) parent).getValue(generateHash(key), key); 
 		} 
 		finally {
 			parent.unlock(stampParent); 
@@ -535,12 +585,12 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 	}
 
 	// Modified Pearson hashing algorithm from pmemkv (https://github.com/pmem/pmemkv/blob/master/src/pmemkv.cc)
-	public int pearsonHash(K key) {
+	/*public int pearsonHash(K key) {
 		String skey;
 		if(key instanceof PersistentInteger) skey = Integer.toString(((PersistentInteger) key).intValue());
 		else skey = ((PersistentString) key).toString();
 		return computePearsonHash(skey.getBytes());
-	}
+	}*/
 
 	public int computePearsonHash(byte[] data) {
 		int hash = data.length;
@@ -551,7 +601,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		return hash;
 	}
 
-	public int generateHash(K key) {
+	public int generateHash(Object key) {
 		return computePearsonHash(Integer.toString(key.hashCode()).getBytes());
 	}
 
@@ -665,11 +715,10 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		}
 
 		@SuppressWarnings("unchecked")
-		public Node<K, V> getChild(K key) {
+		public Node<K, V> getChild(Object key) {
 			int idx;
-			for(idx = 0; idx < keycount; idx++) {
-				if(((Comparable<? super K>) key).compareTo(keys.get(idx)) <= 0) break;
-			}
+			for(idx = 0; idx < keycount; idx++) 
+				if(compare(key, keys.get(idx)) <= 0) break;
 			return children.get(idx);
 		}
 
@@ -725,7 +774,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 					this.keys.set(slot, key);
 					this.keycount++;
 					if(highKey == null) highKey = key;
-					else if (((Comparable<? super K>) key).compareTo(highKey)> 0) highKey = key;
+					else if (compare(key, highKey) > 0) highKey = key;
 				}
 				else isFull = false;
 				this.needToSplit = isFull;
@@ -733,10 +782,10 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		}
 
 		@SuppressWarnings("unchecked")
-		public V getValue(int hash, K key) {
+		public V getValue(int hash, Object key) {
 			for(int slot = 0; slot <= MAX_LEAF_KEYS; slot++) {
 				if(hashes.get(slot) == hash) {
-					if(((Comparable<? super K>) key).compareTo(keys.get(slot)) == 0) return leaf.getSlot(slot).getValue();
+					if(compare(key, keys.get(slot)) == 0) return leaf.getSlot(slot).getValue();
 				}
 			}
 			return null;

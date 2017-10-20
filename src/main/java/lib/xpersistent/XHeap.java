@@ -30,6 +30,9 @@ import lib.util.persistent.CycleCollector;
 import lib.util.persistent.Transaction;
 import lib.util.persistent.ObjectDirectory;
 
+import java.util.Properties;
+import java.io.FileInputStream;
+
 public class XHeap implements PersistentHeap {
     static {
         System.loadLibrary("Persistent");
@@ -53,8 +56,24 @@ public class XHeap implements PersistentHeap {
     public synchronized void open() {
         if (open) return;
         this.open = true;
+
+        String path;
+        long size;
+
+        try {
+            FileInputStream propInput = new FileInputStream("config.properties");
+            Properties prop = new Properties();
+            prop.load(propInput);
+
+            path = prop.getProperty("path");
+            size = Long.parseLong(prop.getProperty("size"));
+        } catch (Exception e) {
+            throw new RuntimeException("Error reading config.properties file! Please make sure the file exists and is properly configured.");
+        }
+
         System.out.print("Opening heap... ");
-        nativeOpenHeap();
+        nativeOpenHeap(path, size);
+        lib.util.persistent.ClassInfo.init();
         System.out.print("Cleaning up heap... ");
         cleanHeap();
         System.out.println("Heap opened.");
@@ -125,7 +144,7 @@ public class XHeap implements PersistentHeap {
         });
     }
 
-    private synchronized native void nativeOpenHeap();
+    private synchronized native void nativeOpenHeap(String path, long size);
     private synchronized native void nativeCloseHeap();
     private native long nativeGetMemoryRegion(long size);
     private native void nativeFree(long addr);

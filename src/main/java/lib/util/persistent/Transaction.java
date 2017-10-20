@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import static lib.util.persistent.Trace.*;
 
-// temp 
+// temp
 import lib.xpersistent.XTransaction;
 
 public interface Transaction extends AutoCloseable {
@@ -64,23 +64,27 @@ public interface Transaction extends AutoCloseable {
             catch (Throwable e) {
                 success = false;
                 // trace(true, "%s Transaction.run() caught %s, depth = %d", t,  e, info.depth);
+                if (e instanceof PersistenceException) {
+                    e.printStackTrace();
+                    System.out.println("A fatal error has occurred, unable to continue, exiting: " + e);
+                    System.exit(-1);
+                }
                 t.abort();
                 // trace(true, "called abort on %s", t);
-                if (info.depth > 1) throw e; // unwind stack
-                else if (!(e instanceof TransactionRetryException)) throw e; // not a retry-able exception
+                if (info.depth > 1 || !(e instanceof TransactionRetryException)) throw e; // unwind stack or not a retry-able exception
                 // retry
-            } 
+            }
             finally {
                 t.commit();
             }
             if (!success) {
-                info.attempts++;     
+                info.attempts++;
                 Stats.current.transactions.totalRetries++;
                 Stats.current.transactions.updateMaxRetries(info.attempts - 1);
                 int sleepTime = info.retryDelay + Util.randomInt(info.retryDelay);
-                // trace(true, "old retryDelay = %d, new retryDelay = %d", info.retryDelay, Math.min((int)(info.retryDelay * Config.TRANSACTION_RETRY_DELAY_INCREASE_FACTOR), Config.MAX_TRANSACTION_RETRY_DELAY)); 
+                // trace(true, "old retryDelay = %d, new retryDelay = %d", info.retryDelay, Math.min((int)(info.retryDelay * Config.TRANSACTION_RETRY_DELAY_INCREASE_FACTOR), Config.MAX_TRANSACTION_RETRY_DELAY));
                 info.retryDelay = Math.min((int)(info.retryDelay * Config.TRANSACTION_RETRY_DELAY_INCREASE_FACTOR), Config.MAX_TRANSACTION_RETRY_DELAY);
-                // trace("retry #%d, sleepTime = %d", info.attempts - 1, sleepTime);
+                // trace(true, "retry #%d, sleepTime = %d", info.attempts - 1, sleepTime);
                 try {Thread.sleep(sleepTime);} catch(InterruptedException ie) {ie.printStackTrace();}
             }
         }
@@ -88,7 +92,7 @@ public interface Transaction extends AutoCloseable {
         if (!success) {
             Stats.current.transactions.failures++;
             trace(true, "failed transaction");
-            RuntimeException e = new TransactionException(String.format("failed to execute transaction after %d attempts", info.attempts));            
+            RuntimeException e = new TransactionException(String.format("failed to execute transaction after %d attempts", info.attempts));
             if (Config.EXIT_ON_TRANSACTION_FAILURE) {
                 e.printStackTrace();
                 Stats.printStats();
@@ -109,16 +113,16 @@ public interface Transaction extends AutoCloseable {
         run(PersistentMemoryProvider.getDefaultProvider(), update, toLock);
     }
 
-    public static void runOuter(Update update, PersistentObject... toLock) {
+    public static void runOuter(Update update, AnyPersistent... toLock) {
         Box<Throwable> errorBox = new Box<>();
 
         Future<?> outer = outerThreadPool.submit(() -> {
             XTransaction.tlInfo.get().init();
             try {Transaction.run(update, toLock);}
-            catch (Throwable error) {errorBox.set(error);}
+            catch (Throwable error) { errorBox.set(error);}
         });
 
-        try { outer.get();} 
+        try { outer.get(); }
         catch (InterruptedException ie) {throw new RuntimeException(ie);}
         catch (ExecutionException ee) {throw new RuntimeException(ee);}
         Throwable error = errorBox.get();

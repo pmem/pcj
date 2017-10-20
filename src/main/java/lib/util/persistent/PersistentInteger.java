@@ -26,7 +26,7 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.Types;
 
-public final class PersistentInteger extends PersistentImmutableObject implements Comparable<PersistentInteger> { 
+public final class PersistentInteger extends PersistentImmutableObject implements Comparable<PersistentInteger>, ComparableWith<Integer> { 
     private static final IntField INT = new IntField();
     private static final ObjectType<PersistentInteger> TYPE = ObjectType.fromFields(PersistentInteger.class, INT);
 
@@ -64,5 +64,9 @@ public final class PersistentInteger extends PersistentImmutableObject implement
         int x = this.intValue();
         int y = o.intValue();
         return (x < y) ? -1 : ((x == y) ? 0 : 1);
+    }
+    
+    public int compareWith(Integer anotherInteger) {
+        return -1 * anotherInteger.compareTo(intValue());
     }
 }

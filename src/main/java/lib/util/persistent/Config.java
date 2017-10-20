@@ -37,6 +37,4 @@ public class Config {
     public static final boolean BLOCK_ON_MAX_TRANSACTION_ATTEMPTS = true;
 
     public static final boolean USE_BLOCKING_LOCKS_FOR_DEBUG = false;
-
-    public static final boolean USE_SEPARATE_TRANSACTION_LOCKS = true;
 }

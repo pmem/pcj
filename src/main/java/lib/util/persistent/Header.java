@@ -26,13 +26,13 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.PersistentType;
 
 public class Header {
-    static final int TYPE_NAME = 0;  // must be first field
+    static final int CLASS_INFO = 0;  // must be first field
     static final int VERSION = 1;
     static final int REF_COUNT = 2;
     static final int REF_COLOR = 3;
 
     public static final PersistentType[] TYPES = new PersistentType[] {
-        Types.LONG,        // TYPE_NAME  // TODO: should reference shared name or type
+        Types.LONG,        // CLASS_INFO
         Types.INT,         // VERSION
         Types.INT,         // REF_COUNT
         Types.BYTE,        // REF_COLOR

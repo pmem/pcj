@@ -24,6 +24,7 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.types.ObjectType;
+import lib.util.persistent.types.ValueType;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import lib.xpersistent.*;
@@ -36,13 +37,26 @@ public class PersistentArray<T extends AnyPersistent> extends AbstractPersistent
         return new ArrayType<>(arrayClass, Types.typeForClass(elementClass));
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T extends AnyPersistent> PersistentArray<T> forElementClass(Class<T> elementClass, int size) {
+        PersistentArray<T> ans = null;
+        ObjectType ot = Types.objectTypeForClass(elementClass);
+        if (ot.isValueBased()) {
+            ans = new PersistentValueArray<T>(elementClass, size);
+        }
+        else { 
+            ans = new PersistentArray<T>(size);
+        }
+        return ans;
+    }
+
     public PersistentArray(int size) {
         super(TYPE, size);
     }
 
 
-    public PersistentArray(Class<? extends PersistentObject> elementClass, int size) {
-        super(new ArrayType<PersistentArray>(PersistentArray.class, Types.objectTypeForClass(elementClass)), size);
+    public PersistentArray(Class<? extends AnyPersistent> elementClass, int size) {
+        super(new ArrayType<PersistentArray>(PersistentArray.class, Types.typeForClass(elementClass)), size);
     }
 
     protected PersistentArray(ArrayType<? extends PersistentArray<T>> type, int size) {

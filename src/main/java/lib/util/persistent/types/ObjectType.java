@@ -88,7 +88,7 @@ public class ObjectType<T extends AnyPersistent> implements Named, Container {
         return Header.TYPE.extendWith(cls, fs);
     }
 
-    public static <U extends AnyPersistent> ObjectType<U> withValueFields(Class<U> cls, PersistentField... fs) {
+    public static <U extends AnyPersistent> ObjectType<U> withValueFields(Class<U> cls, ValueBasedField... fs) {
         ValueType vt = ValueType.withFields(fs);
         return fromValueType(cls, vt);
     }

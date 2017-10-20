@@ -182,9 +182,9 @@ public class CycleCollector {
         }
     }
 
-    static void addCandidate(long addr) {
+    static void addCandidate(AnyPersistent obj) {
+        long addr = obj.getPointer().addr();
         Transaction.run(() -> {
-            AnyPersistent obj = ObjectCache.get(addr, true);
             if (obj.getColor() != PURPLE) {
                 if (processing.get() == true) {
                     stashObjColorChange(addr, PURPLE);
@@ -194,6 +194,10 @@ public class CycleCollector {
                 ((XRoot)(PersistentMemoryProvider.getDefaultProvider().getHeap().getRoot())).addToCandidates(addr);
             }
         });
+    }
+
+    static void addCandidate(long addr) {
+        addCandidate(ObjectCache.get(addr, true));
     }
 
     static synchronized void removeFromCandidates(long addr) {

@@ -73,20 +73,14 @@ public class XTransaction implements Transaction {
 
     public Transaction start(boolean block, AnyPersistent... toLock) {
         TransactionInfo info = tlInfo.get();
-        // trace("start transaction, block = %s, depth = %d, this = %s", block, info.depth, this);
-        ArrayList<AnyPersistent> objs = new ArrayList<>();
-        ArrayList<AnyPersistent> lockedObjs = new ArrayList<>();
         for (AnyPersistent obj : toLock) {
-            if (obj != null) objs.add(obj);
+            if (obj == null) continue;
+            if (!block) {
+                if (!obj.monitorEnterTimeout()) throw new TransactionRetryException("failed to get transaction locks");
+            }
+            else obj.monitorEnter();
+            info.locked.add(obj);
         }
-        boolean didLock = AnyPersistent.monitorEnter(objs, lockedObjs, block);
-        if (!didLock && !block) {
-            // trace("failed to get transaction locks");
-            // assert(lockedObjs.isEmpty());
-            throw new TransactionRetryException("failed to get transaction locks");
-        }
-        info.locked.addAll(lockedObjs);
-        // trace(true, "in start, depth = %d, state = %s", info.depth, info.state);
         if (info.depth == 1 && info.state == Transaction.State.None) {
             info.state = Transaction.State.Active;
             nativeStartTransaction();

@@ -503,12 +503,12 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 	}
 
 	// Modified Pearson hashing algorithm from pmemkv (https://github.com/pmem/pmemkv/blob/master/src/pmemkv.cc)
-	public int pearsonHash(K key) {
+	/*public int pearsonHash(K key) {
 		String skey;
 		if(key instanceof PersistentInteger) skey = Integer.toString(((PersistentInteger) key).intValue());
 		else skey = ((PersistentString) key).toString();
 		return computePearsonHash(skey.getBytes());
-	}
+	}*/
 
 	public int computePearsonHash(byte[] data) {
 		int hash = data.length;

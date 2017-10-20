@@ -30,8 +30,8 @@ import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
+// TODO: refactor / simplify array class hierarchy
 abstract class AbstractPersistentImmutableArray extends PersistentObject {
-
     protected AbstractPersistentImmutableArray(ArrayType<? extends AnyPersistent> type, int count, Object data) {
         super(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize(count)));
         setInt(ArrayType.LENGTH_OFFSET, count);
@@ -56,7 +56,10 @@ abstract class AbstractPersistentImmutableArray extends PersistentObject {
     double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(check(index))));}
     char getCharElement(int index) {return (char)getInt(elementOffset(check(index)));}
     boolean getBooleanElement(int index) {return getByte(elementOffset(check(index))) == (byte)0 ? false : true;}
-    AnyPersistent getObjectElement(int index) {return getObject(elementOffset(check(index)));}
+    
+    AnyPersistent getObjectElement(int index) {
+        return getObject(elementOffset(check(index)));
+    }
 
     private void setByteElement(int index, byte value) {setByte(elementOffset(check(index)), value);}
     private void setShortElement(int index, short value) {setShort(elementOffset(check(index)), value);}

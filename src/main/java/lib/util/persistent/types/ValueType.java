@@ -29,17 +29,14 @@ public class ValueType implements Container {
     private final long[] offsets;
     private final long size;
 
-    public static ValueType fromFields(PersistentField... fs) {return withFields(fs);}
+    public static ValueType fromFields(ValueBasedField... fs) {return withFields(fs);}
 
-    public static ValueType withFields(PersistentField... fs) {
+    public static ValueType withFields(ValueBasedField... fs) {
         int fieldCount = fs.length;
         List<PersistentType> types = new ArrayList<>();
         int index = 0;
-        for (PersistentField f : fs) {
-            // System.out.println("VT fromFields, f = " + f);
-            if (f.getType() instanceof ObjectType && !(f.getType() instanceof ValueBasedObjectType)) {
-                throw new RuntimeException("value types may only contain other value types");
-            }  // want this to be a compile-time check
+        for (ValueBasedField vf : fs) {
+            PersistentField f = (PersistentField)vf;
             f.setIndex(index);
             index++;
             insertType(f.getType(), types);
@@ -48,17 +45,13 @@ public class ValueType implements Container {
         long size = 0;
         if (types.size() > 0) {
             offsets[0] = size;
-            size += fs[0].getType().getSize();
-            // System.out.println("s = " + size);
+            size += ((PersistentField)fs[0]).getType().getSize();
             for (int i = 1; i < fs.length; i++) {
                 offsets[i] = size;
-                size += fs[i].getType().getSize();
-                // System.out.println("s = " + size);
+                size += ((PersistentField)fs[i]).getType().getSize();
             }
         }
         ValueType ans = new ValueType(types, offsets, size);
-        // System.out.format("fieldCount for %s = %d\n", ans, fieldCount); 
-        // System.out.println(ans + " size = " + size);
         return ans;
     }
 
@@ -72,9 +65,6 @@ public class ValueType implements Container {
         this.types = types;
         this.offsets = offsets;
         this.size = size;
-        // for (int i = 0; i < offsets.length; i++) {
-        //     System.out.println(String.format("offset @ index %d =  %d", i, offsets[i]));
-        // }
     }
 
     @Override

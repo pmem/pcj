@@ -56,10 +56,9 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
     private EntrySet<K,V> entrySet;
     private Values<V> values;
     private ConcurrentNavigableMap<K,V> descendingMap;
-    //private boolean rebuild = false;
 
     final Comparator<? super K> comparator;
-    final Comparator<? extends Comparable<K>> comparator2;
+    Comparator <? super K> sister_comparator;
 
     private static Statics statics;
     private static final ObjectField<Node> HEADNODE = new ObjectField<>(Node.class);
@@ -474,47 +473,20 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
         return null;
     }
 
-    private V doGet(AnyPersistent key) {
-        if (key == null)
-            throw new NullPointerException();
-        Comparator<? super K> cmp = comparator;
-        outer: for (;;) {
-            for (Node<K,V> b = findPredecessor(key, cmp), n = b.next();;) {
-                AnyPersistent v; int c;
-                if (n == null)
-                    break outer;
-                Node<K,V> f = n.next();
-                if (n != b.next())                // inconsistent read
-                    break;
-                if ((v = n.value()) == null) {    // n is deleted
-                    n.helpDelete(b, f);
-                    break;
-                }
-                if (b.value() == null || v == n)  // b is deleted
-                    break;
-                if ((c = cpr(cmp, key, n.key())) == 0) {
-                    @SuppressWarnings("unchecked") V vv = (V)v;
-                    return vv;
-                }
-                if (c < 0)
-                    break outer;
-                b = n;
-                n = f;
-            }
-        }
-        return null;
-    }
-
     @SuppressWarnings ("unchecked")
     private V doGet(Object key) {
         if (key == null)
             throw new NullPointerException();
         Comparator<? super K> cmp = comparator;
-        if (comparator == null) {
-            cmp = (Object x, Object y) -> {
-                return ((ComparableWith)y).compareWith(x);
-            };
-        }
+        if (!(key instanceof AnyPersistent)) {
+            if (sister_comparator == null) {
+                sister_comparator = (Object x, Object y) -> {
+                    return (((ComparableWith)y).compareWith(x) * -1); //flip back
+                };
+             }
+             cmp = sister_comparator;
+         }
+
         outer: for (;;) {
             for (Node<K,V> b = findPredecessor(key, cmp), n = b.next();;) {
                 AnyPersistent v; int c;
@@ -963,14 +935,12 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
         super(type);
         //transaction?
         this.comparator = null;
-        this.comparator2 = null;
         initialize();
     }
 
     public PersistentSkipListMap2(ObjectPointer<? extends PersistentSkipListMap2> p) {
         super(p);
         this.comparator = null;
-        this.comparator2 = null;
         reinitialize();
     } 
 
@@ -985,7 +955,6 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
     public PersistentSkipListMap2(Comparator<? super K> comparator) {
         super(TYPE);
         this.comparator = comparator;
-        this.comparator2 = null;
         //setObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
         initialize();
     }
@@ -1004,7 +973,6 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
     public PersistentSkipListMap2(Map<? extends K, ? extends V> m) {
         super(TYPE);
         this.comparator = null;
-        this.comparator2 = null;
         //setObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
         initialize();
         putAll(m);
@@ -1022,7 +990,6 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
     public PersistentSkipListMap2(SortedMap<K, ? extends V> m) {
         super(TYPE);
         this.comparator = m.comparator();
-        this.comparator2 = null;
         //setObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
         initialize();
         buildFromSorted(m);
@@ -1109,6 +1076,11 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
     @SuppressWarnings("unchecked")
     public boolean containsKey(Object key) {
         return doGet((K)key) != null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <L, K extends ComparableWith<L>> boolean containsKey(L key, Class<K> cls) {
+        return doGet(key) != null;
     }
 
     @SuppressWarnings("unchecked")

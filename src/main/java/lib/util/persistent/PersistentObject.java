@@ -36,6 +36,7 @@ import lib.util.persistent.types.DoubleField;
 import lib.util.persistent.types.CharField;
 import lib.util.persistent.types.BooleanField;
 import lib.util.persistent.types.ObjectField;
+import lib.util.persistent.types.ValueField;
 import lib.util.persistent.types.PersistentField;
 import lib.util.persistent.types.FinalByteField;
 import lib.util.persistent.types.FinalShortField;
@@ -50,9 +51,9 @@ import java.lang.reflect.Constructor;
 import static lib.util.persistent.Trace.*;
 import java.util.function.Consumer;
 
+// TODO: refactor base classes to honor Liskov Substitution Principle
 @SuppressWarnings("sunapi")
 public class PersistentObject extends PersistentImmutableObject {
-
     public PersistentObject(ObjectType<? extends PersistentObject> type) {
         super(type);
     }
@@ -177,43 +178,42 @@ public class PersistentObject extends PersistentImmutableObject {
     <T extends AnyPersistent> T getObject(long offset, PersistentType type) {
         // trace(true, "PO getObject(%d, %s)", offset, type);
         T ans = null;
-        if (type instanceof ObjectType && ((ObjectType)type).isValueBased()) {
-            MemoryRegion srcRegion = getPointer().region();
-            MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
-            // trace(true, "getObject (valueBased) src addr = %d, dst  = %s, size = %d", srcRegion.addr(), dstRegion, type.getSize());
-            Util.memCopy(getPointer().type(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
-            T obj = null;
+        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
+        boolean inTransaction = info.state == Transaction.State.Active;
+        boolean success = (inTransaction ? monitorEnterTimeout() : monitorEnterTimeout(5000));
+        if (success) {
             try {
-                Constructor ctor = ((ObjectType)type).cls().getDeclaredConstructor(ObjectPointer.class);
-                ctor.setAccessible(true);
-                ObjectPointer p = new ObjectPointer<T>((ObjectType)type, dstRegion);
-                obj = (T)ctor.newInstance(p);
+                if (inTransaction) info.transaction.addLockedObject(this);
+                long valueAddr = getLong(offset);
+                if (valueAddr != 0) ans = (T)ObjectCache.get(valueAddr);
             }
-            catch (Exception e) {e.printStackTrace();}
-            ans = obj;
+            finally {
+                if (!inTransaction) monitorExit();
+            }
         }
         else {
-            TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-            boolean inTransaction = info.state == Transaction.State.Active;
-            boolean success = (inTransaction ? monitorEnterTimeout() : monitorEnterTimeout(5000));
-            if (success) {
-                try {
-                    if (inTransaction) info.transaction.addLockedObject(this);
-                    long valueAddr = getLong(offset);
-                    if (valueAddr != 0) ans = (T)ObjectCache.get(valueAddr);
-                }
-                finally {
-                    if (!inTransaction) monitorExit();
-                }
-            }
-            else {
-                String message = "failed to acquire lock (timeout) in getObject";
-                // trace(true, getPointer().addr(), message + ", inTransaction = %s", inTransaction);
-                if (inTransaction) throw new TransactionRetryException(message);
-                else throw new RuntimeException(message);
-            }
+            String message = "failed to acquire lock (timeout) in getObject";
+            // trace(true, getPointer().addr(), message + ", inTransaction = %s", inTransaction);
+            if (inTransaction) throw new TransactionRetryException(message);
+            else throw new RuntimeException(message);
         }
         return ans;
+    }
+
+    @SuppressWarnings("unchecked") <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
+        MemoryRegion srcRegion = getPointer().region();
+        MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
+        // trace(true, "getObject (valueBased) src addr = %d, srcOffset = %d, dst  = %s, size = %d", srcRegion.addr(), offset, dstRegion, type.getSize());
+        Util.memCopy(getPointer().type(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
+        T obj = null;
+        try {
+            Constructor ctor = ((ObjectType)type).cls().getDeclaredConstructor(ObjectPointer.class);
+            ctor.setAccessible(true);
+            ObjectPointer p = new ObjectPointer<T>((ObjectType)type, dstRegion);
+            obj = (T)ctor.newInstance(p);
+        }
+        catch (Exception e) {e.printStackTrace();}
+        return obj;
     }
 
     public byte getByteField(ByteField f) {return getByte(offset(check(f.getIndex(), Types.BYTE)));}
@@ -229,6 +229,10 @@ public class PersistentObject extends PersistentImmutableObject {
         return (T)getObject(offset(f.getIndex()), f.getType());
     }
 
+    @SuppressWarnings("unchecked") public <T extends AnyPersistent> T getObjectField(ValueField<T> f) {
+        return getValueObject(offset(f.getIndex()), f.getType());
+    }
+
     @SuppressWarnings("unchecked") public <T extends AnyPersistent> T getObjectField(FinalObjectField<T> f) {
         return (T)super.getObject(offset(f.getIndex()), f.getType());
     }
@@ -242,4 +246,5 @@ public class PersistentObject extends PersistentImmutableObject {
     public void setCharField(CharField f, char value) {setInt(offset(check(f.getIndex(), Types.CHAR)), (int)value);}
     public void setBooleanField(BooleanField f, boolean value) {setByte(offset(check(f.getIndex(), Types.BOOLEAN)), value ? (byte)1 : (byte)0);}
     public <T extends AnyPersistent> void setObjectField(ObjectField<T> f, T value) {setObjectField(f.getIndex(), value);}
+    public <T extends AnyPersistent> void setObjectField(ValueField<T> f, T value) {setValueObject(offset(f.getIndex()), value);}
 }

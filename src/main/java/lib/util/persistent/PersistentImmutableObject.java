@@ -33,6 +33,7 @@ import lib.util.persistent.types.DoubleField;
 import lib.util.persistent.types.CharField;
 import lib.util.persistent.types.BooleanField;
 import lib.util.persistent.types.ObjectField;
+import lib.util.persistent.types.ValueField;
 import lib.util.persistent.types.FinalByteField;
 import lib.util.persistent.types.FinalShortField;
 import lib.util.persistent.types.FinalIntField;
@@ -148,7 +149,14 @@ public class PersistentImmutableObject extends AnyPersistent {
     void setDoubleField(DoubleField f, double value) {setLong(offset(check(f.getIndex(), Types.DOUBLE)), Double.doubleToLongBits(value));}
     void setCharField(CharField f, char value) {setInt(offset(check(f.getIndex(), Types.CHAR)), (int)value);}
     void setBooleanField(BooleanField f, boolean value) {setByte(offset(check(f.getIndex(), Types.BOOLEAN)), value ? (byte)1 : (byte)0);}
-    <T extends AnyPersistent> void setObjectField(ObjectField<T> f, T value) {setObjectField(f.getIndex(), value);}
+
+    <T extends AnyPersistent> void setObjectField(ObjectField<T> f, T value) {
+        setObjectField(f.getIndex(), value);
+    }
+
+    <T extends AnyPersistent> void setObjectField(ValueField<T> f, T value) {
+        setValueObject(f.getIndex(), value);
+    }
 
     public void initByteField(FinalByteField f, byte value) {checkUninitializedField(f); setByte(offset(check(f.getIndex(), Types.BYTE)), value);}
     public void initShortField(FinalShortField f, short value) {checkUninitializedField(f); setShort(offset(check(f.getIndex(), Types.SHORT)), value);}

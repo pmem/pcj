@@ -89,6 +89,6 @@ public final class PersistentString extends PersistentImmutableObject implements
     }
 
     public int compareWith(String anotherString) {
-        return anotherString.compareTo(s);
+        return s.compareTo(anotherString);
     }
 }

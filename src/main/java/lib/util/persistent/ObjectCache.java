@@ -63,11 +63,11 @@ public class ObjectCache {
                             long address = qref.getAddress();
                             deregisterObject(address);
                             AnyPersistent obj = get(address, true);
-                            if (obj != null) {
+                            // if (obj != null) {
                                 Transaction.run(() -> {
                                     obj.deleteReference();
                                 }, obj);
-                            }
+                            // }
                         });
                     }
                 }
@@ -161,9 +161,8 @@ public class ObjectCache {
     static <T extends AnyPersistent> T objectForAddress(long address, boolean forAdmin) {
         // trace("objectForAddress(address: %d, forAdmin: %s)", address, forAdmin); 
         MemoryRegion valueRegion = new UncheckedPersistentMemoryRegion(address);
-        long typeNameAddr = valueRegion.getLong(0);
-        MemoryRegion typeNameRegion = new UncheckedPersistentMemoryRegion(typeNameAddr);
-        String typeName = AnyPersistent.typeNameFromRegion(typeNameRegion);
+        long ciAddr = valueRegion.getLong(0);
+        String typeName = ClassInfo.getClassInfo(ciAddr).className();
         ObjectType<T> type = Types.typeForName(typeName);
         Class<T> cls = type.cls();
         Box<T> box = new Box<>(null);
