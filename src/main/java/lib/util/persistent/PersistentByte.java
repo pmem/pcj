@@ -31,8 +31,9 @@ public final class PersistentByte extends PersistentImmutableObject implements C
     private static final ObjectType<PersistentByte> TYPE = ObjectType.fromFields(PersistentByte.class, BYTE);
 
     public PersistentByte(byte x) {
-        super(TYPE);
-        setByteField(BYTE, x);
+        super(TYPE, (PersistentByte self) -> {
+            self.initByteField(BYTE, x);
+        });
     }
 
     private PersistentByte(ObjectPointer<PersistentByte> p) {

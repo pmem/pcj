@@ -21,137 +21,71 @@
 
 package lib.util.persistent;
 
-import java.util.List;
-import java.util.ArrayList;
 import lib.util.persistent.types.ArrayType;
-import lib.util.persistent.types.ValueType;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.spi.PersistentMemoryProvider;
+import java.lang.reflect.Constructor;
+import static lib.util.persistent.Trace.*;
 
-// TODO: refactor / simplify array class hierarchy
-abstract class AbstractPersistentImmutableArray extends PersistentObject {
+abstract class AbstractPersistentImmutableArray extends AbstractPersistentArray {
     protected AbstractPersistentImmutableArray(ArrayType<? extends AnyPersistent> type, int count, Object data) {
-        super(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize(count)));
-        setInt(ArrayType.LENGTH_OFFSET, count);
-        initializeElements(data, type.getElementType());
+        super(type, count, data);
     }
 
     protected AbstractPersistentImmutableArray(ArrayType<? extends AnyPersistent> type, int count) {
-        super(type, PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(type.getAllocationSize(count)));
-        setInt(ArrayType.LENGTH_OFFSET, count);
-        for (int i = 0; i < count; i++) {initializeElement(i, type.getElementType());}
+        super(type, count);
     }
 
     protected AbstractPersistentImmutableArray(ObjectPointer<? extends AbstractPersistentImmutableArray>  p) {
         super(p);
     }
 
-    byte getByteElement(int index) {return getByte(elementOffset(check(index)));}
-    short getShortElement(int index) {return getShort(elementOffset(check(index)));}
-    int getIntElement(int index) {return getInt(elementOffset(check(index)));}
-    long getLongElement(int index) {return getLong(elementOffset(check(index)));}
-    float getFloatElement(int index) {return Float.intBitsToFloat(getInt(elementOffset(check(index))));}
-    double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(check(index))));}
-    char getCharElement(int index) {return (char)getInt(elementOffset(check(index)));}
-    boolean getBooleanElement(int index) {return getByte(elementOffset(check(index))) == (byte)0 ? false : true;}
-    
-    AnyPersistent getObjectElement(int index) {
-        return getObject(elementOffset(check(index)));
+    @Override
+    protected byte getByte(long offset) {
+        return getRegionByte(offset);
     }
 
-    private void setByteElement(int index, byte value) {setByte(elementOffset(check(index)), value);}
-    private void setShortElement(int index, short value) {setShort(elementOffset(check(index)), value);}
-    private void setIntElement(int index, int value) {setInt(elementOffset(check(index)), value);}
-    private void setLongElement(int index, long value) {setLong(elementOffset(check(index)), value);}
-    private void setFloatElement(int index, float value) {setInt(elementOffset(check(index)), Float.floatToIntBits(value));}
-    private void setDoubleElement(int index, double value) {setLong(elementOffset(check(index)), Double.doubleToLongBits(value));}
-    private void setCharElement(int index, char value) {setInt(elementOffset(check(index)), (int)value);}
-    private void setBooleanElement(int index, boolean value) {setByte(elementOffset(check(index)), value ? (byte)1 : (byte)0);}
-
-    void setObjectElement(int index, AnyPersistent value) {
-        setObject(elementOffset(check(index)), value);
+    @Override
+    protected short getShort(long offset) {
+        return getRegionShort(offset);
     }
 
-    public PersistentType getElementType() {
-        return ((ArrayType)getPointer().type()).getElementType();
+    @Override
+    protected int getInt(long offset) {
+        return getRegionInt(offset);
     }
 
-    public int length() {
-        return getInt(ArrayType.LENGTH_OFFSET);
+    @Override
+    protected long getLong(long offset) {
+        // trace(true, "APIA.getLong(%d)", offset); 
+        return getRegionLong(offset);
     }
 
-    long elementOffset(int index) {
-        return ((ArrayType)getPointer().type()).getElementOffset(index);
+    @Override
+    @SuppressWarnings("unchecked")
+    <T extends AnyPersistent> T getObject(long offset, PersistentType type) {
+        // trace(true, "APIA.getObject(%d, %s)", offset, type);
+        T ans = null;
+        long addr = getLong(offset);
+        if (addr != 0) ans = (T)ObjectCache.get(addr);
+        return ans;
     }
 
-    long elementOffset(int index, long size) {
-        return ((ArrayType)getPointer().type()).getElementOffset(index, size);
-    }
-
-    int check(int index) {
-        if (index < 0 || index >= length()) throw new IndexOutOfBoundsException("index " + index + " out of bounds");
-        return index;
-    }
-
-   // only called during construction; thread-safe
-    void initializeElement(int index, PersistentType t)
-    {
-        if (t == Types.BYTE) setByteElement(index, (byte)0);
-        else if (t == Types.SHORT) setShortElement(index, (short)0);
-        else if (t == Types.INT) setIntElement(index, 0);
-        else if (t == Types.LONG) setLongElement(index, 0L);
-        else if (t == Types.FLOAT) setFloatElement(index, 0f);
-        else if (t == Types.DOUBLE) setDoubleElement(index, 0d);
-        else if (t == Types.CHAR) setCharElement(index, (char)0);
-        else if (t == Types.BOOLEAN) setBooleanElement(index, false);
-        else if (t instanceof ObjectType) setObjectElement(index, null);
-        else if (t instanceof ArrayType) setObjectElement(index, null);
-    }
-
-    // only called during construction; thread-safe
-    private void initializeElements(Object data, PersistentType t)
-    {
-        if (t == Types.BYTE) {
-            byte[] array = (byte[])data;
-            for (int i = 0; i < array.length; i++) setByteElement(i, array[i]);
+    @SuppressWarnings("unchecked") <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
+        // trace(true, "APIA.getValueObject(%d, %s)", offset, type);
+        MemoryRegion srcRegion = getPointer().region();
+        MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
+        // trace(true, "APIA.getValueObject, src addr = %d, srcOffset = %d, dst  = %s, size = %d", srcRegion.addr(), offset, dstRegion, type.getSize());
+        Util.memCopy(getPointer().type(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
+        T obj = null;
+        try {
+            Constructor ctor = ((ObjectType)type).cls().getDeclaredConstructor(ObjectPointer.class);
+            ctor.setAccessible(true);
+            ObjectPointer p = new ObjectPointer<T>((ObjectType)type, dstRegion);
+            obj = (T)ctor.newInstance(p);
         }
-        else if (t == Types.SHORT) {
-            short[] array = (short[])data;
-            for (int i = 0; i < array.length; i++) setShortElement(i, array[i]);
-        }
-        else if (t == Types.INT) {
-            int[] array = (int[])data;
-            for (int i = 0; i < array.length; i++) setIntElement(i, array[i]);
-        }
-        else if (t == Types.LONG) {
-            long[] array = (long[])data;
-            for (int i = 0; i < array.length; i++) setLongElement(i, array[i]);
-        }
-        else if (t == Types.FLOAT) {
-            float[] array = (float[])data;
-            for (int i = 0; i < array.length; i++) setFloatElement(i, array[i]);
-        }
-        else if (t == Types.DOUBLE) {
-            double[] array = (double[])data;
-            for (int i = 0; i < array.length; i++) setDoubleElement(i, array[i]);
-        }
-        else if (t == Types.CHAR) {
-            char[] array = (char[])data;
-            for (int i = 0; i < array.length; i++) setCharElement(i, array[i]);
-        }
-        else if (t == Types.BOOLEAN) {
-            boolean[] array = (boolean[])data;
-            for (int i = 0; i < array.length; i++) setBooleanElement(i, array[i]);
-        }
-        else if (t instanceof ObjectType) {
-            AnyPersistent[] array = (AnyPersistent[])data;
-            for (int i = 0; i < array.length; i++) setObjectElement(i, array[i]);
-        }
-        else if (t instanceof ArrayType) {
-            AnyPersistent[] array = (AnyPersistent[])data;
-            for (int i = 0; i < array.length; i++) setObjectElement(i, array[i]);
-        }
+        catch (Exception e) {e.printStackTrace();}
+        return obj;
     }
 }

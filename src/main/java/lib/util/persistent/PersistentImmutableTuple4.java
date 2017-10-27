@@ -27,7 +27,7 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class PersistentImmutableTuple4<T1 extends AnyPersistent, T2 extends AnyPersistent, T3 extends AnyPersistent, T4 extends AnyPersistent> extends PersistentObject {
+public class PersistentImmutableTuple4<T1 extends AnyPersistent, T2 extends AnyPersistent, T3 extends AnyPersistent, T4 extends AnyPersistent> extends PersistentImmutableObject {
     private static final ObjectField<AnyPersistent> FIELD1 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD2 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD3 = new ObjectField<>();
@@ -39,12 +39,13 @@ public class PersistentImmutableTuple4<T1 extends AnyPersistent, T2 extends AnyP
     }
 
     protected PersistentImmutableTuple4(ObjectType<? extends PersistentImmutableTuple4> type, T1 t1, T2 t2, T3 t3, T4 t4) {
-        super(type);
-        Transaction.run(() -> {
-            _1(t1);
-            _2(t2);
-            _3(t3);
-            _4(t4); 
+        super(type, (PersistentImmutableTuple4 self) -> {
+            Transaction.run(() -> {
+                self.initObjectField(FIELD1, t1);
+                self.initObjectField(FIELD2, t2);
+                self.initObjectField(FIELD3, t3);
+                self.initObjectField(FIELD4, t4); 
+            });
         });
     }
 
@@ -70,21 +71,6 @@ public class PersistentImmutableTuple4<T1 extends AnyPersistent, T2 extends AnyP
             return (T4)getObjectField(FIELD4);
         }
 
-    private void _1(T1 t1) {
-            setObjectField(FIELD1, t1);
-        }
-
-    private void _2(T2 t2) {
-            setObjectField(FIELD2, t2);
-        }
-
-    private void _3(T3 t3) {
-            setObjectField(FIELD3, t3);
-        }
-
-    private void _4(T4 t4) {
-            setObjectField(FIELD4, t4);
-        }
 
     public String toString() {
         return "Tuple4(" + _1() + ", " + _2() + ", " + _3() + ", " + _4() + ")";

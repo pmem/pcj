@@ -22,16 +22,17 @@
 package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
+import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.types.ObjectType;
-import java.lang.reflect.Array;
-import java.util.Arrays;
-import lib.xpersistent.*;
-import lib.util.persistent.spi.PersistentMemoryProvider;
 
 public class PersistentImmutableValueArray<T extends AnyPersistent> extends PersistentImmutableArray<T> {
+    private static ArrayType<PersistentImmutableValueArray> TYPE = new ArrayType<>(PersistentImmutableValueArray.class, Types.OBJECT);
+
     @SafeVarargs
+    @SuppressWarnings("unchecked")
     public PersistentImmutableValueArray(Class<T> elementClass, T... ts) {
-        super(ts);
+        super(new ArrayType<PersistentImmutableValueArray>(PersistentImmutableValueArray.class, Types.typeForClass(elementClass)), ts);
+        TYPE = (ArrayType<PersistentImmutableValueArray>)this.getType();
     }
 
     protected PersistentImmutableValueArray(ObjectPointer<? extends PersistentImmutableValueArray<T>> pointer) {

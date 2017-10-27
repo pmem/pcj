@@ -1,0 +1,2 @@
+create table test2 k v1 v2 v3
+bulk insert test2 1000

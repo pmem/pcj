@@ -36,7 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.NoSuchElementException;
 
-public class PersistentSIHashMap<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements Map<K, V> {
+public class PersistentSIHashMap<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements PersistentMap<K, V> {
     static final int INITIAL_SIZE_POWER = 4;
     static final int DEFAULT_INITIAL_CAPACITY = 1 << INITIAL_SIZE_POWER; // aka 16
     static final int MAXIMUM_CAPACITY = 1 << 30;
@@ -481,6 +481,24 @@ public class PersistentSIHashMap<K extends AnyPersistent, V extends AnyPersisten
         }
     }
 
+    public <L, K extends EquatesWith<L>> V get(L key, Class<K> cls) {
+        if (key == null) throw new NullPointerException();
+        int hash = hash(key);
+        while (true) {
+            int slot = hash % getTable().getCapacity();
+            Node sentinel = getSentinel(slot);
+            Object ret = Util.synchronizedBlock(sentinel, () -> {
+                return getValueFromSentinel(sentinel, hash, key, cls);
+            });
+            if (ret != statics.errorValue()) {
+                @SuppressWarnings("unchecked") V vv = (V)ret;
+                return vv;
+            }
+            // @SuppressWarnings("unchecked")
+            // if (ret == null || !(ret instanceof PersistentLong) || (PersistentLong)ret != statics.errorValue()) return (V)ret;
+        }
+    }
+
     private Object getValueFromSentinel(Node sentinel, long hash, Object key) {
         // System.out.println("looking for key " + key + ", hash " + Long.toHexString(hash) + ", sentinel " + sentinel);
         long sortedHash = makeRegularKey(hash);
@@ -500,6 +518,53 @@ public class PersistentSIHashMap<K extends AnyPersistent, V extends AnyPersisten
                     continue;
                 } else if (c == 0) {
                     if (!(key.equals(curr.getKey()))) {
+                        curr = curr.getNext();
+                        // System.out.println("key mismatch, next");
+                        continue;
+                    } else {
+                        // System.out.println("found");
+                        return curr.getValue();
+                    }
+                } else {
+                    // System.out.println("too big, break");
+                    break;
+                }
+            } else {
+                // System.out.println("curr null, break");
+                break;
+            }
+        }
+        return null;    // not found
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object getValueFromSentinel(Node sentinel, long hash, Object key, Class<?> cls) {
+        // System.out.println("looking for key " + key + ", hash " + Long.toHexString(hash) + ", sentinel " + sentinel);
+        long sortedHash = makeRegularKey(hash);
+        Node curr = sentinel;
+        while (true) {
+            if (curr != null) {
+                int c;
+                // System.out.println("sortedHash " + Long.toHexString(sortedHash) + ", curr.getHash() = " + Long.toHexString(curr.getHash()));
+                long currHash = curr.getHash();
+                if ((c = Long.compareUnsigned(sortedHash, currHash)) > 0) {
+                    if (curr != sentinel && (currHash & 0x1) == 0) {    // only sentinel nodes have even hashes
+                        // System.out.println("Retrieval stepping over sentinel!");
+                        return statics.errorValue();
+                    }
+                    curr = curr.getNext();
+                    // System.out.println("too small, next");
+                    continue;
+                } else if (c == 0) {
+                    K curKey = (K)curr.getKey();
+                    if (curKey instanceof EquatesWith) {
+                        if (!((EquatesWith)curKey).equatesWith(key)) {
+                            curr = curr.getNext();
+                            continue;
+                        } else {
+                            return curr.getValue();
+                        }
+                    } else if (!(key.equals(curr.getKey()))) {
                         curr = curr.getNext();
                         // System.out.println("key mismatch, next");
                         continue;
@@ -642,7 +707,10 @@ public class PersistentSIHashMap<K extends AnyPersistent, V extends AnyPersisten
     }
 
     private int hash(Object key) {
-        return Math.abs(key.hashCode());
+        if (key instanceof EquatesWith)
+            return Math.abs(((EquatesWith)key).equivalentHash());
+        else
+            return Math.abs(key.hashCode());
     }
 
     private long makeSentinelKey(long key) {

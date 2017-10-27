@@ -22,6 +22,7 @@
 package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
+import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.types.ObjectType;
 import java.lang.reflect.Array;
 import java.util.Arrays;
@@ -29,8 +30,13 @@ import lib.xpersistent.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
 public class PersistentValueArray<T extends AnyPersistent> extends PersistentArray<T> {
+    private static ArrayType<PersistentValueArray> TYPE = new ArrayType<PersistentValueArray>(PersistentValueArray.class, Types.OBJECT);
+
+    @SuppressWarnings("unchecked")
     public PersistentValueArray(Class<T> elementClass, int size) {
-        super(elementClass, size);
+        // super(elementClass, size);
+        super(new ArrayType<PersistentValueArray>(PersistentValueArray.class, Types.typeForClass(elementClass)), size);
+        TYPE = (ArrayType<PersistentValueArray>)this.getType();
     }
 
     @SafeVarargs
@@ -51,7 +57,6 @@ public class PersistentValueArray<T extends AnyPersistent> extends PersistentArr
 
     @Override
     AnyPersistent getObjectElement(int index) {
-        // System.out.format("getObjectElement(%d), offset = %d\n", index, elementOffset(index));
         return getValueObject(elementOffset(check(index)), getElementType());
     }
 

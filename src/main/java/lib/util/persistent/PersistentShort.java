@@ -31,8 +31,9 @@ public final class PersistentShort extends PersistentImmutableObject implements 
     private static final ObjectType<PersistentShort> TYPE = ObjectType.fromFields(PersistentShort.class, SHORT);
 
     public PersistentShort(short x) {
-        super(TYPE);
-        setShortField(SHORT, x);
+        super(TYPE, (PersistentShort self) -> {
+            self.initShortField(SHORT, x);
+        });
     }
 
     private PersistentShort(ObjectPointer<PersistentShort> p) {

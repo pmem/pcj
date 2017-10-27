@@ -24,6 +24,7 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.types.ObjectType;
+import static lib.util.persistent.Trace.*;
 
 public class PersistentImmutableArray<T extends AnyPersistent> extends AbstractPersistentImmutableArray {
     private static final ArrayType<PersistentImmutableArray> TYPE = new ArrayType<>(PersistentImmutableArray.class, Types.OBJECT);
@@ -59,12 +60,18 @@ public class PersistentImmutableArray<T extends AnyPersistent> extends AbstractP
         super(type, size);
     }
 
+    @SafeVarargs
+    public PersistentImmutableArray(ArrayType<? extends PersistentImmutableArray> type, T... ts) {
+        super(type, ts.length, ts);
+    }
+
     protected PersistentImmutableArray(ObjectPointer<? extends PersistentImmutableArray<T>> pointer) {
         super(pointer);
     }
 
     @SuppressWarnings("unchecked")
     public T get(int index) {
+        // trace(true, "PIA.get(%d)", index);
         return (T)getObjectElement(index);
     }
 

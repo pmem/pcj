@@ -27,19 +27,22 @@ import lib.util.persistent.types.ObjectType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.Comparator;
 
-public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements PersistentSortedMap <K, V> {
+public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements ConcurrentNavigableMap<K,V>, PersistentSortedMap <K, V> {
 	private Node<K, V> root;
 	private static final ObjectField<PersistentLeaf> HEAD_LEAF = new ObjectField<>(PersistentLeaf.class);
 	private static final IntField P_MAX_LEAF_KEYS = new IntField();
@@ -209,6 +212,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		return (PersistentLeaf<K, V>) getObjectField(HEAD_LEAF);
 	}
 
+	//begin Map interface methods
 
 	@Override
 	public int size() {
@@ -242,10 +246,27 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		return doGet(sisterKey);
 	}
 
+	public V putIfAbsent(K key, V value) {
+		return null;
+	}
+
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public V remove(Object key) {
 		return doRemove((K) key);
+	}
+
+	public boolean remove(Object key, Object value) {
+		return false;
+	}
+
+	public V replace(K key, V value) {
+		return null;
+	}
+
+	public boolean replace(K key, V oldValue, V newValue) {
+		return false;
 	}
 
 	@Override
@@ -256,11 +277,6 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 	@Override
 	public void clear() {
 		throw new UnsupportedOperationException();		
-	}
-
-	@Override
-	public Set<K> keySet() {
-		throw new UnsupportedOperationException();
 	}
 
 	@Override
@@ -283,25 +299,115 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		throw new UnsupportedOperationException();
 	}
 
+	public K higherKey(K key) {
+		return null;
+	}
+
 	@Override
-	public SortedMap<K,V> headMap(K toKey) {
+	public ConcurrentNavigableMap<K,V> headMap(K toKey) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public SortedMap<K,V> tailMap(K fromKey) {
+	public ConcurrentNavigableMap<K,V> headMap(K toKey, boolean inclusive) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public SortedMap<K,V> subMap(K fromKey, K toKey) {
+	public ConcurrentNavigableMap<K,V> tailMap(K fromKey) {
 		throw new UnsupportedOperationException();
 	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> tailMap(K fromKey, boolean inclusive) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> subMap(K fromKey, K toKey) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> descendingMap() {
+		return null;
+	}
+
+	@Override
+	public NavigableSet<K> descendingKeySet() {
+		return null;
+	}
+
+	@Override
+	public NavigableSet<K> keySet() {
+		return null;
+	}
+
+	@Override
+	public NavigableSet<K> navigableKeySet() {
+		return null;
+	}
+
+	public Map.Entry<K,V> firstEntry() {
+		return null;
+	}
+
+	public Map.Entry<K,V> lastEntry() {
+		return null;
+	}
+
+	public Map.Entry<K,V> pollFirstEntry() {
+		return null;
+	}
+
+	public Map.Entry<K,V> pollLastEntry() {
+		return null;
+	}
+
+	public Map.Entry<K,V> ceilingEntry(K key) {
+		return null;
+	}
+
+	public K ceilingKey(K key) {
+		return null;
+	}
+
+	public Map.Entry<K,V> lowerEntry(K key) {
+		return null;
+	}
+
+	public K lowerKey(K key) {
+		return null;
+	}
+
+	public Map.Entry<K,V> floorEntry(K key) {
+		return null;
+	}
+
+	public K floorKey(K key) {
+		return null;
+	}
+
+	public Map.Entry<K,V> higherEntry(K key) {
+		return null;
+	}
+
+
+
+
 
 	@Override
 	public Comparator<? super K> comparator() {
 		return this.comparator;
 	}
+
+	// end of interface methods
+
 
 	private int compareKeys(K k1, K k2) {
 		if(k1 == null) throw new NullPointerException("Key 1 is null");
@@ -576,12 +682,12 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 
 	@SuppressWarnings("unchecked")
 	private K getSplitKey(LeafNode<K, V> leafNode) {
-		Object[] keys = new Object[MAX_LEAF_KEYS + 1];
+		ArrayList<K> keys = new ArrayList<>(MAX_LEAF_KEYS + 1);
 		for (int slot = 0; slot <= MAX_LEAF_KEYS; slot++) {
-			keys[slot] = leafNode.keys.get(slot);
+			keys.add(leafNode.keys.get(slot));
 		}
-		Arrays.sort(keys);
-		return (K) keys[MIN_LEAF_KEYS - 1];
+		Collections.sort(keys, this.comparator);
+		return keys.get(MIN_LEAF_KEYS - 1);
 	}
 
 	// Modified Pearson hashing algorithm from pmemkv (https://github.com/pmem/pmemkv/blob/master/src/pmemkv.cc)

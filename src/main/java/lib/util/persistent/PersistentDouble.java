@@ -31,8 +31,9 @@ public final class PersistentDouble extends PersistentImmutableObject implements
     private static final ObjectType<PersistentDouble> TYPE = ObjectType.fromFields(PersistentDouble.class, DOUBLE);
 
     public PersistentDouble(double x) {
-        super(TYPE);
-        setDoubleField(DOUBLE, x);
+        super(TYPE, (PersistentDouble self) -> {
+            self.initDoubleField(DOUBLE, x);
+        });
     }
 
     private PersistentDouble(ObjectPointer<PersistentDouble> p) {

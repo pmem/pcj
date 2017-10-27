@@ -31,8 +31,9 @@ public final class PersistentCharacter extends PersistentImmutableObject impleme
     private static final ObjectType<PersistentCharacter> TYPE = ObjectType.fromFields(PersistentCharacter.class, CHAR);
 
     public PersistentCharacter(char x) {
-        super(TYPE);
-        setCharField(CHAR, x);
+        super(TYPE, (PersistentCharacter self) -> {
+            self.initCharField(CHAR, x);
+        });
     }
 
     private PersistentCharacter(ObjectPointer<PersistentCharacter> p) {

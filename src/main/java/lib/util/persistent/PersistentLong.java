@@ -31,8 +31,9 @@ public final class PersistentLong extends PersistentImmutableObject implements C
     private static final ObjectType<PersistentLong> TYPE = ObjectType.fromFields(PersistentLong.class, LONG);
 
     public PersistentLong(long x) {
-        super(TYPE);
-        setLongField(LONG, x);
+        super(TYPE, (PersistentLong self) -> {
+            self.initLongField(LONG, x);
+        });
     }
 
     private PersistentLong(ObjectPointer<PersistentLong> p) {

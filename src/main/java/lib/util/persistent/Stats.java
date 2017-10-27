@@ -60,6 +60,7 @@ public class Stats {
     public static Stats reset() {
         Stats ans = current;
         current = new Stats();
+        current.objectCache.maxSize = ans.objectCache.maxSize;
         return ans;
     }
 
@@ -68,6 +69,7 @@ public class Stats {
         public long promotedHits;
         public long simpleMisses;
         public long referentMisses;
+        public long maxSize;
 
         ObjectCacheStats() {
             clear();
@@ -75,9 +77,10 @@ public class Stats {
 
         public void clear() {
             simpleHits = -1;
-            promotedHits = -1;
+            promotedHits = 0;
             simpleMisses = -1;
-            referentMisses = -1;    
+            referentMisses = 0;    
+            maxSize = -1;
         }        
     }
 
@@ -91,20 +94,20 @@ public class Stats {
         }
 
         public void clear() {
-            constructions = 0;
-            reconstructions = 0;
+            constructions = -1;
+            reconstructions = -1;
             enqueued = 0;        
         }
     }
 
 
     public static class TransactionStats {
-        public long total = -1;
-        public long topLevel = -1;
-        public long maxDepth = -1;
-        public long totalRetries = 0;
-        private long maxRetries = 0;
-        public long failures = 0;
+        public long total;
+        public long topLevel;
+        public long maxDepth;
+        public long totalRetries;
+        private long maxRetries;
+        public long failures;
 
         TransactionStats() {
             clear();
@@ -125,8 +128,8 @@ public class Stats {
     }
 
     public static class LockStats {
-        public long acquired = -1;
-        public long timeouts = -1;
+        public long acquired;
+        public long timeouts;
 
         LockStats() {
             clear();
@@ -134,7 +137,7 @@ public class Stats {
 
         public void clear() {
             acquired = -1;
-            timeouts = - 1;
+            timeouts = -1;
         }
     }
 
@@ -154,6 +157,7 @@ public class Stats {
         System.out.println("promotedHits   :" + format(stats.objectCache.promotedHits)); 
         System.out.println("simpleMisses   :" + format(stats.objectCache.simpleMisses)); 
         System.out.println("referentMisses :" + format(stats.objectCache.referentMisses)); 
+        System.out.println("maxSize        :" + format(stats.objectCache.maxSize)); 
         System.out.println();
     }
 
@@ -204,10 +208,10 @@ public class Stats {
         if (header != null) {
             System.out.format("\n======= %s ===========\n\n", header); 
         }
-        // printObjectCacheStats(stats);
+        printObjectCacheStats(stats);
         printMemoryStats(stats);
         printTransactionStats(stats);
-        // printLockStats(stats);
+        printLockStats(stats);
         System.out.println();
     }        
 }

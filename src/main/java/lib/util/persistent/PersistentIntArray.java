@@ -25,7 +25,7 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
 
-public final class PersistentIntArray extends AbstractPersistentArray {
+public final class PersistentIntArray extends AbstractPersistentMutableArray {
     private static final ArrayType<PersistentIntArray> TYPE = new ArrayType<>(PersistentIntArray.class, Types.INT);
 
     public PersistentIntArray(int size) {

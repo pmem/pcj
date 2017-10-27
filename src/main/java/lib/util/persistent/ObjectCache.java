@@ -45,6 +45,8 @@ public class ObjectCache {
     private static Map<Long, PRef<?>> prefs;
     private static final PersistentHeap heap;
     private static Thread collector;
+    private static long counter;                    // only used for ObjectCache stats
+    private static final long counterMod = 10000;   // only used for ObjectCache stats
 
     static {
         cache = new ConcurrentHashMap<>();
@@ -63,11 +65,10 @@ public class ObjectCache {
                             long address = qref.getAddress();
                             deregisterObject(address);
                             AnyPersistent obj = get(address, true);
-                            // if (obj != null) {
-                                Transaction.run(() -> {
-                                    obj.deleteReference();
-                                }, obj);
-                            // }
+                            Transaction.run(() -> {
+                                obj.deleteReference();
+                            }, obj);
+                            if (Config.REMOVE_FROM_OBJECT_CACHE_ON_ENQUEUE) remove(address);
                         });
                     }
                 }
@@ -140,21 +141,28 @@ public class ObjectCache {
         ref = (Ref<T>)cache.get(address);
         if (ref == null || (obj = (T)ref.get()) == null) {   
             // trace(address, "MISS: " + (ref == null ? "simple" : "null referent"));
-            // if (ref == null) Stats.current.objectCache.simpleMisses++; else Stats.current.objectCache.referentMisses++;
+            // if (ref == null) Stats.current.objectCache.simpleMisses++; else Stats.current.objectCache.referentMisses++;  // uncomment for ObjectCache stats
             obj = objectForAddress(address, forAdmin);
             ref = new Ref(obj, forAdmin);
             cache.put(address, ref);
+            // updateCacheSizeStats();                       // uncomment for ObjectCache stats
         }
         else if (ref.isForAdmin() && !forAdmin) {   
                 // trace(address, "HIT: forAdmin -> !forAdmin");
                 ref.setForAdmin(false);
                 obj = (T)ref.get();
                 obj.initForGC();
-                // Stats.current.objectCache.promotedHits++;
+                // Stats.current.objectCache.promotedHits++; // uncomment for ObjectCache stats
         }
-        // else Stats.current.objectCache.simpleHits++;
+        // else Stats.current.objectCache.simpleHits++;      // uncomment for ObjectCache stats
         assert(obj != null);
         return ref;
+    }
+
+    private static void updateCacheSizeStats() {
+        long size;
+        if (counter++ % counterMod != 0 || (size = cache.size()) < Stats.current.objectCache.maxSize) return; 
+        Stats.current.objectCache.maxSize = size; 
     }
 
     @SuppressWarnings("unchecked")
@@ -194,6 +202,7 @@ public class ObjectCache {
         long address = obj.getPointer().addr();
         Ref<T> ref = new Ref<>(obj);
         cache.put(address, ref);
+        // updateCacheSizeStats();                     // uncomment for ObjectCache stats
         XTransaction.addNewObject(obj);        
     }
 

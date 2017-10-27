@@ -31,8 +31,9 @@ public final class PersistentBoolean extends PersistentImmutableObject implement
     private static final ObjectType<PersistentBoolean> TYPE = ObjectType.fromFields(PersistentBoolean.class, BOOLEAN);
 
     public PersistentBoolean(boolean x) {
-        super(TYPE);
-        setBooleanField(BOOLEAN, x);
+        super(TYPE, (PersistentBoolean self) -> {
+            self.initBooleanField(BOOLEAN, x);
+        });
     }
 
     private PersistentBoolean(ObjectPointer<PersistentBoolean> p) {

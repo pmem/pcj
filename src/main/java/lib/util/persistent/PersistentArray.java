@@ -24,13 +24,12 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.ValueType;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import lib.xpersistent.*;
-import lib.util.persistent.spi.PersistentMemoryProvider;
+import static lib.util.persistent.Trace.*;
 
-public class PersistentArray<T extends AnyPersistent> extends AbstractPersistentArray {
+public class PersistentArray<T extends AnyPersistent> extends AbstractPersistentMutableArray {
     private static final ArrayType<PersistentArray> TYPE = new ArrayType<>(PersistentArray.class, Types.OBJECT);
 
     public static <A extends PersistentArray, T extends AnyPersistent> ArrayType<A> typeForClasses(Class<A> arrayClass, Class<T> elementClass) {
@@ -39,6 +38,7 @@ public class PersistentArray<T extends AnyPersistent> extends AbstractPersistent
 
     @SuppressWarnings("unchecked")
     public static <T extends AnyPersistent> PersistentArray<T> forElementClass(Class<T> elementClass, int size) {
+        // System.out.format("PersistentArray forElementClass(%s, %d)\n", elementClass, size);
         PersistentArray<T> ans = null;
         ObjectType ot = Types.objectTypeForClass(elementClass);
         if (ot.isValueBased()) {
@@ -59,7 +59,7 @@ public class PersistentArray<T extends AnyPersistent> extends AbstractPersistent
         super(new ArrayType<PersistentArray>(PersistentArray.class, Types.typeForClass(elementClass)), size);
     }
 
-    protected PersistentArray(ArrayType<? extends PersistentArray<T>> type, int size) {
+    protected PersistentArray(ArrayType<? extends PersistentArray> type, int size) {
         super(type, size);
     }
 
@@ -75,10 +75,12 @@ public class PersistentArray<T extends AnyPersistent> extends AbstractPersistent
 
     @SuppressWarnings("unchecked")
     public T get(int index) {
+        // trace(true, "PA.get(%d)", index);
         return (T)getObjectElement(index);
     }
 
     public void set(int index, T value) {
+        // trace(true, "PA.set(%d)", index);
         setObjectElement(index, value);
     }
     
@@ -111,38 +113,4 @@ public class PersistentArray<T extends AnyPersistent> extends AbstractPersistent
             b.append(", ");
         }
     }
-
-    /*@SuppressWarnings("unchecked")
-    public static synchronized void ArrayCopy(PersistentObject src, int srcPos, PersistentObject dest, int destPos, int length){
-        if (src.equals(null) || dest.equals(null)) 
-            throw new NullPointerException("Cannot copy to or from Null Array");
-        if (!(src instanceof AbstractPersistentArray)) //might just need to be AbstractPersistentArray
-            throw new ArrayStoreException("src is not an Array");
-        if (!(dest instanceof AbstractPersistentArray)) //might just need to be AbstractPersistentArray
-            throw new ArrayStoreException("dest is not an Array");
-        if (!src.getType().equals(dest.getType())) 
-            throw new ArrayStoreException("src and dest Arrays are of different types");
-        if (srcPos < 0 || destPos < 0 || length < 0) 
-            throw new IndexOutOfBoundsException("Index out of bounds");
-        if (srcPos+length > ((AbstractPersistentArray)src).length())
-            throw new IndexOutOfBoundsException("Index out of bounds: src Array");
-        if (destPos+length > ((AbstractPersistentArray)dest).length())
-            throw new IndexOutOfBoundsException("Index out of bounds: dest Array");
-        
-        XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
-        MemoryRegion from = src.getPointer().region();
-        MemoryRegion to = dest.getPointer().region();
-        long elemLength = Types.OBJECT.getSize();
-
-        //special overlap case. Start copying from end
-        if (src.equals(dest) && srcPos < destPos && destPos <= srcPos + length -1) {
-            for (int i=length-1; i>=0; i--) {
-                heap.memcpy(from, ((AbstractPersistentArray)src).elementOffset(srcPos+i), to, ((AbstractPersistentArray)dest).elementOffset(destPos+i), elemLength);  
-            }
-        } else {
-            for (int i=0; i<length; i++) {
-                heap.memcpy(from, ((AbstractPersistentArray)src).elementOffset(srcPos+i), to, ((AbstractPersistentArray)dest).elementOffset(destPos+i), elemLength);  
-            }
-        }
-    }*/
 }

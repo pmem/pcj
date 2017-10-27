@@ -53,8 +53,9 @@ public final class Persistent<class> extends PersistentImmutableObject implement
     private static final ObjectType\<Persistent<class>\> TYPE = ObjectType.fromFields(Persistent<class>.class, <field>);
 
     public Persistent<class>(<smallcaps> x) {
-        super(TYPE);
-        set<identifier>Field(<field>, x);
+        super(TYPE, (Persistent<class> self) -> {
+            self.init<identifier>Field(<field>, x);
+        });
     }
 
     private Persistent<class>(ObjectPointer\<Persistent<class>\> p) {
@@ -194,7 +195,7 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
 
-public final class Persistent<identifier>Array extends AbstractPersistentArray {
+public final class Persistent<identifier>Array extends AbstractPersistentMutableArray {
     private static final ArrayType\<Persistent<identifier>Array> TYPE = new ArrayType\<>(Persistent<identifier>Array.class, Types.<field>);
 
     public Persistent<identifier>Array(int size) {
@@ -257,8 +258,8 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\> extends PersistentMutableObject {
-    <range:{ x | private static final ObjectField\<PersistentObject> FIELD<x> = new ObjectField\<>();};separator="\n"> 
+public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends AnyPersistent};separator=", ">\> extends PersistentObject {
+    <range:{ x | private static final ObjectField\<AnyPersistent> FIELD<x> = new ObjectField\<>();};separator="\n"> 
     public static final ObjectType\<<class_prefix>Tuple<n>\> TYPE = ObjectType.fromFields(<class_prefix>Tuple<n>.class, <range:{x | FIELD<x>};separator=", ">);
 
     public <class_prefix>Tuple<n>() {
@@ -338,8 +339,8 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject};separator=", ">\> extends PersistentImmutableObject {
-    <range:{ x | private static final ObjectField\<PersistentObject> FIELD<x> = new ObjectField\<>();};separator="\n">
+public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends AnyPersistent};separator=", ">\> extends PersistentImmutableObject {
+    <range:{ x | private static final ObjectField\<AnyPersistent> FIELD<x> = new ObjectField\<>();};separator="\n">
     public static final ObjectType\<<class_prefix>Tuple<n>\> TYPE = ObjectType.fromFields(<class_prefix>Tuple<n>.class, <range:{x | FIELD<x>};separator=", ">);
 
     public <class_prefix>Tuple<n>(<range:{ x | T<x> t<x>};separator=", ">) {
@@ -347,9 +348,10 @@ public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject}
     }
 
     protected <class_prefix>Tuple<n>(ObjectType\<? extends <class_prefix>Tuple<n>\> type, <range:{ x | T<x> t<x>};separator=", ">) {
-        super(type);
-        Transaction.run(() -> {
-            <range:{ x | _<x>(t<x>);};separator="\n"> 
+        super(type, (<class_prefix>Tuple<n> self) -> {
+            Transaction.run(() -> {
+                <range:{ x | self.initObjectField(FIELD<x>, t<x>);};separator="\n"> 
+            });
         });
     }
 
@@ -360,9 +362,9 @@ public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends PersistentObject}
         return (T<x>)getObjectField(FIELD<x>);
     \}};separator="\n\n">
 
-    <range:{x | private void _<x>(T<x> t<x>) {
+<!    <range:{x | private void _<x>(T<x> t<x>) {
         setObjectField(FIELD<x>, t<x>);
-    \}};separator="\n\n">
+    \}};separator="\n\n"> !>
 
     public String toString() {
         return "Tuple<n>(" + <range:{x | _<x>()};separator=" + \", \" + "> + ")";

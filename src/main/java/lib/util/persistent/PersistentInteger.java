@@ -26,13 +26,14 @@ import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.Types;
 
-public final class PersistentInteger extends PersistentImmutableObject implements Comparable<PersistentInteger>, ComparableWith<Integer> { 
+public final class PersistentInteger extends PersistentImmutableObject implements Comparable<PersistentInteger>, ComparableWith<Integer>, EquatesWith<Integer> {
     private static final IntField INT = new IntField();
     private static final ObjectType<PersistentInteger> TYPE = ObjectType.fromFields(PersistentInteger.class, INT);
 
     public PersistentInteger(int x) {
-        super(TYPE);
-        setIntField(INT, x);
+        super(TYPE, (PersistentInteger self) -> {
+            self.initIntField(INT, x);
+        });
     }
 
     private PersistentInteger(ObjectPointer<PersistentInteger> p) {
@@ -50,7 +51,7 @@ public final class PersistentInteger extends PersistentImmutableObject implement
     @Override
     public boolean equals(Object o) {
         if (o instanceof PersistentInteger) {
-            return this.intValue() == ((PersistentInteger)o).intValue();  
+            return this.intValue() == ((PersistentInteger)o).intValue();
         }
         return false;
     }
@@ -65,8 +66,18 @@ public final class PersistentInteger extends PersistentImmutableObject implement
         int y = o.intValue();
         return (x < y) ? -1 : ((x == y) ? 0 : 1);
     }
-    
+
     public int compareWith(Integer anotherInteger) {
         return -1 * anotherInteger.compareTo(intValue());
+    }
+
+    @Override
+    public int equivalentHash() {
+        return this.hashCode();
+    }
+
+    @Override
+    public boolean equatesWith(Integer that) {
+        return this.intValue() == that.intValue();
     }
 }

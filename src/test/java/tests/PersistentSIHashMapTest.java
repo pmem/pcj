@@ -45,7 +45,8 @@ public class PersistentSIHashMapTest {
                testIteration() &&
                testClear() &&
                testMultithread() &&
-               testReplaceAll();
+               testReplaceAll() &&
+               testVolatileGet();
     }
 
     static String safeThreadID(String id) {
@@ -190,6 +191,22 @@ public class PersistentSIHashMapTest {
         for (int i = 0; i < 10; i++) {
             assert(map.get(new PersistentInteger(i)).equals(new PersistentString("test_" + i + i)));
         }
+        return true;
+    }
+
+    static boolean testVolatileGet() {
+        if (verbose) System.out.println("****************Testing volatileGet********************");
+        PersistentSIHashMap<PersistentInteger, PersistentString> map = getMap();
+
+        map.clear();
+        for (int i = 0; i < 10; i++) {
+            map.put(new PersistentInteger(i), new PersistentString("test_" + i));
+        }
+
+        for (int i = 0; i < 10; i++) {
+            assert(map.get(new Integer(i), PersistentInteger.class).equals(new PersistentString("test_" + i)));
+        }
+
         return true;
     }
 

@@ -70,7 +70,7 @@ public final class Long128 extends PersistentObject {
         public Long128 get() {return getObjectField(L);}
     }
 
-    public static class Long128Array extends AbstractPersistentArray {
+    public static class Long128Array extends AbstractPersistentMutableArray {
         public static final ArrayType<Long128Array> TYPE = new ArrayType<>(Long128Array.class, Long128.TYPE);
 
         public Long128Array(int size) {

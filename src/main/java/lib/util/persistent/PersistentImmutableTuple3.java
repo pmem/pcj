@@ -27,7 +27,7 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class PersistentImmutableTuple3<T1 extends AnyPersistent, T2 extends AnyPersistent, T3 extends AnyPersistent> extends PersistentObject {
+public class PersistentImmutableTuple3<T1 extends AnyPersistent, T2 extends AnyPersistent, T3 extends AnyPersistent> extends PersistentImmutableObject {
     private static final ObjectField<AnyPersistent> FIELD1 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD2 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD3 = new ObjectField<>();
@@ -38,11 +38,12 @@ public class PersistentImmutableTuple3<T1 extends AnyPersistent, T2 extends AnyP
     }
 
     protected PersistentImmutableTuple3(ObjectType<? extends PersistentImmutableTuple3> type, T1 t1, T2 t2, T3 t3) {
-        super(type);
-        Transaction.run(() -> {
-            _1(t1);
-            _2(t2);
-            _3(t3); 
+        super(type, (PersistentImmutableTuple3 self) -> {
+            Transaction.run(() -> {
+                self.initObjectField(FIELD1, t1);
+                self.initObjectField(FIELD2, t2);
+                self.initObjectField(FIELD3, t3); 
+            });
         });
     }
 
@@ -63,17 +64,6 @@ public class PersistentImmutableTuple3<T1 extends AnyPersistent, T2 extends AnyP
             return (T3)getObjectField(FIELD3);
         }
 
-    private void _1(T1 t1) {
-            setObjectField(FIELD1, t1);
-        }
-
-    private void _2(T2 t2) {
-            setObjectField(FIELD2, t2);
-        }
-
-    private void _3(T3 t3) {
-            setObjectField(FIELD3, t3);
-        }
 
     public String toString() {
         return "Tuple3(" + _1() + ", " + _2() + ", " + _3() + ")";

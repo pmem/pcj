@@ -27,7 +27,7 @@ import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 
-public class PersistentImmutableTuple18<T1 extends AnyPersistent, T2 extends AnyPersistent, T3 extends AnyPersistent, T4 extends AnyPersistent, T5 extends AnyPersistent, T6 extends AnyPersistent, T7 extends AnyPersistent, T8 extends AnyPersistent, T9 extends AnyPersistent, T10 extends AnyPersistent, T11 extends AnyPersistent, T12 extends AnyPersistent, T13 extends AnyPersistent, T14 extends AnyPersistent, T15 extends AnyPersistent, T16 extends AnyPersistent, T17 extends AnyPersistent, T18 extends AnyPersistent> extends PersistentObject {
+public class PersistentImmutableTuple18<T1 extends AnyPersistent, T2 extends AnyPersistent, T3 extends AnyPersistent, T4 extends AnyPersistent, T5 extends AnyPersistent, T6 extends AnyPersistent, T7 extends AnyPersistent, T8 extends AnyPersistent, T9 extends AnyPersistent, T10 extends AnyPersistent, T11 extends AnyPersistent, T12 extends AnyPersistent, T13 extends AnyPersistent, T14 extends AnyPersistent, T15 extends AnyPersistent, T16 extends AnyPersistent, T17 extends AnyPersistent, T18 extends AnyPersistent> extends PersistentImmutableObject {
     private static final ObjectField<AnyPersistent> FIELD1 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD2 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD3 = new ObjectField<>();
@@ -53,26 +53,27 @@ public class PersistentImmutableTuple18<T1 extends AnyPersistent, T2 extends Any
     }
 
     protected PersistentImmutableTuple18(ObjectType<? extends PersistentImmutableTuple18> type, T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15, T16 t16, T17 t17, T18 t18) {
-        super(type);
-        Transaction.run(() -> {
-            _1(t1);
-            _2(t2);
-            _3(t3);
-            _4(t4);
-            _5(t5);
-            _6(t6);
-            _7(t7);
-            _8(t8);
-            _9(t9);
-            _10(t10);
-            _11(t11);
-            _12(t12);
-            _13(t13);
-            _14(t14);
-            _15(t15);
-            _16(t16);
-            _17(t17);
-            _18(t18); 
+        super(type, (PersistentImmutableTuple18 self) -> {
+            Transaction.run(() -> {
+                self.initObjectField(FIELD1, t1);
+                self.initObjectField(FIELD2, t2);
+                self.initObjectField(FIELD3, t3);
+                self.initObjectField(FIELD4, t4);
+                self.initObjectField(FIELD5, t5);
+                self.initObjectField(FIELD6, t6);
+                self.initObjectField(FIELD7, t7);
+                self.initObjectField(FIELD8, t8);
+                self.initObjectField(FIELD9, t9);
+                self.initObjectField(FIELD10, t10);
+                self.initObjectField(FIELD11, t11);
+                self.initObjectField(FIELD12, t12);
+                self.initObjectField(FIELD13, t13);
+                self.initObjectField(FIELD14, t14);
+                self.initObjectField(FIELD15, t15);
+                self.initObjectField(FIELD16, t16);
+                self.initObjectField(FIELD17, t17);
+                self.initObjectField(FIELD18, t18); 
+            });
         });
     }
 
@@ -168,77 +169,6 @@ public class PersistentImmutableTuple18<T1 extends AnyPersistent, T2 extends Any
             return (T18)getObjectField(FIELD18);
         }
 
-    private void _1(T1 t1) {
-            setObjectField(FIELD1, t1);
-        }
-
-    private void _2(T2 t2) {
-            setObjectField(FIELD2, t2);
-        }
-
-    private void _3(T3 t3) {
-            setObjectField(FIELD3, t3);
-        }
-
-    private void _4(T4 t4) {
-            setObjectField(FIELD4, t4);
-        }
-
-    private void _5(T5 t5) {
-            setObjectField(FIELD5, t5);
-        }
-
-    private void _6(T6 t6) {
-            setObjectField(FIELD6, t6);
-        }
-
-    private void _7(T7 t7) {
-            setObjectField(FIELD7, t7);
-        }
-
-    private void _8(T8 t8) {
-            setObjectField(FIELD8, t8);
-        }
-
-    private void _9(T9 t9) {
-            setObjectField(FIELD9, t9);
-        }
-
-    private void _10(T10 t10) {
-            setObjectField(FIELD10, t10);
-        }
-
-    private void _11(T11 t11) {
-            setObjectField(FIELD11, t11);
-        }
-
-    private void _12(T12 t12) {
-            setObjectField(FIELD12, t12);
-        }
-
-    private void _13(T13 t13) {
-            setObjectField(FIELD13, t13);
-        }
-
-    private void _14(T14 t14) {
-            setObjectField(FIELD14, t14);
-        }
-
-    private void _15(T15 t15) {
-            setObjectField(FIELD15, t15);
-        }
-
-    private void _16(T16 t16) {
-            setObjectField(FIELD16, t16);
-        }
-
-    private void _17(T17 t17) {
-            setObjectField(FIELD17, t17);
-        }
-
-    private void _18(T18 t18) {
-            setObjectField(FIELD18, t18);
-        }
 
     public String toString() {
         return "Tuple18(" + _1() + ", " + _2() + ", " + _3() + ", " + _4() + ", " + _5() + ", " + _6() + ", " + _7() + ", " + _8() + ", " + _9() + ", " + _10() + ", " + _11() + ", " + _12() + ", " + _13() + ", " + _14() + ", " + _15() + ", " + _16() + ", " + _17() + ", " + _18() + ")";

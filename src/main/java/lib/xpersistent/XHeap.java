@@ -68,7 +68,9 @@ public class XHeap implements PersistentHeap {
             path = prop.getProperty("path");
             size = Long.parseLong(prop.getProperty("size"));
         } catch (Exception e) {
-            throw new RuntimeException("Error reading config.properties file! Please make sure the file exists and is properly configured.");
+            System.out.println("Could not properly load config.properties file; using default values for pool path (/mnt/mem/persistent_heap) and size (2GB).");
+            path = "/mnt/mem/persistent_heap";
+            size = 2L*1024L*1024L*1024L;
         }
 
         System.out.print("Opening heap... ");

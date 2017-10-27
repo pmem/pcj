@@ -69,7 +69,7 @@ public class CycleCollector {
         processing.set(false);
         synchronized(colorChangesWhileCollecting) {
             for (Map.Entry<Long, Byte> e : colorChangesWhileCollecting.entrySet()) {
-                PersistentObject obj = ObjectCache.get(e.getKey(), true);
+                AnyPersistent obj = ObjectCache.get(e.getKey(), true);
                 obj.setColor(e.getValue());
             }
             colorChangesWhileCollecting.clear();

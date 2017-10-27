@@ -24,9 +24,6 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
-import lib.util.persistent.types.ValueType;
-import lib.util.persistent.types.ValueBasedObjectType;
-import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.types.ByteField;
 import lib.util.persistent.types.ShortField;
 import lib.util.persistent.types.IntField;
@@ -37,23 +34,12 @@ import lib.util.persistent.types.CharField;
 import lib.util.persistent.types.BooleanField;
 import lib.util.persistent.types.ObjectField;
 import lib.util.persistent.types.ValueField;
-import lib.util.persistent.types.PersistentField;
-import lib.util.persistent.types.FinalByteField;
-import lib.util.persistent.types.FinalShortField;
-import lib.util.persistent.types.FinalIntField;
-import lib.util.persistent.types.FinalLongField;
-import lib.util.persistent.types.FinalFloatField;
-import lib.util.persistent.types.FinalDoubleField;
-import lib.util.persistent.types.FinalCharField;
-import lib.util.persistent.types.FinalBooleanField;
-import lib.util.persistent.types.FinalObjectField;
 import java.lang.reflect.Constructor;
 import static lib.util.persistent.Trace.*;
 import java.util.function.Consumer;
 
-// TODO: refactor base classes to honor Liskov Substitution Principle
 @SuppressWarnings("sunapi")
-public class PersistentObject extends PersistentImmutableObject {
+public class PersistentObject extends AbstractPersistentObject {
     public PersistentObject(ObjectType<? extends PersistentObject> type) {
         super(type);
     }
@@ -64,8 +50,8 @@ public class PersistentObject extends PersistentImmutableObject {
     }
 
     <T extends AnyPersistent> PersistentObject(ObjectType<T> type, MemoryRegion region) {
-        // trace(region.addr(), "creating object of type %s", type.getName());
         super(type, region);
+        // trace(region.addr(), "created object of type %s", type.getName());
     }
 
     public PersistentObject(ObjectPointer<? extends AnyPersistent> p) {
@@ -149,7 +135,7 @@ public class PersistentObject extends PersistentImmutableObject {
 
     @Override
     protected long getLong(long offset) {
-        // trace(true, "PO getLong(%d)", offset);
+        // trace(true, "PO.getLong(%d)", offset);
         // return Util.synchronizedBlock(this, () -> pointer.region().getLong(offset));
         long ans;
         TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
@@ -176,7 +162,7 @@ public class PersistentObject extends PersistentImmutableObject {
     @Override
     @SuppressWarnings("unchecked")
     <T extends AnyPersistent> T getObject(long offset, PersistentType type) {
-        // trace(true, "PO getObject(%d, %s)", offset, type);
+        // trace(true, "PO.getObject(%d, %s)", offset, type);
         T ans = null;
         TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
         boolean inTransaction = info.state == Transaction.State.Active;
@@ -200,51 +186,36 @@ public class PersistentObject extends PersistentImmutableObject {
         return ans;
     }
 
-    @SuppressWarnings("unchecked") <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
-        MemoryRegion srcRegion = getPointer().region();
-        MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
-        // trace(true, "getObject (valueBased) src addr = %d, srcOffset = %d, dst  = %s, size = %d", srcRegion.addr(), offset, dstRegion, type.getSize());
-        Util.memCopy(getPointer().type(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
+    @Override
+    @SuppressWarnings("unchecked") 
+    <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
+        // trace(true, "PO.getValueObject(%d, %s)", offset, type);
+        MemoryRegion objRegion = Util.synchronizedBlock(this, () -> {
+            MemoryRegion srcRegion = getPointer().region();
+            MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
+            // trace(true, "getObject (valueBased) type = %s, src addr = %d, srcOffset = %d, dst  = %s, size = %d", type, srcRegion.addr(), offset, dstRegion, type.getSize());
+            Util.memCopy(getPointer().type(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
+            return dstRegion;
+        });
         T obj = null;
         try {
             Constructor ctor = ((ObjectType)type).cls().getDeclaredConstructor(ObjectPointer.class);
             ctor.setAccessible(true);
-            ObjectPointer p = new ObjectPointer<T>((ObjectType)type, dstRegion);
+            ObjectPointer p = new ObjectPointer<T>((ObjectType)type, objRegion);
             obj = (T)ctor.newInstance(p);
         }
         catch (Exception e) {e.printStackTrace();}
         return obj;
     }
 
-    public byte getByteField(ByteField f) {return getByte(offset(check(f.getIndex(), Types.BYTE)));}
-    public short getShortField(ShortField f) {return getShort(offset(check(f.getIndex(), Types.SHORT)));}
-    public int getIntField(IntField f) {return getInt(offset(check(f.getIndex(), Types.INT)));}
-    public long getLongField(LongField f) {/*System.out.println("PO getLongField LF"); */return getLong(offset(check(f.getIndex(), Types.LONG)));}
-    public float getFloatField(FloatField f) {return Float.intBitsToFloat(getInt(offset(check(f.getIndex(), Types.FLOAT))));}
-    public double getDoubleField(DoubleField f) {return Double.longBitsToDouble(getLong(offset(check(f.getIndex(), Types.DOUBLE))));}
-    public char getCharField(CharField f) {return (char)getInt(offset(check(f.getIndex(), Types.CHAR)));}
-    public boolean getBooleanField(BooleanField f) {return getByte(offset(check(f.getIndex(), Types.BOOLEAN))) == 0 ? false : true;}
-
-    @SuppressWarnings("unchecked") public <T extends AnyPersistent> T getObjectField(ObjectField<T> f) {
-        return (T)getObject(offset(f.getIndex()), f.getType());
-    }
-
-    @SuppressWarnings("unchecked") public <T extends AnyPersistent> T getObjectField(ValueField<T> f) {
-        return getValueObject(offset(f.getIndex()), f.getType());
-    }
-
-    @SuppressWarnings("unchecked") public <T extends AnyPersistent> T getObjectField(FinalObjectField<T> f) {
-        return (T)super.getObject(offset(f.getIndex()), f.getType());
-    }
-
     public void setByteField(ByteField f, byte value) {setByte(offset(check(f.getIndex(), Types.BYTE)), value);}
     public void setShortField(ShortField f, short value) {setShort(offset(check(f.getIndex(), Types.SHORT)), value);}
     public void setIntField(IntField f, int value) {setInt(offset(check(f.getIndex(), Types.INT)), value);}
-    public void setLongField(LongField f, long value) {/*System.out.println("PMO setLongField"); */setLong(offset(check(f.getIndex(), Types.LONG)), value);}
+    public void setLongField(LongField f, long value) {/*trace(true, "PO.setLongField(%s)", f); */setLong(offset(check(f.getIndex(), Types.LONG)), value);}
     public void setFloatField(FloatField f, float value) {setInt(offset(check(f.getIndex(), Types.FLOAT)), Float.floatToIntBits(value));}
     public void setDoubleField(DoubleField f, double value) {setLong(offset(check(f.getIndex(), Types.DOUBLE)), Double.doubleToLongBits(value));}
     public void setCharField(CharField f, char value) {setInt(offset(check(f.getIndex(), Types.CHAR)), (int)value);}
     public void setBooleanField(BooleanField f, boolean value) {setByte(offset(check(f.getIndex(), Types.BOOLEAN)), value ? (byte)1 : (byte)0);}
-    public <T extends AnyPersistent> void setObjectField(ObjectField<T> f, T value) {setObjectField(f.getIndex(), value);}
-    public <T extends AnyPersistent> void setObjectField(ValueField<T> f, T value) {setValueObject(offset(f.getIndex()), value);}
+    public <T extends AnyPersistent> void setObjectField(ObjectField<T> f, T value) {/*trace(true, "PO.setObjectField(%s) : OF", f);*/setObjectField(f.getIndex(), value);}
+    public <T extends AnyPersistent> void setObjectField(ValueField<T> f, T value) {/*trace(true, "PO.setLongField(%s) : VF", f); */setValueObject(offset(f.getIndex()), value);}
 }

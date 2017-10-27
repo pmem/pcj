@@ -19,31 +19,9 @@
  * Boston, MA  02110-1301, USA.
  */
 
-
 package lib.util.persistent;
 
-import lib.util.persistent.types.Types;
-import lib.util.persistent.types.ArrayType;
-
-public final class PersistentImmutableByteArray extends AbstractPersistentImmutableArray {
-    private static final ArrayType<PersistentImmutableByteArray> TYPE = new ArrayType<>(PersistentImmutableByteArray.class, Types.BYTE);
-
-    public PersistentImmutableByteArray(byte[] array) {
-        super(TYPE, array.length, array);
-    }
-
-    private PersistentImmutableByteArray(ObjectPointer<PersistentImmutableByteArray> pointer) {
-        super(pointer);
-    }
-
-    public byte get(int index) {
-        return getByteElement(index);
-    }
-
-    public byte[] toArray() {
-        byte[] ans = new byte[length()];
-        int len = length();
-        for (int i = 0; i < len; i++) ans[i] = getByteElement(i);
-        return ans;
-    }
+public interface EquatesWith<T> {
+    int equivalentHash();
+    boolean equatesWith(T t);
 }

@@ -61,6 +61,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import sun.misc.Unsafe;
 
@@ -103,6 +104,7 @@ public abstract class AnyPersistent {
             for (int i = 0; i < ts.size(); i++) initializeField(offset(i), ts.get(i));
             if (!(type instanceof ValueBasedObjectType)) {
                 ClassInfo ci = ClassInfo.getClassInfo(type.getName());
+                // System.out.format("ClassInfo for type name %s = %s\n", type.getName(), ci);
                 setClassInfo(ci);
                 setVersion(99);
                 initForGC();
@@ -147,7 +149,7 @@ public abstract class AnyPersistent {
 
     static void free(long addr) {
         // trace(addr, "free called");
-        ObjectCache.remove(addr);
+        if (!Config.REMOVE_FROM_OBJECT_CACHE_ON_ENQUEUE) ObjectCache.remove(addr);
         MemoryRegion reg = new UncheckedPersistentMemoryRegion(addr);
         Transaction.run(() -> {
             // trace(addr, "freeing object region %d ", reg.addr());
@@ -191,7 +193,13 @@ public abstract class AnyPersistent {
     abstract short getShort(long offset);
     abstract int getInt(long offset);
     abstract long getLong(long offset);
-    abstract<T extends AnyPersistent> T getObject(long offset);
+    abstract<T extends AnyPersistent> T getObject(long offset, PersistentType type);
+    abstract<T extends AnyPersistent> T getValueObject(long offset, PersistentType type);
+
+    @SuppressWarnings("unchecked")
+    protected <T extends AnyPersistent> T getObject(long offset) {
+        return getObject(offset, Types.OBJECT);
+    }
 
     void setByte(long offset, byte value) {
         Transaction.run(() -> {
@@ -212,12 +220,14 @@ public abstract class AnyPersistent {
     }
 
     void setLong(long offset, long value) {
+        // trace(true, "AP.setLong(%d, %d)", offset, value);
         Transaction.run(() -> {
             pointer.region().putLong(offset, value);
         }, this);
     }
 
     void setObject(long offset, AnyPersistent value) {
+        // trace(true, "AP.setObject(%d)", offset);
         Transaction.run(() -> {
             AnyPersistent old = ObjectCache.get(getLong(offset), true);
             Transaction.run(() -> {
@@ -229,11 +239,12 @@ public abstract class AnyPersistent {
     }
 
     void setValueObject(long offset, AnyPersistent  value) {
+        // trace(true, "AP.setValueObject(%d)", offset);
         if (value != null) {
             Transaction.run(() -> {
                 MemoryRegion dstRegion = getPointer().region();
                 MemoryRegion srcRegion = value.getPointer().region();
-                // trace(true, "setObject (valueBased) src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + offset, value.getType().getSize());
+                // trace(true, "AnyPersistent setValueObject src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + offset, value.getType().getSize());
                 Util.memCopy(value.getPointer().type(), getPointer().type(), srcRegion, 0, dstRegion, offset, value.getType().getSize());
             }, this);
         }
@@ -250,7 +261,7 @@ public abstract class AnyPersistent {
     void setBooleanField(int index, boolean value) {setByte(offset(check(index, Types.BOOLEAN)), value ? (byte)1 : (byte)0);}
     void setObjectField(int index, AnyPersistent value) {setObject(offset(check(index, Types.OBJECT)), value);}
 
-    // TODO: identity beyond one JVM instance, this is no longer needed because of ObjectCache
+    //TODO: identity beyond one JVM instance, should use == where comparison is same VM instance
     public final boolean is(AnyPersistent obj) {
         return getPointer().region().addr() == obj.getPointer().region().addr();
     }
@@ -277,26 +288,13 @@ public abstract class AnyPersistent {
         return ((ObjectType<?>)getPointer().type()).getOffset(index);
     }
 
-    protected void initializeField(int index, PersistentType t)
-    {
-        if (t == Types.BYTE) setByteField(index, (byte)0);
-        else if (t == Types.SHORT) setShortField(index, (short)0);
-        else if (t == Types.INT) setIntField(index, 0);
-        else if (t == Types.LONG) setLongField(index, 0L);
-        else if (t == Types.FLOAT) setFloatField(index, 0f);
-        else if (t == Types.DOUBLE) setDoubleField(index, 0d);
-        else if (t == Types.CHAR) setCharField(index, (char)0);
-        else if (t == Types.BOOLEAN) setBooleanField(index, false);
-        else if (t instanceof ObjectType) setObjectField(index, null);
-    }
-
     @SuppressWarnings("unchecked")
     private void initializeField(long offset, PersistentType t) {
         // System.out.format("type = %s, initializeField(%d. %s)\n", getPointer().type(), offset, t);
         if (t == Types.BYTE) setByte(offset, (byte)0);
         else if (t == Types.SHORT) setShort(offset, (short)0);
         else if (t == Types.INT) setInt(offset, 0);
-        else if (t == Types.LONG) {/*System.out.println("mem region " + getPointer().addr() + ": init offset " + offset + " to 0L");*/ setLong(offset, 0L);}
+        else if (t == Types.LONG) {setLong(offset, 0L);}
         else if (t == Types.FLOAT) setInt(offset, Float.floatToIntBits(0f));
         else if (t == Types.DOUBLE) setLong(offset,  Double.doubleToLongBits(0d));
         else if (t == Types.CHAR) setInt(offset, 0);
@@ -441,13 +439,16 @@ public abstract class AnyPersistent {
         MemoryRegion reg = ObjectCache.get(address, true).getPointer().region();
         String typeName = classNameForRegion(reg);
         ObjectType<?> type = Types.typeForName(typeName);
-
         ArrayList<Long> childAddresses = new ArrayList<>();
         if (type instanceof ArrayType) {
             ArrayType<?> arrType = (ArrayType)type;
+            Class<?> arrClass = arrType.cls();
+            if (arrClass == lib.util.persistent.PersistentValueArray.class ||
+                arrClass == lib.util.persistent.PersistentValueArray.class) {
+                return childAddresses.iterator();
+            }
             PersistentType et = arrType.getElementType();
             if (et == Types.OBJECT || (et instanceof ObjectType && !((ObjectType)et).isValueBased())) {
-                trace(address, "elementType == Types.OBJECT");
                 int length = reg.getInt(ArrayType.LENGTH_OFFSET);
                 for (int i = 0; i < length; i++) {
                     long childAddr = reg.getLong(arrType.getElementOffset(i));
@@ -456,7 +457,8 @@ public abstract class AnyPersistent {
                     }
                 }
             }
-        } else if (type instanceof ObjectType) {
+        } 
+        else if (type instanceof ObjectType) {
             if (!((ObjectType)type).isValueBased()) {
                 for (int i = Header.TYPE.fieldCount(); i < type.fieldCount(); i++) {
                     List<PersistentType> types = type.getTypes();
@@ -469,7 +471,8 @@ public abstract class AnyPersistent {
                     }
                 }
             }
-        } else {
+        } 
+        else {
             throw new RuntimeException("getChildAddressIterator: unexpected type");
         }
         return childAddresses.iterator();
