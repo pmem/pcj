@@ -47,9 +47,11 @@ The following are the prerequisites for building this Java library:
 4. Build tools - g++ compiler and make
 
 ### PREREQUISITES TO RUN ###
-This library assumes the availability of hardware persistent memory or emulated persistent memory 
-at the ```/mnt/mem``` directory (with read/write permissions for the user).  Instructions for creating 
-emulated persistent memory at ```/mnt/mem``` is shown below.
+This library assumes the availability of hardware persistent memory or emulated persistent memory.
+Properties of this memory such as path and size can be specified in the [config.properties](config.properties) file at 
+the top level directory. Further information can be found inside the file. 
+
+Instructions for creating emulated persistent memory are shown below.
 
 ### EMULATING PERSISTENT MEMORY ###
 The preferred way is to create an in-memory DAX file system. This requires Linux kernel 4.2 or 
@@ -85,10 +87,7 @@ directory in your Java classpath and the project's ```target/cppbuild``` directo
    ```
 
 ## NOTES ON FUNCTIONALITY ##
-1. By default, the mount point to the NVML pool is ```/mnt/mem``` directory. To modify this path, you 
-   can change the value for ```PATH``` in ```pcj/src/main/cpp/persistent_heap.cpp```.
-
-2. ```PersistentString``` objects are backed by a byte array and only supports ASCII characters.
+1. ```PersistentString``` objects are backed by a byte array and only supports ASCII characters.
 
 ## CONTRIBUTING ##
 Thanks for your interest! Right now, substantial architectural changes are still happening in the
