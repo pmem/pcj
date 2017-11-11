@@ -23,6 +23,7 @@ package lib.util.persistent;
 
 import lib.util.persistent.AnyPersistent;
 import lib.xpersistent.XTransaction;
+import java.util.List;
 import java.util.ArrayList;
 import static lib.util.persistent.Trace.trace;
 
@@ -35,6 +36,8 @@ public class TransactionInfo {
     public int attempts;
     public int timeout;
     public int retryDelay;
+    private ArrayList<Runnable> commitHandlers;
+    private ArrayList<Runnable> abortHandlers;
 
     public TransactionInfo() {
         init();
@@ -50,4 +53,19 @@ public class TransactionInfo {
         timeout = Config.MONITOR_ENTER_TIMEOUT;
         retryDelay = Config.BASE_TRANSACTION_RETRY_DELAY;
    }
+
+    void addCommitHandler(Runnable r) {
+        if (commitHandlers == null) commitHandlers = new ArrayList<>();
+        commitHandlers.add(r);
+    }
+
+    public List<Runnable> commitHandlers() {return commitHandlers;}
+
+    void addAbortHandler(Runnable r) {
+        if (abortHandlers == null) abortHandlers = new ArrayList<>();
+        abortHandlers.add(r);
+    }
+
+    public List<Runnable> abortHandlers() {return abortHandlers;}
+
 }

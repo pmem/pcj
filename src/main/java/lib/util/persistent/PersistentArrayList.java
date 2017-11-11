@@ -50,15 +50,16 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
             ObjectDirectory.put("PersistentArrayList_statics", statics = new Statics());
     }
     
-    public static class Statics extends PersistentObject {
+    public static class Statics extends PersistentImmutableObject {
         private static final ObjectField<PersistentArray> EMPTY_ELEMENTDATA = new ObjectField<>(PersistentArray.class);
         private static final ObjectField<PersistentArray> DEFAULTCAPACITY_EMPTY_ELEMENTDATA = new ObjectField<>(PersistentArray.class);
         public static final ObjectType<Statics> TYPE = ObjectType.fromFields(Statics.class, EMPTY_ELEMENTDATA, DEFAULTCAPACITY_EMPTY_ELEMENTDATA);
 
         public Statics() { 
-            super(TYPE); 
-            setObjectField(EMPTY_ELEMENTDATA, new PersistentArray(0));
-            setObjectField(DEFAULTCAPACITY_EMPTY_ELEMENTDATA, new PersistentArray(0));
+            super(TYPE, (Statics obj) -> { 
+                obj.initObjectField(EMPTY_ELEMENTDATA, new PersistentArray(0));
+                obj.initObjectField(DEFAULTCAPACITY_EMPTY_ELEMENTDATA, new PersistentArray(0));
+            });
         }
 
         protected Statics (ObjectPointer<? extends Statics> p) { super(p); }
@@ -535,9 +536,15 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
         int cursor;         //index of next element to return
         int lastRet = -1;  //index of last element returned; -1 if no such       
         int expectedModCount = modCount;
+        final PersistentImmutableObject[] snapshot;
 
         public boolean hasNext() {
             return cursor != size();
+        }
+
+        @SuppressWarnings("unchecked")
+        public Itr() {
+            snapshot = PersistentArrayList.this.toArray(new PersistentImmutableObject[0]);
         }
 
         @SuppressWarnings("unchecked")
@@ -546,11 +553,12 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
             int i = cursor;
             if (i >= size())
                 throw new NoSuchElementException();
-            AnyPersistent[] elementData = PersistentArrayList.this.getDataArray().toArray(new AnyPersistent[0]);
-            if (i >= elementData.length)
+            //AnyPersistent[] elementData = PersistentArrayList.this.getDataArray().toArray(new AnyPersistent[0]);
+            if (i >= snapshot.length)
                 throw new ConcurrentModificationException();
             cursor = i + 1;
-            return (T) elementData[lastRet = i];
+            //return (T) elementData[lastRet = i];
+            return (T) snapshot[lastRet = i];
         }
 
         public void remove() {
@@ -577,12 +585,12 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
             if (i >= size()) {
                 return;
             }
-            final AnyPersistent[] elementData = PersistentArrayList.this.getDataArray().toArray(new AnyPersistent[0]);
-            if (i >= elementData.length) {
+            //final AnyPersistent[] elementData = PersistentArrayList.this.getDataArray().toArray(new AnyPersistent[0]);
+            if (i >= snapshot.length) {
                 throw new ConcurrentModificationException();
             }
             while (i != size && modCount == expectedModCount) {
-                consumer.accept((T) elementData[i++]);
+                consumer.accept((T) snapshot[i++]);
             }
             // update once at end of iteration to reduce heap write traffic
             cursor = i;

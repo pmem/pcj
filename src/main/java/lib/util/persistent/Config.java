@@ -26,12 +26,12 @@ import java.util.Random;
 public class Config {
     public static final int MONITOR_ENTER_TIMEOUT = 30; // ms
     public static final int MAX_MONITOR_ENTER_TIMEOUT = 125; // ms
-    public static final float MONITOR_ENTER_TIMEOUT_INCREASE_FACTOR = 1.5f; 
+    public static final float MONITOR_ENTER_TIMEOUT_INCREASE_FACTOR = 1.5f;
 
     public static final int MAX_TRANSACTION_ATTEMPTS = 26;
     public static final int BASE_TRANSACTION_RETRY_DELAY = 200; //ms
     public static final int MAX_TRANSACTION_RETRY_DELAY = 5000; //ms
-    public static final float TRANSACTION_RETRY_DELAY_INCREASE_FACTOR = 1.5f; 
+    public static final float TRANSACTION_RETRY_DELAY_INCREASE_FACTOR = 1.5f;
 
     public static final boolean EXIT_ON_TRANSACTION_FAILURE = false;
     public static final boolean BLOCK_ON_MAX_TRANSACTION_ATTEMPTS = true;
@@ -39,4 +39,5 @@ public class Config {
     public static final boolean USE_BLOCKING_LOCKS_FOR_DEBUG = false;
 
     public static final boolean REMOVE_FROM_OBJECT_CACHE_ON_ENQUEUE = false;
+    public static final boolean COLLECT_CYCLES = false;
 }

@@ -30,20 +30,25 @@ import lib.util.persistent.types.ObjectType;
 import static lib.util.persistent.Trace.*;
 
 abstract class AbstractPersistentArray extends AnyPersistent {
+    private int length = -1; // cache immutable length
+
     protected AbstractPersistentArray(ArrayType<? extends AnyPersistent> type, int count, Object data) {
         super(type, heap.allocateRegion(type.getAllocationSize(count)));
         setInt(ArrayType.LENGTH_OFFSET, count);
+        length = count;
         initializeElements(data, type.getElementType());
     }
 
     protected AbstractPersistentArray(ArrayType<? extends AnyPersistent> type, int count) {
         super(type, heap.allocateRegion(type.getAllocationSize(count)));
         setInt(ArrayType.LENGTH_OFFSET, count);
+        length = count;
         for (int i = 0; i < count; i++) {initializeElement(i, type.getElementType());} 
     }
 
     protected AbstractPersistentArray(ObjectPointer<? extends AbstractPersistentArray>  p) {
         super(p);
+        length = getRegionInt(ArrayType.LENGTH_OFFSET);
     }
 
     public byte getByteElement(int index) {return getByte(elementOffset(check(index)));}
@@ -79,7 +84,7 @@ abstract class AbstractPersistentArray extends AnyPersistent {
     }
 
     public int length() {
-        return getInt(ArrayType.LENGTH_OFFSET);
+        return length;
     }
 
     long elementOffset(int index) {

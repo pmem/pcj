@@ -26,6 +26,8 @@ import lib.util.persistent.spi.PersistentMemoryProvider;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -45,8 +47,46 @@ public class PersistentFPTree1Test {
 
 	public static boolean run() {
 		System.out.println("****************PersistentFPTree1 Tests****************");
-		return singleThreadedTest() && multiThreadedTest(args) && testPersistence(args) && testPersistence2(args);
+		return sisterTypeTest() && singleThreadedTest() && multiThreadedTest(args) && testPersistence(args) && testPersistence2(args) && testIterators();
 	}
+
+	public static boolean sisterTypeTest() {
+		int I = 3;
+		int L = 4;
+		int N = 5000;
+		PersistentFPTree1<PersistentString, PersistentInteger> fpt = new PersistentFPTree1<>(I, L);
+
+		Set<Integer> s = new HashSet<>();
+		Integer[] rands = new Integer[N];
+		for(int i = 0; i < N; i++) {
+			rands[i] = ThreadLocalRandom.current().nextInt(0, N);
+			s.add(rands[i]);
+		}
+
+		if(verbose) System.out.println("Sister type test: # generated keys: " + rands.length);
+
+		for(int num : rands) {
+			fpt.put(new PersistentString(Integer.toString(num)), new PersistentInteger(num));
+		}
+
+		boolean getSuccess = true;
+		for(int num : s) {
+			PersistentInteger val = fpt.get(Integer.toString(num), PersistentString.class); 
+			if(val != null) {
+				assert(num == val.intValue());
+				getSuccess = getSuccess && (num == val.intValue());
+			}
+			else {
+				if(verbose) System.out.println("Key: " + num + " => null");
+				getSuccess = false;
+			}
+		}
+
+		if(verbose) System.out.println("GET SUCCESS: " + getSuccess);
+		else assert(getSuccess == true);
+		return true;
+	}
+
 
 	public static boolean singleThreadedTest() {
 		int I = 3;
@@ -321,6 +361,44 @@ public class PersistentFPTree1Test {
 				assert(cfptRC.get(k).equals(map.get(k)));
 			}
 		}
+		return true;
+	}
+	
+	public static boolean testIterators() {
+		int I = 4;
+		int L = 5;
+		int X = 500;
+		int N = X * L;
+		PersistentFPTree1<PersistentInteger, PersistentString> fpt = new PersistentFPTree1<>(I, L);
+
+		for(int i = 0; i < N; i++) {
+			int rand = ThreadLocalRandom.current().nextInt(0, N);
+			fpt.put(new PersistentInteger(rand), new PersistentString(Integer.toString(rand)));
+		}
+		// Iterator
+		fpt.randomlyDeleteLeaves();
+		//fpt.printLeaves();for(PersistentInteger i : fpt.keySet()) System.out.print(i + ",");System.out.println("##############");
+		
+		
+		HashMap<PersistentInteger, PersistentString> hmap = fpt.getHashMap();
+		Set<Map.Entry<PersistentInteger, PersistentString>> eset = hmap.entrySet();
+		@SuppressWarnings("unchecked")
+		HashSet<PersistentInteger> kset = new HashSet(hmap.keySet());
+		
+		Iterator<PersistentInteger> kit = fpt.navigableKeySet().iterator();
+		int size = kset.size();
+		while(kit.hasNext()) {
+			kset.remove(kit.next());
+		}
+		assert(kset.size() == 0);
+		for(PersistentInteger i : fpt.keySet()) kset.add(i);
+		assert(kset.size() == size);
+		
+
+		for(Map.Entry<PersistentInteger, PersistentString> e : fpt.entrySet()) eset.remove(e);
+		assert(eset.size() == 0);
+		
+		if(verbose) System.out.println("Iterators test successful");
 		return true;
 	}
 }

@@ -170,8 +170,8 @@ public class PersistentObject extends AbstractPersistentObject {
         if (success) {
             try {
                 if (inTransaction) info.transaction.addLockedObject(this);
-                long valueAddr = getLong(offset);
-                if (valueAddr != 0) ans = (T)ObjectCache.get(valueAddr);
+                long objAddr = getRegionLong(offset);
+                if (objAddr != 0) ans = (T)ObjectCache.get(objAddr);
             }
             finally {
                 if (!inTransaction) monitorExit();

@@ -43,9 +43,11 @@ public interface Transaction extends AutoCloseable {
 
 	public enum State {None, Initializing, Active, Committed, Aborted}
 
-    public static void run(PersistentMemoryProvider provider, Update update, AnyPersistent... toLock) {
+    public static void run(PersistentMemoryProvider provider, Update update, Runnable onCommit, Runnable onAbort, AnyPersistent... toLock) {
         boolean success = false;
         TransactionInfo info = XTransaction.tlInfo.get();
+        if (onCommit != null) info.addCommitHandler(onCommit);
+        if (onAbort != null) info.addAbortHandler(onAbort);
         while (!success && info.attempts <= Config.MAX_TRANSACTION_ATTEMPTS) {
             Transaction t = provider.newTransaction();
             // for stats
@@ -109,8 +111,20 @@ public interface Transaction extends AutoCloseable {
         }
     }
 
+    public static void run(PersistentMemoryProvider provider, Update update, AnyPersistent... toLock) {
+        run(provider, update, null, null, toLock);
+    }
+
     public static void run(Update update, AnyPersistent... toLock) {
-        run(PersistentMemoryProvider.getDefaultProvider(), update, toLock);
+        run(PersistentMemoryProvider.getDefaultProvider(), update, null, null, toLock);
+    }
+
+    public static void run(Update update, Runnable onCommit, AnyPersistent... toLock) {
+        run(PersistentMemoryProvider.getDefaultProvider(), update, onCommit, null, toLock);
+    }
+
+    public static void run(Update update, Runnable onCommit, Runnable onAbort, AnyPersistent... toLock) {
+        run(PersistentMemoryProvider.getDefaultProvider(), update, onCommit, onAbort, toLock);
     }
 
     public static void runOuter(Update update, AnyPersistent... toLock) {

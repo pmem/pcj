@@ -21,6 +21,6 @@
 
 package lib.util.persistent;
 
-interface PersistentSortedMap<K extends AnyPersistent, V extends AnyPersistent> extends java.util.SortedMap<K, V> {
+public interface PersistentSortedMap<K extends AnyPersistent, V extends AnyPersistent> extends java.util.SortedMap<K, V> {
     public <L, K extends ComparableWith<L>> V get(L key, Class<K> cls);
 }

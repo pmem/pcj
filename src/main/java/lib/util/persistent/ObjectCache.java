@@ -40,7 +40,7 @@ import static lib.util.persistent.Trace.*;
 
 
 public class ObjectCache {
-    private static final Map<Long, Reference<? extends AnyPersistent>> cache;
+    private static final Map<Address, Reference<? extends AnyPersistent>> cache;
     private static ReferenceQueue<AnyPersistent> queue;
     private static Map<Long, PRef<?>> prefs;
     private static final PersistentHeap heap;
@@ -138,16 +138,17 @@ public class ObjectCache {
         T obj = null;
         Ref ref = null;
         if (address == 0) return null;
-        ref = (Ref<T>)cache.get(address);
-        if (ref == null || (obj = (T)ref.get()) == null) {   
+        Address cacheAddress = new Address(address);
+        ref = (Ref<T>)cache.get(cacheAddress);
+        if (ref == null || (obj = (T)ref.get()) == null) {
             // trace(address, "MISS: " + (ref == null ? "simple" : "null referent"));
             // if (ref == null) Stats.current.objectCache.simpleMisses++; else Stats.current.objectCache.referentMisses++;  // uncomment for ObjectCache stats
             obj = objectForAddress(address, forAdmin);
             ref = new Ref(obj, forAdmin);
-            cache.put(address, ref);
+            cache.put(cacheAddress, ref);
             // updateCacheSizeStats();                       // uncomment for ObjectCache stats
         }
-        else if (ref.isForAdmin() && !forAdmin) {   
+        else if (ref.isForAdmin() && !forAdmin) {
                 // trace(address, "HIT: forAdmin -> !forAdmin");
                 ref.setForAdmin(false);
                 obj = (T)ref.get();
@@ -161,13 +162,13 @@ public class ObjectCache {
 
     private static void updateCacheSizeStats() {
         long size;
-        if (counter++ % counterMod != 0 || (size = cache.size()) < Stats.current.objectCache.maxSize) return; 
-        Stats.current.objectCache.maxSize = size; 
+        if (counter++ % counterMod != 0 || (size = cache.size()) < Stats.current.objectCache.maxSize) return;
+        Stats.current.objectCache.maxSize = size;
     }
 
     @SuppressWarnings("unchecked")
     static <T extends AnyPersistent> T objectForAddress(long address, boolean forAdmin) {
-        // trace("objectForAddress(address: %d, forAdmin: %s)", address, forAdmin); 
+        // trace("objectForAddress(address: %d, forAdmin: %s)", address, forAdmin);
         MemoryRegion valueRegion = new UncheckedPersistentMemoryRegion(address);
         long ciAddr = valueRegion.getLong(0);
         String typeName = ClassInfo.getClassInfo(ciAddr).className();
@@ -179,7 +180,7 @@ public class ObjectCache {
                 Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
                 ctor.setAccessible(true);
                 box.set((T)ctor.newInstance(new ObjectPointer<T>(type, valueRegion)));
-                if (!forAdmin) box.get().initForGC();       
+                if (!forAdmin) box.get().initForGC();
             }
             catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
                 if (e instanceof InvocationTargetException && e.getCause() instanceof TransactionRetryException){
@@ -194,16 +195,16 @@ public class ObjectCache {
 
     public static void remove(long address) {
        // trace(address, "ObjectCache.remove");
-        cache.remove(address);
+        cache.remove(new Address(address));
     }
 
     static <T extends AnyPersistent> void add(T obj) {
         // trace(obj.getPointer().addr(), "ObjectCache.add");
         long address = obj.getPointer().addr();
         Ref<T> ref = new Ref<>(obj);
-        cache.put(address, ref);
+        cache.put(new Address(address), ref);
         // updateCacheSizeStats();                     // uncomment for ObjectCache stats
-        XTransaction.addNewObject(obj);        
+        XTransaction.addNewObject(obj);
     }
 
     static <T extends AnyPersistent> void registerObject(T obj) {
@@ -220,5 +221,21 @@ public class ObjectCache {
     public static void committedConstruction(AnyPersistent obj) {
         // trace(obj.getPointer().addr(), "committedConstruction called");
         new PRef<AnyPersistent>(obj);
+    }
+
+    static class Address {
+        private final long addr;
+        Address(long addr) { this.addr = addr; }
+        @Override
+        public int hashCode() {
+            return Long.hashCode(addr >>> 8);
+        }
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof Address) {
+                return addr == ((Address)obj).addr;
+            }
+            return false;
+        }
     }
 }

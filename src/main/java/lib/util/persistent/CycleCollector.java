@@ -48,40 +48,57 @@ public class CycleCollector {
     static AtomicBoolean processing = new AtomicBoolean();
     static HashMap<Long, Byte> colorChangesWhileCollecting = new HashMap<>();
 
+    static HashMap<String, Integer> markedTypeCount = new HashMap<>();
+    static HashMap<String, Integer> markedFreedTypeCount = new HashMap<>();
+    static HashMap<String, Integer> markedGreyTypeCount = new HashMap<>();
+    static HashMap<String, Integer> markedAlreadyGreyTypeCount = new HashMap<>();
+    static HashMap<String, Integer> scannedTypeCount = new HashMap<>();
+    static HashMap<String, Integer> collectedTypeCount = new HashMap<>();
+    static HashMap<String, Integer> collectedWhiteTypeCount = new HashMap<>();
+
     // public static synchronized HashSet<Long> getCandidates() { return candidatesSet; }
 
     public static synchronized void collect() {
-        heap = ((XHeap)(PersistentMemoryProvider.getDefaultProvider().getHeap()));
-        root = ((XRoot)(heap.getRoot()));
-        processing.set(true);
-        candidatesSet = root.getCandidates();
-        markCandidates();
-        PersistentConcurrentHashMapInternal.EntryIterator iter = candidatesSet.iter();
-        while (iter.hasNext()) {
-            PersistentConcurrentHashMapInternal.NodeLL node = iter.next();
-            Deque<Long> stack = new ArrayDeque<>();
-            stack.push(node.getKey());
-            scan(stack);
-        }
-        collectCandidates();
-        // root.clearCandidates();
-        candidatesSet.delete();
-        processing.set(false);
-        synchronized(colorChangesWhileCollecting) {
-            for (Map.Entry<Long, Byte> e : colorChangesWhileCollecting.entrySet()) {
-                AnyPersistent obj = ObjectCache.get(e.getKey(), true);
-                obj.setColor(e.getValue());
-            }
-            colorChangesWhileCollecting.clear();
+        if (Config.COLLECT_CYCLES) {
+            Transaction.run(() -> {
+                heap = ((XHeap)(PersistentMemoryProvider.getDefaultProvider().getHeap()));
+                root = ((XRoot)(heap.getRoot()));
+                processing.set(true);
+                candidatesSet = root.getCandidates();
+                markCandidates();
+                PersistentConcurrentHashMapInternal.EntryIterator iter = candidatesSet.iter();
+                while (iter.hasNext()) {
+                    PersistentConcurrentHashMapInternal.NodeLL node = iter.next();
+                    Deque<Long> stack = new ArrayDeque<>();
+                    stack.push(node.getKey());
+                    scan(stack);
+                }
+                collectCandidates();
+                // root.clearCandidates();
+                processing.set(false);
+                synchronized(colorChangesWhileCollecting) {
+                    for (Map.Entry<Long, Byte> e : colorChangesWhileCollecting.entrySet()) {
+                        AnyPersistent obj = ObjectCache.get(e.getKey(), true);
+                        obj.setColor(e.getValue());
+                    }
+                    colorChangesWhileCollecting.clear();
+                }
+            });
+            root.deleteOldCandidates();
         }
     }
 
     private static void markCandidates() {
         PersistentConcurrentHashMapInternal.EntryIterator iter = candidatesSet.iter();
+        String type;
+        int count;
         while (iter.hasNext()) {
             PersistentConcurrentHashMapInternal.NodeLL node = iter.next();
             Long l = node.getKey();
             AnyPersistent obj = ObjectCache.get(l, true);
+            type = obj.getPointer().type().getName();
+            count = markedTypeCount.containsKey(type) ? markedTypeCount.get(type) : 0;
+            markedTypeCount.put(type, count + 1);
             if (obj.getColor() == PURPLE) {
                 Deque<Long> stack = new ArrayDeque<>();
                 stack.push(l);
@@ -89,6 +106,10 @@ public class CycleCollector {
             } else {
                 iter.remove();
                 if (obj.getColor() == BLACK && obj.getRefCount() == 0) {
+                    System.out.println("address " + l + " object " + obj + " needs to be freed");
+                    type = obj.getPointer().type().getName();
+                    count = markedFreedTypeCount.containsKey(type) ? markedFreedTypeCount.get(type) : 0;
+                    markedFreedTypeCount.put(type, count + 1);
                     AnyPersistent.free(l);
                     root.removeFromAllObjects(l);
                 }
@@ -97,9 +118,14 @@ public class CycleCollector {
     }
 
     private static void markGrey(Deque<Long> stack) {
+        String type;
+        int count;
         while (!stack.isEmpty()) {
             Long l = stack.pop();
             AnyPersistent obj = ObjectCache.get(l, true);
+            type = obj.getPointer().type().getName();
+            count = scannedTypeCount.containsKey(type) ? scannedTypeCount.get(type) : 0;
+            scannedTypeCount.put(type, count + 1);
             if (obj.getColor() != GREY) {
                 Iterator<Long> childAddresses = AnyPersistent.getChildAddressIterator(l);
                 while (childAddresses.hasNext()) {
@@ -109,6 +135,13 @@ public class CycleCollector {
                     stack.push(childAddr);
                 }
                 obj.setColor(GREY, true);
+                type = obj.getPointer().type().getName();
+                count = markedGreyTypeCount.containsKey(type) ? markedGreyTypeCount.get(type) : 0;
+                markedGreyTypeCount.put(type, count + 1);
+            } else {
+                type = obj.getPointer().type().getName();
+                count = markedAlreadyGreyTypeCount.containsKey(type) ? markedAlreadyGreyTypeCount.get(type) : 0;
+                markedAlreadyGreyTypeCount.put(type, count + 1);
             }
         }
     }
@@ -163,18 +196,23 @@ public class CycleCollector {
     }
 
     private static void collectWhite(Deque<Long> stack) {
+        String type;
+        int count;
         while (!stack.isEmpty()) {
             Long l = stack.pop();
             if (!freedCandidates.contains(l)) {
                 AnyPersistent obj = ObjectCache.get(l, true);
                 if (obj.getColor() == WHITE && !candidatesSet.containsKey(l)) {
+                    type = obj.getPointer().type().getName();
+                    count = collectedWhiteTypeCount.containsKey(type) ? collectedWhiteTypeCount.get(type) : 0;
+                    collectedWhiteTypeCount.put(type, count + 1);
                     obj.setColor(BLACK, true);
                     Iterator<Long> childAddresses = AnyPersistent.getChildAddressIterator(l);
                     while (childAddresses.hasNext()) {
                         long childAddr = childAddresses.next();
                         stack.push(childAddr);
                     }
-                    PersistentObject.free(l);
+                    AnyPersistent.free(l);
                     freedCandidates.add(l);
                     root.removeFromAllObjects(l);
                 }

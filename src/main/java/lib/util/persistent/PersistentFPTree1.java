@@ -24,19 +24,33 @@ package lib.util.persistent;
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 
+import java.util.AbstractMap;
+import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.StampedLock;
+
 import java.util.Map;
+import java.util.NavigableSet;
+import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.Spliterator;
+import java.util.Comparator;
+import java.util.Collections;
+import java.util.AbstractCollection;
 
-public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements Map <K, V> {
+public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements ConcurrentNavigableMap<K,V>, PersistentSortedMap <K, V> {
 	private Node<K, V> root;
 	private static final ObjectField<PersistentLeaf> HEAD_LEAF = new ObjectField<>(PersistentLeaf.class);
 	private static final IntField P_MAX_LEAF_KEYS = new IntField();
@@ -47,6 +61,8 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 	private final int MID_INTERNAL_KEYS;
 	private final int MAX_LEAF_KEYS;
 	private final int MIN_LEAF_KEYS;
+
+	private final Comparator<? super K> comparator;
 
 	private static final int[] PEARSON_LOOKUP_TABLE = {
 			110, 228, 235, 91, 67, 211, 45, 46, 79, 23, 118, 48, 32, 208, 251, 0, 255, 128, 174, 238, 94, 27, 13, 121, 66, 168, 165, 125, 25, 
@@ -60,7 +76,7 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 			215, 187, 31, 116, 137, 220, 68, 252, 54, 240, 209, 104, 222, 159, 227, 52, 87, 59, 250, 61, 109, 170, 65, 229, 241, 130, 173, 72
 	};
 
-	public PersistentFPTree1(int maxInternalKeys, int maxLeafKeys) {
+	public PersistentFPTree1(int maxInternalKeys, int maxLeafKeys, Comparator<? super K> comparator) {
 		super(TYPE);
 		if(maxInternalKeys <= 0) throw new IllegalArgumentException("Number of internal keys must  be > 0");
 		if(maxLeafKeys <= 0) throw new IllegalArgumentException("Number of leaf keys must be > 0");
@@ -75,11 +91,15 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 		setIntField(P_MAX_LEAF_KEYS, MAX_LEAF_KEYS);
 		setIntField(P_MAX_INTERNAL_KEYS, MAX_INTERNAL_KEYS);
 		setObjectField(HEAD_LEAF, headLeaf);
+		this.comparator = comparator;
+	}
 
+	public PersistentFPTree1(int maxInternalKeys, int maxLeafKeys) {
+		this(maxInternalKeys, maxLeafKeys, null);
 	}
 
 	public PersistentFPTree1() {
-		this(8, 64);
+		this(8, 64, null);
 	}
 
 	public PersistentFPTree1(ObjectPointer<? extends PersistentFPTree1> p) {
@@ -89,6 +109,7 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 		MID_INTERNAL_KEYS = (MAX_INTERNAL_KEYS + 1)/2;
 		MAX_LEAF_KEYS = getIntField(P_MAX_LEAF_KEYS);
 		MIN_LEAF_KEYS = (MAX_LEAF_KEYS + 1)/2;
+		this.comparator = null; // how to persist the comparitor?
 		long start = System.nanoTime();
 		reconstructTree();
 		long telap = System.nanoTime() - start;
@@ -196,6 +217,7 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 		return (PersistentLeaf<K, V>) getObjectField(HEAD_LEAF);
 	}
 
+	//begin Map interface methods
 
 	@Override
 	public int size() {
@@ -220,13 +242,36 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 	@Override
 	@SuppressWarnings("unchecked")
 	public V get(Object key) {
-		return get((K) key);
+		return doGet((K) key);
 	}
+
+	@Override 
+	@SuppressWarnings("unchecked")
+	public <L, K extends ComparableWith<L>> V get(L sisterKey, Class<K> cls) {
+		return doGet(sisterKey);
+	}
+
+	public V putIfAbsent(K key, V value) {
+		throw new UnsupportedOperationException();
+	}
+
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public V remove(Object key) {
-		return remove((K) key);
+		return doRemove((K) key);
+	}
+
+	public boolean remove(Object key, Object value) {
+		throw new UnsupportedOperationException();
+	}
+
+	public V replace(K key, V value) {
+		throw new UnsupportedOperationException();
+	}
+
+	public boolean replace(K key, V oldValue, V newValue) {
+		return false;
 	}
 
 	@Override
@@ -236,32 +281,149 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 
 	@Override
 	public void clear() {
+		throw new UnsupportedOperationException();		
+	}
+
+	@Override
+	public K lastKey() {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public Set<K> keySet() {
+	public K firstKey() {
 		throw new UnsupportedOperationException();
 	}
 
+	public K higherKey(K key) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> headMap(K toKey) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> headMap(K toKey, boolean inclusive) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> tailMap(K fromKey) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> tailMap(K fromKey, boolean inclusive) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> subMap(K fromKey, K toKey) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public ConcurrentNavigableMap<K,V> descendingMap() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public NavigableSet<K> descendingKeySet() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public NavigableSet<K> keySet() {
+		return new KeySet<K>(this);
+	}
+
+	@Override
+	public NavigableSet<K> navigableKeySet() {
+		return new KeySet<K>(this);
+	}
+	
 	@Override
 	public Collection<V> values() {
-		throw new UnsupportedOperationException();
+		return new Values<V>(this);
 	}
 
 	@Override
 	public Set<java.util.Map.Entry<K, V>> entrySet() {
+		return new EntrySet<K,V>(this);
+	}
+
+	public Map.Entry<K,V> firstEntry() {
 		throw new UnsupportedOperationException();
 	}
 
-	@SuppressWarnings("unchecked")
-	private int compareKeys(K k1, K k2) {
-		if(k1 == null) throw new NullPointerException("Null key1");
-		if(k2 == null) throw new NullPointerException("Null key2");
-		return ((Comparable<? super K>) k1).compareTo(k2);
+	public Map.Entry<K,V> lastEntry() {
+		throw new UnsupportedOperationException();
 	}
 
-	public V remove(K key) {
+	public Map.Entry<K,V> pollFirstEntry() {
+		throw new UnsupportedOperationException();
+	}
+
+	public Map.Entry<K,V> pollLastEntry() {
+		throw new UnsupportedOperationException();
+	}
+
+	public Map.Entry<K,V> ceilingEntry(K key) {
+		throw new UnsupportedOperationException();
+	}
+
+	public K ceilingKey(K key) {
+		throw new UnsupportedOperationException();
+	}
+
+	public Map.Entry<K,V> lowerEntry(K key) {
+		throw new UnsupportedOperationException();
+	}
+
+	public K lowerKey(K key) {
+		throw new UnsupportedOperationException();
+	}
+
+	public Map.Entry<K,V> floorEntry(K key) {
+		throw new UnsupportedOperationException();
+	}
+
+	public K floorKey(K key) {
+		throw new UnsupportedOperationException();
+	}
+
+	public Map.Entry<K,V> higherEntry(K key) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Comparator<? super K> comparator() {
+		return this.comparator;
+	}
+
+	// end of interface methods
+
+
+	private int compareKeys(K k1, K k2) {
+		if(k1 == null) throw new NullPointerException("Key 1 is null");
+		if(k2 == null) throw new NullPointerException("Key 2 is null");
+		return compare(k1, k2);
+	}
+
+	@SuppressWarnings("unchecked")
+	private final int compare(Object k1, Object k2) {
+		if(k1 instanceof AnyPersistent) return (comparator == null) ? ((Comparable<? super K>)k1).compareTo((K)k2) : comparator.compare((K)k1, (K)k2);
+		else return ((ComparableWith) k2).compareWith(k1) * -1;
+	}
+
+	@SuppressWarnings("unchecked")
+	private V doRemove(K key) {
 		Node<K, V> parent, child;
 		LeafNode<K, V> leafNode = null;
 		synchronized(this) {
@@ -300,7 +462,8 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 		return null;
 	}
 
-	public V get(K key) {
+	@SuppressWarnings("unchecked")
+	private V doGet(Object key) {
 		Node<K, V> parent, child;
 		LeafNode<K, V> leafNode;
 		synchronized(this) {
@@ -494,12 +657,14 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 
 	@SuppressWarnings("unchecked")
 	private K getSplitKey(LeafNode<K, V> leafNode) {
-		Object[] keys = new Object[MAX_LEAF_KEYS + 1];
+		
+		ArrayList<K> keys = new ArrayList<>(MAX_LEAF_KEYS + 1);
+
 		for (int slot = 0; slot <= MAX_LEAF_KEYS; slot++) {
-			keys[slot] = leafNode.keys.get(slot);
+			keys.add(leafNode.keys.get(slot));
 		}
-		Arrays.sort(keys);
-		return (K) keys[MIN_LEAF_KEYS - 1];
+		Collections.sort(keys, this.comparator);
+		return keys.get(MIN_LEAF_KEYS - 1);
 	}
 
 	// Modified Pearson hashing algorithm from pmemkv (https://github.com/pmem/pmemkv/blob/master/src/pmemkv.cc)
@@ -519,7 +684,7 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 		return hash;
 	}
 
-	public int generateHash(K key) {
+	public int generateHash(Object key) {
 		return computePearsonHash(Integer.toString(key.hashCode()).getBytes());
 	}
 
@@ -625,11 +790,10 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 		}
 
 		@SuppressWarnings("unchecked")
-		public Node<K, V> getChild(K key) {
+		public Node<K, V> getChild(Object key) {
 			int idx;
-			for(idx = 0; idx < keycount; idx++) {
-				if(((Comparable<? super K>) key).compareTo(keys.get(idx)) <= 0) break;
-			}
+			for(idx = 0; idx < keycount; idx++) 
+				if(compare(key, keys.get(idx)) <= 0) break;
 			return children.get(idx);
 		}
 
@@ -670,7 +834,7 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 					this.keys.set(slot, key);
 					this.keycount++;
 					if(highKey == null) highKey = key;
-					else if (((Comparable<? super K>) key).compareTo(highKey)> 0) highKey = key;
+					else if (compare(key, highKey) > 0) highKey = key;
 				}
 				else isFull = false;
 				this.needToSplit = isFull;
@@ -678,10 +842,10 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 		}
 
 		@SuppressWarnings("unchecked")
-		public V getValue(int hash, K key) {
+		public V getValue(int hash, Object key) {
 			for(int slot = 0; slot <= MAX_LEAF_KEYS; slot++) {
 				if(hashes.get(slot) == hash) {
-					if(((Comparable<? super K>) key).compareTo(keys.get(slot)) == 0) return leaf.getSlot(slot).getValue();
+					if(compare(key, keys.get(slot)) == 0) return leaf.getSlot(slot).getValue();
 				}
 			}
 			return null;
@@ -831,6 +995,284 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 			setObjectField(VALUE, value);
 		}
 	}
+
+
+	/* ---------------- Iterators -------------- */
+
+
+	abstract class Iter<T> implements Iterator<T> {
+		PersistentLeaf<K, V> currentLeaf;
+		ArrayList<AbstractMap.SimpleImmutableEntry<K,V>> currentLeafEntries;
+		int currentLeafIdx;
+		Iter() {
+			currentLeaf = getHeadLeaf();
+			if(currentLeaf != null) currentLeafEntries = new ArrayList<>(MAX_LEAF_KEYS + 1);
+			advanceLeaf();
+		}
+
+		private boolean sortedKeyList(PersistentLeaf<K,V> leaf) {
+			currentLeafEntries.clear();
+			for (int slot = 0; slot <= MAX_LEAF_KEYS; slot++) {
+				PersistentLeafSlot<K, V> pSlot = leaf.getSlot(slot);
+				if(pSlot != null) currentLeafEntries.add(new AbstractMap.SimpleImmutableEntry<K,V>(pSlot.getKey(),pSlot.getValue()));
+			}
+			Collections.sort(currentLeafEntries, new Comparator<AbstractMap.SimpleImmutableEntry<K,V>>() {
+				public int compare(AbstractMap.SimpleImmutableEntry<K,V> e1, AbstractMap.SimpleImmutableEntry<K,V> e2)
+				{
+					return compareKeys(e1.getKey(), e2.getKey());
+				}
+			});
+
+			return currentLeafEntries.size() > 0;
+		}
+
+
+		public final boolean hasNext() {
+			if(currentLeafIdx < currentLeafEntries.size()) return true;
+			else {
+				currentLeaf = currentLeaf.getNext();
+				return advanceLeaf();
+			}
+		}
+
+		//advances to the next non-empty leaf
+		final boolean advanceLeaf() {
+			boolean foundNext = false;
+			while(!foundNext) {
+				if(currentLeaf == null) break;
+				if(sortedKeyList(currentLeaf)) {
+					foundNext = true;
+					currentLeafIdx = 0;
+					break;
+				}
+				else currentLeaf = currentLeaf.getNext();
+			}
+			return foundNext;
+		}
+
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
+
+	}
+
+	final class ValueIterator extends Iter<V> {
+		public V next() {
+			if(!this.hasNext()) throw new NoSuchElementException();	
+			return currentLeafEntries.get(currentLeafIdx++).getValue();
+		}
+	}
+
+	final class KeyIterator extends Iter<K> {
+		public K next() {
+			if(!this.hasNext()) throw new NoSuchElementException();	
+			//if(currentLeafIdx == 0) System.out.print("-->");
+			return currentLeafEntries.get(currentLeafIdx++).getKey();
+		}
+	}
+
+	final class EntryIterator extends Iter<Map.Entry<K,V>> {
+		public Map.Entry<K,V> next() {
+			if(!this.hasNext()) throw new NoSuchElementException();	
+			return currentLeafEntries.get(currentLeafIdx++);
+		}
+	}
+
+	Iterator<K> keyIterator() {
+		return new KeyIterator();
+	}
+
+	Iterator<V> valueIterator() {
+		return new ValueIterator();
+	}
+
+	Iterator<Map.Entry<K,V>> entryIterator() {
+		return new EntryIterator();
+	}
+
+	private static final <E> List<E> toList(Collection<E> c) {
+		// Using size() here would be a pessimization.
+		ArrayList<E> list = new ArrayList<E>();
+		for (E e : c)
+			list.add(e);
+		return list;
+	}
+
+	private static final class KeySet<E extends AnyPersistent> extends AbstractSet<E> implements NavigableSet<E> {
+		final ConcurrentNavigableMap<E,? extends AnyPersistent> m;
+		KeySet(ConcurrentNavigableMap<E,? extends AnyPersistent> map) { m = map; }
+		public int size() { return m.size(); }
+		public boolean isEmpty() { return m.isEmpty(); }
+		public boolean contains(Object o) { return m.containsKey(o); }
+		public boolean remove(Object o) { return m.remove(o) != null; }
+		public void clear() { m.clear(); }
+		public E lower(E e) { return m.lowerKey(e); }
+		public E floor(E e) { return m.floorKey(e); }
+		public E ceiling(E e) { return m.ceilingKey(e); }
+		public E higher(E e) { return m.higherKey(e); }
+		public Comparator<? super E> comparator() { return m.comparator(); }
+		public E first() { return m.firstKey(); }
+		public E last() { return m.lastKey(); }
+		public E pollFirst() {
+			Map.Entry<E,?> e = m.pollFirstEntry();
+			return (e == null) ? null : e.getKey();
+		}
+		public E pollLast() {
+			Map.Entry<E,?> e = m.pollLastEntry();
+			return (e == null) ? null : e.getKey();
+		}
+		@SuppressWarnings("unchecked")
+		public Iterator<E> iterator() {
+			if (m instanceof PersistentFPTree1) return ((PersistentFPTree1<E,AnyPersistent>)m).keyIterator();
+			else throw new UnsupportedOperationException(); //return ((PersistentFPTree1.SubMap<E,AnyPersistent>)m).keyIterator();
+		}
+		public boolean equals(Object o) {
+			if (o == this) return true;
+			if (!(o instanceof Set)) return false;
+			Collection<?> c = (Collection<?>) o;
+			try {
+				return containsAll(c) && c.containsAll(this);
+			} catch (ClassCastException unused) {
+				return false;
+			} catch (NullPointerException unused) {
+				return false;
+			}
+		}
+		public Object[] toArray()     { return toList(this).toArray();  }
+		public <T> T[] toArray(T[] a) { return toList(this).toArray(a); }
+		public Iterator<E> descendingIterator() {
+			return descendingSet().iterator();
+		}
+		public NavigableSet<E> subSet(E fromElement,
+				boolean fromInclusive,
+				E toElement,
+				boolean toInclusive) {
+			return new KeySet<E>(m.subMap(fromElement, fromInclusive,
+					toElement,   toInclusive));
+		}
+		public NavigableSet<E> headSet(E toElement, boolean inclusive) {
+			return new KeySet<E>(m.headMap(toElement, inclusive));
+		}
+		public NavigableSet<E> tailSet(E fromElement, boolean inclusive) {
+			return new KeySet<E>(m.tailMap(fromElement, inclusive));
+		}
+		public NavigableSet<E> subSet(E fromElement, E toElement) {
+			return subSet(fromElement, true, toElement, false);
+		}
+		public NavigableSet<E> headSet(E toElement) {
+			return headSet(toElement, false);
+		}
+		public NavigableSet<E> tailSet(E fromElement) {
+			return tailSet(fromElement, true);
+		}
+		public NavigableSet<E> descendingSet() {
+			return new KeySet<E>(m.descendingMap());
+		}
+		@SuppressWarnings("unchecked")
+		public Spliterator<E> spliterator() {
+			/*if (m instanceof PersistentFPTree1) return ((PersistentFPTree1<E,?>)m).keySpliterator();
+			else return (Spliterator<E>)((SubMap<E,?>)m).keyIterator();*/
+			throw new UnsupportedOperationException();
+		}
+	}
+
+	static final class Values<E extends AnyPersistent> extends AbstractCollection<E> {
+		final ConcurrentNavigableMap<?, E> m;
+		Values(ConcurrentNavigableMap<?, E> map) {
+			m = map;
+		}
+		@SuppressWarnings("unchecked")
+		public Iterator<E> iterator() {
+			if (m instanceof PersistentFPTree1)
+				return ((PersistentFPTree1<?,E>)m).valueIterator();
+			else
+				//return ((SubMap<?,E>)m).valueIterator();
+				throw new UnsupportedOperationException();
+		}
+		public boolean isEmpty() {
+			return m.isEmpty();
+		}
+		public int size() {
+			return m.size();
+		}
+		public boolean contains(Object o) {
+			return m.containsValue(o);
+		}
+		public void clear() {
+			m.clear();
+		}
+		public Object[] toArray()     { return toList(this).toArray();  }
+		public <T> T[] toArray(T[] a) { return toList(this).toArray(a); }
+		@SuppressWarnings("unchecked")
+		public Spliterator<E> spliterator() {
+			throw new UnsupportedOperationException();
+		}
+	}
+
+	static final class EntrySet<K1 extends AnyPersistent,V1 extends AnyPersistent> extends AbstractSet<Map.Entry<K1,V1>> {
+		final ConcurrentNavigableMap<K1, V1> m;
+		EntrySet(ConcurrentNavigableMap<K1, V1> map) {
+			m = map;
+		}
+		@SuppressWarnings("unchecked")
+		public Iterator<Map.Entry<K1,V1>> iterator() {
+			if (m instanceof PersistentFPTree1)
+				return ((PersistentFPTree1<K1,V1>)m).entryIterator();
+			else
+				//return ((SubMap<K1,V1>)m).entryIterator();
+				throw new UnsupportedOperationException();
+		}
+
+		public boolean contains(Object o) {
+			if (!(o instanceof Map.Entry))
+				return false;
+			Map.Entry<?,?> e = (Map.Entry<?,?>)o;
+			V1 v = m.get(e.getKey());
+			return v != null && v.equals(e.getValue());
+		}
+		public boolean remove(Object o) {
+			if (!(o instanceof Map.Entry))
+				return false;
+			Map.Entry<?,?> e = (Map.Entry<?,?>)o;
+			return m.remove(e.getKey(),
+					e.getValue());
+		}
+		public boolean isEmpty() {
+			return m.isEmpty();
+		}
+		public int size() {
+			return m.size();
+		}
+		public void clear() {
+			m.clear();
+		}
+		public boolean equals(Object o) {
+			if (o == this)
+				return true;
+			if (!(o instanceof Set))
+				return false;
+			Collection<?> c = (Collection<?>) o;
+			try {
+				return containsAll(c) && c.containsAll(this);
+			} catch (ClassCastException unused) {
+				return false;
+			} catch (NullPointerException unused) {
+				return false;
+			}
+		}
+		public Object[] toArray()     { return toList(this).toArray();  }
+		public <T> T[] toArray(T[] a) { return toList(this).toArray(a); }
+		@SuppressWarnings("unchecked")
+		public Spliterator<Map.Entry<K1,V1>> spliterator() {
+			if (m instanceof PersistentFPTree1)
+				//return ((PersistentFPTree1<K1,V1>)m).entrySpliterator();
+				throw new UnsupportedOperationException();
+			else
+				//return (Spliterator<Map.Entry<K1,V1>>) ((SubMap<K1,V1>)m).entryIterator();
+				throw new UnsupportedOperationException();
+		}
+	}
+
 
 }
 

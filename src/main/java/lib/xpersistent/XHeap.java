@@ -139,11 +139,9 @@ public class XHeap implements PersistentHeap {
     }
 
     private void cleanHeap() {
-        Transaction.run(() -> {
-            XRoot rt = (XRoot)(getRoot());
-            rt.cleanVMOffsets();
-            CycleCollector.collect();
-        });
+        XRoot rt = (XRoot)(getRoot());
+        rt.cleanVMOffsets();
+        CycleCollector.collect();
     }
 
     private synchronized native void nativeOpenHeap(String path, long size);

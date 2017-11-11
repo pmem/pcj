@@ -57,6 +57,7 @@ public class PersistentConcurrentHashMapInternal {
     static final int n = 0xe6546b64;
 
     private static final XHeap heap = (XHeap)(PersistentMemoryProvider.getDefaultProvider().getHeap());
+    //private int size;
 
     private NodeLL head;
     private Table table;
@@ -93,20 +94,21 @@ public class PersistentConcurrentHashMapInternal {
 
         public final NodeLL getNext() { return this.reg.getLong(NEXT_OFFSET) == 0 ? null : new NodeLL(this.reg.getLong(NEXT_OFFSET)); }
         public final void getNext(NodeLL next) {
-            if (this.reg.getLong(NEXT_OFFSET) == 0) {
+            if (getNextAddr() == 0) {
                 next = null;
             } else {
                 next.changeAddr(this.reg.getLong(NEXT_OFFSET));
             }
         }
         public final long getNextAddr() { return this.reg.getLong(NEXT_OFFSET); }
+        final void setNextAddr(long nextAddr) { this.reg.putLong(NEXT_OFFSET, nextAddr); }
 
         public final void setNext(NodeLL next) { this.reg.putLong(NEXT_OFFSET, next == null? 0 : next.addr()); }
 
         public final int getHash() { return this.reg.getInt(HASH_OFFSET); }
 
         public final String toString() {
-            return "(0x" + Integer.toHexString(getHash()) + ", 0x" + Long.toHexString(getKey()) + " = " + getValue() + ")";
+            return "(0x" + Integer.toHexString(getHash()) + ", 0x" + Long.toHexString(getKey()) + " = " + getValue() + "), Next addr 0x" + Long.toHexString(getNextAddr());
         }
 
         public final int hashCode() {
@@ -131,6 +133,7 @@ public class PersistentConcurrentHashMapInternal {
         public final long addr() { return this.reg.addr(); }
         public final void free() {
             heap.freeRegion(this.reg);
+            ((UncheckedPersistentMemoryRegion)this.reg).addr(0);
         }
 
         public boolean isSentinel() { return ((this.getHash() & 0x1) == 0); }
@@ -255,11 +258,15 @@ public class PersistentConcurrentHashMapInternal {
         NodeLL lastReturned;
 
         public EntryIterator() {
-            prev = null;
-            lastReturned = null;
-            next = head;
+            prev = new NodeLL(head.addr());
+            next = new NodeLL(head.addr());
+            lastReturned = new NodeLL(0);
             while (next != null && next.getValue() == SENTINEL_NODE_VALUE) {
-                next = next.getNext();
+                if (next.getNextAddr() == 0) {
+                    next = null;
+                } else {
+                    next.changeAddr(next.getNextAddr());
+                }
             }
         }
 
@@ -268,16 +275,36 @@ public class PersistentConcurrentHashMapInternal {
         }
 
         public NodeLL next() {
-            prev = lastReturned;
-            lastReturned = next;
+            //debugFromHead();
+            if (lastReturned.addr() == 0) {
+                lastReturned.changeAddr(next.addr());
+            }
+            lastReturned.changeAddr(next == null ? 0 : next.addr());
+            //System.out.println("lastReturned is " + lastReturned);
+            //System.out.println("prev is " + prev);
+            while (prev.getNextAddr() != lastReturned.addr() && prev.getNextAddr() != 0) {
+                prev.changeAddr(prev.getNextAddr());
+                //System.out.println("prev is " + prev);
+            }
+            //System.out.println("next starts at " + next);
             do {
-                next = next.getNext();
+                if (next.getNextAddr() == 0) {
+                    next = null;
+                } else {
+                    next.changeAddr(next.getNextAddr());
+                    //System.out.println("next is now " + next);
+                }
             } while (next != null && next.getValue() == SENTINEL_NODE_VALUE);
             return lastReturned;
         }
 
         public void remove() {
-            PersistentConcurrentHashMapInternal.this.remove(lastReturned.getKey());
+            if (lastReturned == null) return;
+            //PersistentConcurrentHashMapInternal.this.remove(lastReturned.getKey());
+            //System.out.println("removing " + lastReturned);
+            prev.setNextAddr(lastReturned.getNextAddr());
+            lastReturned.free();
+            //System.out.println("after remove: prev is " + prev);
         }
     }
 
@@ -285,6 +312,7 @@ public class PersistentConcurrentHashMapInternal {
         this.table = new Table(DEFAULT_INITIAL_CAPACITY);
         this.resizeThreshold = DEFAULT_RESIZE_THRESHOLD;
         this.head = getNode(0);
+        //this.size = 0;
     }
 
     public PersistentConcurrentHashMapInternal(long addr) {
@@ -304,6 +332,7 @@ public class PersistentConcurrentHashMapInternal {
                 curr = curr.getNext();
             }
         }
+        //this.size = size();
     }
 
     private int getCapacity() { return this.table.getCapacity(); }
@@ -326,7 +355,7 @@ public class PersistentConcurrentHashMapInternal {
             // System.out.println("table length is " + table.length() + ", slot is " + slot);
             Transaction.run(() -> {
                 NodeLL sentinel = getSentinel(slot);
-            // System.out.println("thread " + Thread.currentThread().getId() + " attempting to insert " + key + " from slot " + slot);
+                // System.out.println("thread " + Thread.currentThread().getId() + " attempting to insert " + key + " from slot " + slot);
                 ret.set(addOrUpdateNode(sentinel, hash, key, value, onlyIfAbsent, increment));
             }, table.getSlot(slot, false).getLock());
 
@@ -452,6 +481,9 @@ public class PersistentConcurrentHashMapInternal {
             } else break;
         }
         NodeLL newNode = new NodeLL(sortedHash, key, value, null);
+        /*if (((++size) % 100) == 0) {
+            System.out.println("Current size of map at addr " + addr() + " is " + size);
+        }*/
         newNode.setNext(next);
         curr.setNext(newNode);
         long[] ret = {-1, count};
@@ -541,6 +573,9 @@ public class PersistentConcurrentHashMapInternal {
                         }
                         curr.setNext(next.getNext());
                         next.free();
+                        /*if (((--size) % 100) == 0) {
+                            System.out.println("Current size of map at addr " + addr() + " is " + size);
+                        }*/
                         return prevValue;
                     }
                 } else break;
@@ -580,7 +615,7 @@ public class PersistentConcurrentHashMapInternal {
     }
 
     private NodeLL getSentinel(int slot) {
-        String hexSlot = Long.toHexString(slot);
+        // String hexSlot = Long.toHexString(slot);
         // System.out.println("thread " + Thread.currentThread().getId() + " getSentinel 0x" + hexSlot);
         // debugFromHead();
         NodeLL sentinel = NodeLL.copyOf(getNode(slot));
@@ -695,14 +730,15 @@ public class PersistentConcurrentHashMapInternal {
     }
 
     public void debugFromHead() {
-        NodeLL curr = head;
+        NodeLL curr = new NodeLL(head.addr());
+        System.out.println("curr is " + curr);
         StringBuilder sb = new StringBuilder();
         int prevHash = 0;
-        while (curr != null) {
+        while (curr.addr() != 0) {
             if (Integer.compareUnsigned(curr.getHash(), prevHash) < 0) System.out.println("ERROR in map: hash out of order: previous hash 0x" + Integer.toHexString(prevHash) + ", current hash 0x" + Integer.toHexString(curr.getHash()));
             prevHash = curr.getHash();
-            sb.append("(node @ " + Long.toHexString(curr.addr()) + ": hash 0x" + Integer.toHexString(curr.getHash()) + ", key 0x" + Long.toHexString(curr.getKey()) + ", value " + curr.getValue() + ")->\n");
-            curr = curr.getNext();
+            sb.append("(node @ " + Long.toHexString(curr.addr()) + ": hash 0x" + Integer.toHexString(curr.getHash()) + ", key 0x" + Long.toHexString(curr.getKey()) + ", value " + curr.getValue() + ", next addr 0x" + Long.toHexString(curr.getNextAddr()) + ")->\n");
+            curr.changeAddr(curr.getNextAddr());
         }
         sb.append("(null)");
         System.out.println(sb.toString());
@@ -714,13 +750,26 @@ public class PersistentConcurrentHashMapInternal {
 
     public EntryIterator iter() { return new EntryIterator(); }
 
-    public void delete() {
-        NodeLL curr = head, next;
-        while (curr != null) {
-            next = curr.getNext();
-            curr.free();
-            curr = next;
+    public void delete(boolean removeHead) {
+        NodeLL curr = new NodeLL(head.getNextAddr());
+        long nextAddr;
+        while (curr.addr() != 0) {
+            nextAddr = curr.getNextAddr();
+            Transaction.run(() -> {
+                head.setNextAddr(curr.getNextAddr());
+                curr.free();
+            });
+            curr.changeAddr(nextAddr);
         }
+        if (removeHead) head.free();
+    }
+
+    public void delete() {
+        delete(true);
+    }
+
+    public void deleteHead() {
+        head.free();
     }
 
     public boolean containsKey(long key) {

@@ -23,7 +23,9 @@ package lib.xpersistent;
 
 import lib.util.persistent.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
+import java.util.List;
 import java.util.ArrayList;
+import java.util.Collections;
 import static lib.util.persistent.Trace.trace;
 
 public class XTransaction implements Transaction {
@@ -108,6 +110,15 @@ public class XTransaction implements Transaction {
             releaseLocks();
         }
         info.depth--;
+        if (info.depth == 0) {
+            List<Runnable> commitHandlers = info.commitHandlers();
+            if (commitHandlers != null) {
+                Collections.reverse(commitHandlers);
+                Runnable[] handlers = commitHandlers.toArray(new Runnable[0]);
+                commitHandlers.clear();
+                for (Runnable r : handlers) r.run();
+            }
+        }
     }
 
     public void abort() {
@@ -125,6 +136,13 @@ public class XTransaction implements Transaction {
             // trace("abort: constructions cleared");
             info.state = Transaction.State.Aborted;
             releaseLocks();
+            List<Runnable> abortHandlers = info.abortHandlers();
+            if (abortHandlers != null) {
+                Collections.reverse(abortHandlers);
+                Runnable[] handlers = abortHandlers.toArray(new Runnable[0]);
+                abortHandlers.clear();
+                for (Runnable r : handlers) r.run();
+            }
         }
     }
 

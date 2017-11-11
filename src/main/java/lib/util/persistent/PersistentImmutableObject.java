@@ -71,10 +71,7 @@ public class PersistentImmutableObject extends AbstractPersistentObject {
     @SuppressWarnings("unchecked")
     <T extends AnyPersistent> T getObject(long offset, PersistentType type) {
         // trace(true, "PIO getObject(%d, %s)", offset, type);
-        T ans = null;
-        long valueAddr = getLong(offset);
-        if (valueAddr != 0) ans = (T)ObjectCache.get(valueAddr);
-        return ans;
+        return (T)ObjectCache.get(getLong(offset));
     }
 
     @Override
