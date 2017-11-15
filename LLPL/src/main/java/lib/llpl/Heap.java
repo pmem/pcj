@@ -22,6 +22,7 @@
 package lib.llpl;
 
 import java.util.HashMap;
+import java.io.File;
 
 public class Heap {
     static {
@@ -30,25 +31,30 @@ public class Heap {
 
     private static HashMap<String, Heap> heaps = new HashMap<>();
 
-    public synchronized static Heap getHeap(String name) {
+    public synchronized static Heap getHeap(String path, long size) {
         Heap heap;
-        if (heaps.get(name) == null) {
-            heap = new Heap(name);
-            heaps.put(name, heap);
+        if (heaps.get(path) == null) {
+            heap = new Heap(path, size);
+            heaps.put(path, heap);
         } else {
-            heap = heaps.get(name);
+            heap = heaps.get(path);
         }
         return heap;
     }
 
     private boolean open;
-    private String name;
+    private String path;
 
-    private Heap(String name) {
+    private Heap(String path, long size) {
         if (open) return;
-        this.name = name;
+        this.path = path;
         this.open = true;
-        nativeOpenHeap(name);
+        nativeOpenHeap(path, size);
+    }
+
+    public static boolean exists(String path) {
+        if (heaps.get(path) != null) return true;
+        else return new File(path).exists();
     }
 
     public FlushableMemoryRegion allocateFlushableMemoryRegion(long size) {
@@ -103,7 +109,7 @@ public class Heap {
         nativeFlush(addr, size);
     }
 
-    private synchronized native void nativeOpenHeap(String name);
+    private synchronized native void nativeOpenHeap(String path, long size);
     private native long nativeGetMemoryRegion(long size);
     private synchronized native int nativeSetRoot(long val);
     private native long nativeGetRoot();

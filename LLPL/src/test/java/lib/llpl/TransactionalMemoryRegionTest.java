@@ -23,7 +23,7 @@ package lib.llpl;
 
 class TransactionalMemoryRegionTest {
     public static void main(String[] args) {
-        Heap h = Heap.getHeap("/mnt/mem/persistent_pool");
+        Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
         TransactionalMemoryRegion reg = h.allocateTransactionalMemoryRegion(16);
 
         reg.putByte(0, (byte)5);
@@ -52,6 +52,6 @@ class TransactionalMemoryRegionTest {
         assert(reg.getInt(3) == 255473664);
         assert(reg.getShort(3) == (short)14336);
         assert(reg.getByte(3) == (byte)0);
-        System.out.println("=================================All TransactionalMemoryRegion tests passed!=================================");
+        System.out.println("=================================All TransactionalMemoryRegion tests passed=================================");
     }
 }

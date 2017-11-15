@@ -27,7 +27,7 @@ import java.util.TreeMap;
 
 class MemoryRegionEqualityTest {
     public static void main(String[] args) {
-        Heap h = Heap.getHeap("/mnt/mem/persistent_pool");
+        Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
         MemoryRegion mr = h.allocateRawMemoryRegion(10);
         assert(mr.addr() != 0);
         MemoryRegion mr2 = h.rawRegionFromAddress(mr.addr());
@@ -94,6 +94,6 @@ class MemoryRegionEqualityTest {
 
         h.freeRegion(mr);
 
-        System.out.println("=================================All MemoryRegionEquality tests passed!=================================");
+        System.out.println("=================================All MemoryRegionEquality tests passed=================================");
     }
 }

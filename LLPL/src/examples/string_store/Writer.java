@@ -26,7 +26,7 @@ import java.io.Console;
 
 public class Writer {
     public static void main(String[] args) {
-        Heap h = Heap.getHeap("/mnt/mem/persistent_pool");
+        Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
 
         Console c = System.console();
         if (c == null) {

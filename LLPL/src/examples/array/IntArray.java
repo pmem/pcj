@@ -51,7 +51,7 @@ public class IntArray {
         assert(caught);
     }
 
-    private static Heap h = Heap.getHeap("/mnt/mem/persistent_pool");
+    private static Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
     FlushableMemoryRegion region;
 
     public static IntArray fromAddress(long addr) {

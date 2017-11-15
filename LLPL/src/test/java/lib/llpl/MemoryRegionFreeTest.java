@@ -23,7 +23,7 @@ package lib.llpl;
 
 class MemoryRegionFreeTest {
     public static void main(String[] args) {
-        Heap h = Heap.getHeap("/mnt/mem/persistent_pool");
+        Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
         MemoryRegion mr = h.allocateRawMemoryRegion(10);
         assert(mr.addr() != 0);
         h.freeRegion(mr);
@@ -59,6 +59,6 @@ class MemoryRegionFreeTest {
             caught = true;
         }
         assert(caught);
-        System.out.println("=================================All MemoryRegionFree tests passed!=================================");
+        System.out.println("=================================All MemoryRegionFree tests passed=================================");
     }
 }

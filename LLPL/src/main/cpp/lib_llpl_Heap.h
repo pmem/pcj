@@ -31,10 +31,10 @@ extern "C" {
 /*
  * Class:     lib_llpl_Heap
  * Method:    nativeOpenHeap
- * Signature: (Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;J)V
  */
 JNIEXPORT void JNICALL Java_lib_llpl_Heap_nativeOpenHeap
-  (JNIEnv *, jobject, jstring);
+  (JNIEnv *, jobject, jstring, jlong);
 
 /*
  * Class:     lib_llpl_Heap

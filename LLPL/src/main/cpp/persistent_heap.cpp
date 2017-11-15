@@ -24,23 +24,23 @@
 PMEMobjpool *pool = NULL;
 TOID(struct root_struct) root;
 static uint64_t uuid_lo;
-static const size_t PM_POOL_SIZE = 2147483648U;  // 2G
 
-PMEMobjpool* get_or_create_pool(const char* path)
+PMEMobjpool* get_or_create_pool(const char* path, size_t size)
 {
     if (pool != NULL) {
         return pool;
-    }
-
-    uint64_t size = PM_POOL_SIZE;
-    if (strstr(path, "/dev/dax") != NULL) {
-        size = 0;
     }
 
     pool = pmemobj_open(path, POBJ_LAYOUT_NAME(persistent_heap));
     if (pool == NULL) {
         pool = pmemobj_create(path, POBJ_LAYOUT_NAME(persistent_heap),
                               size, S_IRUSR | S_IWUSR);
+    }
+
+    if (pool == NULL) {
+        printf("Failed to open pool! %s\n", pmemobj_errormsg());
+        fflush(stdout);
+        exit(-1);
     }
 
     TOID(char) arr;

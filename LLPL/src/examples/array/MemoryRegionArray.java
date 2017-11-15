@@ -56,7 +56,7 @@ public class MemoryRegionArray {
         assert(caught);
     }
 
-    private static Heap h = Heap.getHeap("/mnt/mem/persistent_pool");
+    private static Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
     TransactionalMemoryRegion region;
 
     public static MemoryRegionArray fromAddress(long addr) {

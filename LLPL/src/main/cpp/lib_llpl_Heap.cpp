@@ -23,11 +23,11 @@
 #include "persistent_heap.h"
 
 JNIEXPORT void JNICALL Java_lib_llpl_Heap_nativeOpenHeap
-  (JNIEnv *env, jobject obj, jstring name)
+  (JNIEnv *env, jobject obj, jstring path, jlong size)
 {
-    const char* native_string = env->GetStringUTFChars(name, 0);
-    get_or_create_pool(native_string);
-    env->ReleaseStringUTFChars(name, native_string);
+    const char* native_string = env->GetStringUTFChars(path, 0);
+    get_or_create_pool(native_string, (size_t)size);
+    env->ReleaseStringUTFChars(path, native_string);
 }
 
 JNIEXPORT jlong JNICALL Java_lib_llpl_Heap_nativeGetMemoryRegion

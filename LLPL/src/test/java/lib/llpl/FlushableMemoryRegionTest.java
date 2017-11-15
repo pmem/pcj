@@ -23,7 +23,7 @@ package lib.llpl;
 
 class FlushableMemoryRegionTest {
     public static void main(String[] args) {
-        Heap h = Heap.getHeap("/mnt/mem/persistent_pool");
+        Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
         FlushableMemoryRegion reg = h.allocateFlushableMemoryRegion(16);
 
         reg.putByte(0, (byte)5);
@@ -71,6 +71,6 @@ class FlushableMemoryRegionTest {
         assert(reg.getByte(3) == (byte)0);
 
         h.freeRegion(reg);
-        System.out.println("=================================All FlushableMemoryRegion tests passed!=================================");
+        System.out.println("=================================All FlushableMemoryRegion tests passed=================================");
     }
 }

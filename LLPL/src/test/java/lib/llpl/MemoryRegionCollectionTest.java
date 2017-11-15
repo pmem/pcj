@@ -27,7 +27,7 @@ import java.util.TreeMap;
 
 class MemoryRegionCollectionTest {
     public static void main(String[] args) {
-        Heap h = Heap.getHeap("/mnt/mem/persistent_pool");
+        Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
         HashMap<MemoryRegion, Integer> hm = new HashMap<>();
         for (int i = 0; i < 10; i++) {
             hm.put(h.allocateRawMemoryRegion(10), i);
@@ -63,6 +63,6 @@ class MemoryRegionCollectionTest {
             // System.out.println(e.getKey().addr() + ", " + e.getKey().getClass() + " --> " + e.getValue());
             h.freeRegion(e.getKey());
         }
-        System.out.println("=================================All MemoryRegionCollection tests passed!=================================");
+        System.out.println("=================================All MemoryRegionCollection tests passed=================================");
     }
 }
