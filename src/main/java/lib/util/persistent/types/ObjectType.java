@@ -25,10 +25,13 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import lib.util.persistent.AnyPersistent;
+import lib.util.persistent.ObjectPointer;
 import lib.util.persistent.ObjectDirectory;
+import lib.util.persistent.ClassInfo;
 import lib.util.persistent.PersistentString;
 import lib.util.persistent.Header;
 import java.lang.reflect.Field;
+import java.lang.reflect.Constructor;
 import static lib.util.persistent.Trace.*;
 
 public class ObjectType<T extends AnyPersistent> implements Named, Container {
@@ -38,6 +41,7 @@ public class ObjectType<T extends AnyPersistent> implements Named, Container {
     private final long[] offsets;
     private final long size;
     protected final Class<T> cls;
+    protected Constructor reconstructor;
     private int baseIndex;
     private AnyPersistent statics;
     private boolean valueBased;
@@ -78,6 +82,16 @@ public class ObjectType<T extends AnyPersistent> implements Named, Container {
     }
 
     public boolean isValueBased() {return valueBased;}
+
+    public Constructor getReconstructor() { 
+        if (reconstructor != null) return reconstructor;
+        try {
+            reconstructor = cls.getDeclaredConstructor(ObjectPointer.class);
+            reconstructor.setAccessible(true);
+        }
+        catch (NoSuchMethodException nsm) {throw new RuntimeException("Unable to get reconstructor: " + nsm.getMessage());}
+        return reconstructor;
+    }
 
     // orig name
     public static <U extends AnyPersistent> ObjectType<U> fromFields(Class<U> cls, PersistentField... fs) {

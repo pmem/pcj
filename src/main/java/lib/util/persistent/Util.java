@@ -68,20 +68,23 @@ public class Util {
         // System.out.println("src size = " + ((VolatileMemoryRegion)src).size);
         // System.out.println("dst size = " + ((VolatileMemoryRegion)dst).size);
         // trace(true, "memCopyVV src = %d, srcOffset = %d, dst = %d, dstOffset = %d, size = %d", src.addr(), srcOffset, dst.addr(), dstOffset, size);
-        for (long i = 0; i < size; i++) dst.putByte(dstOffset + i, src.getByte(srcOffset + i));
+        System.arraycopy(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, ((VolatileMemoryRegion)dst).getBytes(), (int)dstOffset, (int)size);
+        // for (long i = 0; i < size; i++) dst.putByte(dstOffset + i, src.getByte(srcOffset + i));
 
     }
     
     public static void memCopyVP(MemoryRegion src, long srcOffset, MemoryRegion dst, long dstOffset, long size) {
         // trace(true, "memCopyVP src = %s, srcOffset = %d, dst = %s, dstOffset = %d, size = %d", src, srcOffset, dst, dstOffset, size);
         Transaction.run(() -> {
-            for (long i = 0; i < size; i++) dst.putByte(dstOffset + i, src.getByte(srcOffset + i));
+            // for (long i = 0; i < size; i++) dst.putByte(dstOffset + i, src.getByte(srcOffset + i));
+            heap.memcpy(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, dst, dstOffset, (int)size);
         });
     }
     
     public static void memCopyPV(MemoryRegion src, long srcOffset, MemoryRegion dst, long dstOffset, long size) {
         // trace(true, "memCopyPV src = %s, srcOffset = %d, dst = %s, dstOffset = %d, size = %d", src, srcOffset, dst, dstOffset, size);
-        for (long i = 0; i < size; i++) dst.putByte(dstOffset + i, src.getByte(srcOffset + i));
+        // for (long i = 0; i < size; i++) dst.putByte(dstOffset + i, src.getByte(srcOffset + i));
+        heap.memcpy(src, srcOffset, ((VolatileMemoryRegion)dst).getBytes(), (int)dstOffset, (int)size); 
     }
 
     public static void memCopy(ObjectType fromType, ObjectType toType, MemoryRegion src, long srcOffset, MemoryRegion dst, long dstOffset, long size) {

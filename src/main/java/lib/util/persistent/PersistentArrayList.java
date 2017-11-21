@@ -49,14 +49,14 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
         if (statics == null)
             ObjectDirectory.put("PersistentArrayList_statics", statics = new Statics());
     }
-    
+
     public static class Statics extends PersistentImmutableObject {
         private static final ObjectField<PersistentArray> EMPTY_ELEMENTDATA = new ObjectField<>(PersistentArray.class);
         private static final ObjectField<PersistentArray> DEFAULTCAPACITY_EMPTY_ELEMENTDATA = new ObjectField<>(PersistentArray.class);
         public static final ObjectType<Statics> TYPE = ObjectType.fromFields(Statics.class, EMPTY_ELEMENTDATA, DEFAULTCAPACITY_EMPTY_ELEMENTDATA);
 
-        public Statics() { 
-            super(TYPE, (Statics obj) -> { 
+        public Statics() {
+            super(TYPE, (Statics obj) -> {
                 obj.initObjectField(EMPTY_ELEMENTDATA, new PersistentArray(0));
                 obj.initObjectField(DEFAULTCAPACITY_EMPTY_ELEMENTDATA, new PersistentArray(0));
             });
@@ -68,7 +68,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
 
         public PersistentArray defaultCapacityEmptyArray() { return getObjectField(DEFAULTCAPACITY_EMPTY_ELEMENTDATA); }
 
-    }   
+    }
 
     private void size(int size){
         setIntField(SIZE, size);
@@ -86,12 +86,12 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
         setObjectField(ELEMENTDATA, a);
     }
 
-    public PersistentArray getDataArray(){
+    private PersistentArray getDataArray(){
         return getObjectField(ELEMENTDATA);
     }
 
     private boolean isEmptyArray(){
-        return getDataArray().is(emptyArray()); 
+        return getDataArray().is(emptyArray());
     }
 
     private boolean isDefaultCapacityEmptyArray(){
@@ -113,12 +113,12 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
         super(TYPE);
         setDataArray(defaultCapacityEmptyArray());
     }
-    
+
     protected PersistentArrayList(ObjectType<? extends PersistentArrayList> type) {
         super(type);
         setDataArray(defaultCapacityEmptyArray());
     }
-    
+
     //public PersistentArrayList(Collection<? extends AnyPersistent> c) {
     @SafeVarargs
     @SuppressWarnings("unchecked")
@@ -150,7 +150,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
     }
 
     public void ensureCapacity(int minCapacity) {
-        int minExpand = (!isDefaultCapacityEmptyArray())        
+        int minExpand = (!isDefaultCapacityEmptyArray())
             ? 0
             : DEFAULT_CAPACITY;
 
@@ -161,7 +161,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
 
     private void ensureCapacityInternal(int minCapacity) {
         if (isDefaultCapacityEmptyArray()) {
-            minCapacity = Math.max(DEFAULT_CAPACITY, minCapacity); 
+            minCapacity = Math.max(DEFAULT_CAPACITY, minCapacity);
         }
 
         ensureExplicitCapacity(minCapacity);
@@ -197,13 +197,13 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
 
     public int size(){
         return Util.synchronizedBlock(this, () -> {
-            return getIntField(SIZE); 
+            return getIntField(SIZE);
         });
     }
 
     public boolean isEmpty(){
         return Util.synchronizedBlock(this, () -> {
-            return size() == 0; 
+            return size() == 0;
         });
     }
 
@@ -261,7 +261,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
         });
     }
 
-    
+
     @SuppressWarnings("unchecked")
     public T get(int index){
         return Util.synchronizedBlock(this, () -> {
@@ -281,7 +281,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
         return Util.synchronizedBlock(this, () -> {
             rangeCheck(index);
             final Box<T> oldValue = new Box<>();
-            Transaction.run(() -> { 
+            Transaction.run(() -> {
                 oldValue.set(elementData(index));
                 setElementData(index, element);
             });
@@ -291,7 +291,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
 
     public boolean add(T t) {
         Transaction.run(() -> {
-            ensureCapacityInternal(size() + 1); 
+            ensureCapacityInternal(size() + 1);
             setElementData(size(), t);
             size(size()+1);
         }, this);
@@ -302,7 +302,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
      public void add(int index, T element) {
         rangeCheckForAdd(index);
         Transaction.run(() -> {
-            ensureCapacityInternal(size() + 1); 
+            ensureCapacityInternal(size() + 1);
             PersistentArrays.ArrayCopy(getDataArray(), index, getDataArray(), index + 1,
                         size() - index);
             setElementData(index, element);
@@ -316,7 +316,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
             rangeCheck(index);
 
             modCount++;
-            final Box<T> oldValue = new Box<>(); 
+            final Box<T> oldValue = new Box<>();
             Transaction.run(() -> {
                 oldValue.set(elementData(index));
 
@@ -330,7 +330,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
             return oldValue.get();
         });
     }
-    
+
     public boolean remove(Object o) {
         return Util.synchronizedBlock(this, () -> {
             if (o == null) {
@@ -363,7 +363,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
                 setElementData(size(), null); // clear to let GC do its work
             });
         });
-    } 
+    }
 
     public void clear() {
         Util.synchronizedBlock(this, () -> {
@@ -390,7 +390,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
         }, this);
         return numNew.get() != 0;
     }
-  
+
     @SuppressWarnings("unchecked")
     public boolean addAll(int index, Collection<? extends T> c) {
         rangeCheckForAdd(index);
@@ -402,7 +402,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
             ensureCapacityInternal(size() + numNew.get());  // Increments modCount
 
             int numMoved = size() - index;
-            if (numMoved > 0) 
+            if (numMoved > 0)
                 PersistentArrays.ArrayCopy(getDataArray(), index, getDataArray(), index + numNew.get(), numMoved);
 
             getDataArray().insert(index, a);
@@ -529,14 +529,14 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
             } catch (IndexOutOfBoundsException ex) {
                 throw new ConcurrentModificationException();
             }
-        }    
+        }
     }
 
     private class Itr implements Iterator<T>{
         int cursor;         //index of next element to return
-        int lastRet = -1;  //index of last element returned; -1 if no such       
+        int lastRet = -1;  //index of last element returned; -1 if no such
         int expectedModCount = modCount;
-        final PersistentImmutableObject[] snapshot;
+        final AnyPersistent[] snapshot;
 
         public boolean hasNext() {
             return cursor != size();
@@ -544,7 +544,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
 
         @SuppressWarnings("unchecked")
         public Itr() {
-            snapshot = PersistentArrayList.this.toArray(new PersistentImmutableObject[0]);
+            snapshot = PersistentArrayList.this.toArray(new AnyPersistent[0]);
         }
 
         @SuppressWarnings("unchecked")
@@ -605,5 +605,5 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
 
     }
 
-    
+
 }

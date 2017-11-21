@@ -25,6 +25,7 @@ import lib.util.persistent.MemoryRegion;
 
 public class UncheckedPersistentMemoryRegion implements MemoryRegion {
     private long addr;
+    long directAddress;
 
     static {
         System.loadLibrary("Persistent");
@@ -32,61 +33,66 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
 
     public UncheckedPersistentMemoryRegion(long addr) {
         this.addr = addr;
+        this.directAddress = getDirectAddress(addr);
     }
 
     public long addr() {
         return this.addr;
     }
 
-    public void addr(long addr) { this.addr = addr; }
+    public void addr(long addr) { 
+        this.addr = addr; 
+        this.directAddress = getDirectAddress(addr);
+    }
 
     public void checkAccess(int mode) throws IllegalAccessException {}
     public void checkAlive() {}
     public void checkBounds(long offset) throws IndexOutOfBoundsException {}
-
-    private long getBits(long offset, long size, boolean isSigned) {
-        return nativeGetLong(this.addr, offset, (int)size);
-    }
 
     private void putBits(long offset, long size, long value) {
         nativePutLong(this.addr, offset, value, (int)size);
     }
 
     public byte getByte(long offset) {
-        return (byte)getBits(offset, 1, true);
+        return XHeap.UNSAFE.getByte(directAddress + offset);
     }
+
+    public short getShort(long offset) {
+        return XHeap.UNSAFE.getShort(directAddress + offset);
+    }
+
+    public int getInt(long offset) {
+        return XHeap.UNSAFE.getInt(directAddress + offset);
+    }
+
+    public long getLong(long offset) {
+        return XHeap.UNSAFE.getLong(directAddress + offset);
+    }
+
+    public long getAddress(long offset) {
+        return getLong(offset);
+    }
+
     public void putByte(long offset, byte value) {
         putBits(offset, 1, value);
     }
 
-    public short getShort(long offset) {
-        return (short)getBits(offset, 2, true);
-    }
     public void putShort(long offset, short value) {
         putBits(offset, 2, value);
     }
 
-    public int getInt(long offset) {
-        return (int)getBits(offset, 4, true);
-    }
     public void putInt(long offset, int value) {
         putBits(offset, 4, value);
     }
 
-    public long getLong(long offset) {
-        return getBits(offset, 8, true);
-    }
     public void putLong(long offset, long value) {
         putBits(offset, 8, value);
     }
 
-    public long getAddress(long offset) {
-        return this.addr + offset;
-    }
     public void putAddress(long offset, long value) {
         putLong(offset, value);
     }
 
-    private native long nativeGetLong(long regionOffset, long offset, int size);
+    private native long getDirectAddress(long regionOffset);
     private native void nativePutLong(long regionOffset, long offset, long value, int size);
 }

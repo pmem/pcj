@@ -52,10 +52,12 @@ public final class PersistentAtomicReference<T extends AnyPersistent> extends Pe
 		return (T)getObjectField(VALUE);
 	}
 
-	public synchronized boolean compareAndSet(T expect, T update) {
-		if(get() != expect) return false; 
-		set(update);
-		return true;
+	public boolean compareAndSet(T expect, T update) {
+        return Util.synchronizedBlock(this, () -> {
+		    if(get() != expect) return false; 
+		    set(update);
+		    return true;
+        });
 	}   
 
 }

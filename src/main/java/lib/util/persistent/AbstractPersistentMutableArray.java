@@ -96,7 +96,6 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
         return ans;
     }
 
-    // TODO: this is duplicate of method in PersistentObject, factor
     @SuppressWarnings("unchecked") <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
         // trace(true, "APMO.getValueObject(%d, %s)", offset, type);
         MemoryRegion region = Util.synchronizedBlock(this, () -> {
@@ -108,8 +107,7 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
         });
         T obj = null;
         try {
-            Constructor ctor = ((ObjectType)type).cls().getDeclaredConstructor(ObjectPointer.class);
-            ctor.setAccessible(true);
+            Constructor ctor = ((ObjectType)type).getReconstructor();
             ObjectPointer p = new ObjectPointer<T>((ObjectType)type, region);
             obj = (T)ctor.newInstance(p);
         }

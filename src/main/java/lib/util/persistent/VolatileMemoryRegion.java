@@ -25,8 +25,8 @@ import java.nio.ByteBuffer;
 import static lib.util.persistent.Trace.*;
 
 public class VolatileMemoryRegion implements MemoryRegion {
-    private byte[] bytes;
-    public long size;
+    private final byte[] bytes;
+    public final long size;
 
     public VolatileMemoryRegion(long size) {
         this.size = size;
@@ -37,6 +37,8 @@ public class VolatileMemoryRegion implements MemoryRegion {
     public void checkAccess(int mode) throws IllegalAccessException {}
     public void checkAlive() {}
     public void checkBounds(long offset) throws IndexOutOfBoundsException {}
+
+    public byte[] getBytes() {return bytes;}
 
     public byte getByte(long offset) {
         return bytes[(int)offset];
@@ -63,7 +65,7 @@ public class VolatileMemoryRegion implements MemoryRegion {
     }
 
     public long getLong(long offset) {
-        trace("VMR getLong(%d) -> %d", offset, Bits.getLong(bytes, (int)offset));
+        // trace("VMR getLong(%d) -> %d", offset, Bits.getLong(bytes, (int)offset));
         return Bits.getLong(bytes, (int)offset);
     }
 
@@ -78,13 +80,6 @@ public class VolatileMemoryRegion implements MemoryRegion {
     public void putAddress(long offset, long value) {
         putLong(offset, value);
     }
-
-    // public static void memcpy(MemoryRegion src, long srcOffset, MemoryRegion dst, long dstOffset, long size) {
-    //     trace("memcpy src = %s, srcOffset = %d, dst = %s, dstOffset = %d, size = %d", src, srcOffset, dst, dstOffset, size);
-    //     Transaction.run(() -> {
-    //         for (long i = 0; i < size; i++) dst.putByte(dstOffset + i, src.getByte(srcOffset + i));
-    //     });
-    // }
 
     // from OpenJDK Grep Code
     static class Bits {

@@ -52,6 +52,7 @@ import lib.xpersistent.UncheckedPersistentMemoryRegion;
 import java.util.Random;
 import static lib.util.persistent.Trace.*;
 import java.util.concurrent.TimeoutException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.function.Supplier;
 import java.util.function.Consumer;
 import java.util.concurrent.locks.ReentrantLock;
@@ -69,7 +70,7 @@ import sun.misc.Unsafe;
 public abstract class AnyPersistent {
     protected static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
     protected static Random random = new Random(System.nanoTime());
-    protected static Unsafe UNSAFE;
+    public static Unsafe UNSAFE;
 
     protected final ObjectPointer<? extends AnyPersistent> pointer;
     protected ReentrantLock lock;
@@ -136,15 +137,14 @@ public abstract class AnyPersistent {
     @SuppressWarnings("unchecked")
     public static <T extends AnyPersistent> T fromPointer(ObjectPointer<T> p) {
         // trace(p.addr(), "creating object from pointer of type %s", p.type().getName());
+        T obj = null;
         try {
-            Class<T> cls = p.type().cls();
-            Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
-            ctor.setAccessible(true);
-            T obj = (T)ctor.newInstance(p);
-            return obj;
+            obj = (T)p.type().getReconstructor().newInstance(p);
         }
-        catch (Exception e) {e.printStackTrace();}
-        return null;
+        catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            throw new RuntimeException("Exception in reconstructor: " + e.getMessage());
+        }
+        return obj;
     }
 
     static void free(long addr) {
@@ -311,16 +311,16 @@ public abstract class AnyPersistent {
     // we can turn this off after debug since only Field-based getters and setters are public
     // and those provide static type safety and internally assigned indexes
     protected int check(int index, PersistentType testType) {
-        boolean result = true;
-        if (index < 0 || index >= fieldCount()) throw new IndexOutOfBoundsException("No such field index: " + index);
-        PersistentType t = types().get(index);
-        if (t instanceof ObjectType && testType instanceof ObjectType) {
-            ObjectType<?> fieldType = (ObjectType)t;
-            ObjectType<?> test = (ObjectType) testType;
-            if (!test.cls().isAssignableFrom(fieldType.cls())) result = false;
-            else if (t != testType) result = false;
-            if (!result) throw new RuntimeException("Type mismatch in " + getType().cls() + " at index " + index + ": expected " + testType + ", found " + types().get(index));
-        }
+        // boolean result = true;
+        // if (index < 0 || index >= fieldCount()) throw new IndexOutOfBoundsException("No such field index: " + index);
+        // PersistentType t = types().get(index);
+        // if (t instanceof ObjectType && testType instanceof ObjectType) {
+        //     ObjectType<?> fieldType = (ObjectType)t;
+        //     ObjectType<?> test = (ObjectType) testType;
+        //     if (!test.cls().isAssignableFrom(fieldType.cls())) result = false;
+        //     else if (t != testType) result = false;
+        //     if (!result) throw new RuntimeException("Type mismatch in " + getType().cls() + " at index " + index + ": expected " + testType + ", found " + types().get(index));
+        // }
         return index;
     }
 

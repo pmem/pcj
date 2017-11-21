@@ -60,8 +60,8 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     Comparator<? super K> sister_comparator;
 
     private static Statics statics;
-    private static final ObjectField<PersistentAtomicReference> HEAD = new ObjectField<>(PersistentAtomicReference.class);
-    private static final ObjectField<AnyPersistent> BASE_HEADER = new ObjectField<>();
+    private static final FinalObjectField<PersistentAtomicReference> HEAD = new FinalObjectField<>(PersistentAtomicReference.class);
+    private static final FinalObjectField<AnyPersistent> BASE_HEADER = new FinalObjectField<>();
     public static final ObjectType<PersistentSkipListMap> TYPE = ObjectType.fromFields(PersistentSkipListMap.class, HEAD, BASE_HEADER);
 
     static {
@@ -71,12 +71,13 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     }
 
     public static final class Statics extends PersistentObject {
-        private static final ObjectField<PersistentLong> BASE_HEADER = new ObjectField<>();
+        private static final FinalObjectField<PersistentLong> BASE_HEADER = new FinalObjectField<>();
         public static final ObjectType<Statics> TYPE = ObjectType.fromFields(Statics.class, BASE_HEADER);
 
         public Statics() { 
-            super(TYPE); 
-            setObjectField(BASE_HEADER, new PersistentLong(8627078645895051609L));
+            super(TYPE, (PersistentObject obj) -> { 
+            obj.initObjectField(BASE_HEADER, new PersistentLong(8627078645895051609L));
+            });
         }
 
         public Statics (ObjectPointer<Statics> p) { super(p); }
@@ -109,31 +110,48 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
 
     @PersistentClass
     public static final class Node<K extends AnyPersistent,V extends AnyPersistent> extends PersistentObject {
-        private static final ObjectField<AnyPersistent> KEY = new ObjectField<>();
-        private static final ObjectField<PersistentAtomicReference> VALUE = new ObjectField<>(PersistentAtomicReference.class);
-        private static final ObjectField<PersistentAtomicReference> NEXT = new ObjectField<>(PersistentAtomicReference.class);
-        private static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, KEY, VALUE, NEXT);
+        private static final FinalObjectField<AnyPersistent> KEY = new FinalObjectField<>();
+        private static final FinalObjectField<PersistentAtomicReference> VALUE = new FinalObjectField<>(PersistentAtomicReference.class);
+        private static final FinalObjectField<PersistentAtomicReference> NEXT = new FinalObjectField<>(PersistentAtomicReference.class);
+        private static final FinalBooleanField MARKER = new FinalBooleanField();
+        private static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, KEY, VALUE, NEXT, MARKER);
+        private boolean hasNullValue = false;
 
 
         //Creates regular node
         @SuppressWarnings("unchecked")
         Node (K key, AnyPersistent value, Node<K,V> next) {
-            super(TYPE);
-            setObjectField(KEY, key);
-            setObjectField(VALUE, new PersistentAtomicReference(value));
-            setObjectField(NEXT, new PersistentAtomicReference(next));
+            super(TYPE, (Node obj) -> {
+                obj.initObjectField(KEY, key);
+                obj.initObjectField(VALUE, new PersistentAtomicReference(value));
+                obj.initObjectField(NEXT, new PersistentAtomicReference(next));
+                obj.initBooleanField(MARKER, false);
+            });
         }
 
         //Creates new marker node.
         @SuppressWarnings("unchecked")
         Node (Node<K,V> next) {
-            super(TYPE);
-            setObjectField(KEY, null);
-            setObjectField(VALUE, new PersistentAtomicReference(this));
-            setObjectField(NEXT, new PersistentAtomicReference(next));
+            super(TYPE, (Node obj) -> {
+                obj.initObjectField(KEY, null);
+                obj.initObjectField(VALUE, new PersistentAtomicReference(obj));
+                obj.initObjectField(NEXT, new PersistentAtomicReference(next));
+                obj.initBooleanField(MARKER, true);
+            });
         }
 
-        public Node (ObjectPointer<Node> p) { super(p); } 
+        public Node (ObjectPointer<Node> p) { 
+                super(p); 
+            //Transaction.run( ()->{}, ()-> {
+                hasNullValue = (getObjectField(KEY) != null && getObjectField(VALUE).get() == null);
+            //});
+        } 
+    
+        @Override
+        public String toString() {
+            System.out.println("marker node!!!");
+            return "I'm a marker node!!";
+        }
 
         @SuppressWarnings("unchecked")
         K key(){ return (K) getObjectField(KEY); }
@@ -148,7 +166,17 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
 
         @SuppressWarnings("unchecked")
         boolean casValue(AnyPersistent cmp, AnyPersistent val) {
-            return getObjectField(VALUE).compareAndSet(cmp, val);
+            if (val != null) return getObjectField(VALUE).compareAndSet(cmp, val);
+            else {
+                 Box<Boolean> ret = new Box<>();
+                 Transaction.run(() -> {
+                    ret.set(getObjectField(VALUE).compareAndSet(cmp, val));
+                    }, () -> {
+                    if (ret.get()) hasNullValue = true;
+                    }
+                );
+                 return ret.get();
+            }
         }
 
         @SuppressWarnings("unchecked")
@@ -156,8 +184,13 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
             return getObjectField(NEXT).compareAndSet(cmp, val);
         }
 
+        boolean hasNullValue() {
+            return hasNullValue;
+        }
+
         boolean isMarker() {
-            return value() == this;
+            //return value() == this;
+            return getBooleanField(MARKER);
         }
 
         boolean isBaseHeader() {
@@ -201,10 +234,10 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     }
 
     /* ---------------- Indexing -------------- */
-    public static class Index<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject {
-        private static final ObjectField<Node> NODE = new ObjectField<>(Node.class);
-        private static final ObjectField<Index> DOWN = new ObjectField<>(Index.class);
-        private static final ObjectField<PersistentAtomicReference> RIGHT = new ObjectField<>(PersistentAtomicReference.class);
+    public static class Index<K extends AnyPersistent, V extends AnyPersistent> extends PersistentImmutableObject {
+        private static final FinalObjectField<Node> NODE = new FinalObjectField<>(Node.class);
+        private static final FinalObjectField<Index> DOWN = new FinalObjectField<>(Index.class);
+        private static final FinalObjectField<PersistentAtomicReference> RIGHT = new FinalObjectField<>(PersistentAtomicReference.class);
         public static final ObjectType<Index> TYPE = ObjectType.fromFields(Index.class, NODE, DOWN, RIGHT);
 
         @SuppressWarnings("unchecked")
@@ -217,11 +250,28 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
 
         @SuppressWarnings("unchecked")
         Index(ObjectType<? extends Index> type, Node<K,V> node, Index<K,V> down, Index<K,V> right) {
-            super(type);
-            node(node);
-            down(down);
-            setObjectField(RIGHT, new PersistentAtomicReference(right));
+            this(TYPE, node, down, right, null);
         }
+
+        @SuppressWarnings("unchecked")
+        <T extends Index> Index(ObjectType<T> type, Node<K,V> node, Index<K,V> down, Index<K,V> right, Consumer<T> initializer) {
+            super(type, (Index obj) -> {
+                obj.initObjectField(NODE, node);
+                obj.initObjectField(DOWN, down);
+                obj.initObjectField(RIGHT, new PersistentAtomicReference(right));
+				if (initializer != null) initializer.accept((T)obj);
+            });
+        }	
+/*protected <T extends ImmutableKey> ImmutableKey(ObjectType<T> type, long id, int count, boolean ordered, Consumer<T> initializer) {
+			super(type, (ImmutableKey self) -> {
+				self.initLongField(ID, id);
+				self.initIntField(COUNT, count);
+				self.initBooleanField(ORDERED, ordered);
+				if (initializer != null) initializer.accept((T)self);
+			});
+		}*/
+
+
 
         @SuppressWarnings("unchecked")
         Node<K,V> node() { return (Node<K,V>) getObjectField(NODE); }
@@ -229,8 +279,6 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         Index <K,V> down() { return (Index<K,V>)getObjectField(DOWN); }
         @SuppressWarnings("unchecked")
         Index<K,V> right() { return (Index<K,V>)getObjectField(RIGHT).get(); }
-        void node(Node<K,V> node) { setObjectField(NODE, node); }
-        void down(Index<K,V> down) { setObjectField(DOWN, down); }
         @SuppressWarnings("unchecked")
         void right(Index<K,V> right) { getObjectField(RIGHT).set(right); }
 
@@ -263,8 +311,10 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
  
         @SuppressWarnings("unchecked")
         HeadIndex(Node<K,V> node, Index<K,V> down, Index<K,V> right, int level) {
-            super(TYPE, node, down, right);
-            setIntField(LEVEL, level);
+            //super(TYPE, node, down, right);
+            super(TYPE, node, down, right, (HeadIndex obj) -> {
+                obj.initIntField(LEVEL, level);
+            });
         }
     
         public HeadIndex(ObjectPointer<HeadIndex> p) { super(p); }
@@ -289,7 +339,8 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                 if (r != null) {
                     Node<K,V> n = r.node();
                     K k = n.key();
-                    if (n.value() == null) {
+                    if (n.hasNullValue()) {
+                    //if (n.value() == null) {
                         if (!q.unlink(r))
                             break;           // restart
                         r = q.right();         // reread r
@@ -322,7 +373,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                 if (n != b.next())                // inconsistent read
                     break;
                 if ((v = n.value()) == null) {    // n is deleted
-                    n.helpDelete(b, f);
+                    //n.helpDelete(b, f);
                     break;
                 }
                 if (b.value() == null || v == n)  // b is deleted
@@ -359,14 +410,16 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                 Node<K,V> f = n.next();
                 if (n != b.next())                // inconsistent read
                     break;
-                if ((v = n.value()) == null) {    // n is deleted
-                    n.helpDelete(b, f);
+                //if ((v = n.value()) == null) {    // n is deleted
+                if (n.hasNullValue()) {    // n is deleted
+                    //n.helpDelete(b, f);
                     break;
                 }
-                if (b.value() == null || v == n)  // b is deleted
+                if (b.hasNullValue() || n.isMarker())  // b is deleted
+                //if (b.value() == null || (v = n.value()) == n)
                     break;
                 if ((c = cpr(cmp, key, n.key())) == 0) {
-                    @SuppressWarnings("unchecked") V vv = (V)v;
+                    @SuppressWarnings("unchecked") V vv = (V)(n.value());
                     return vv;
                 }
                 if (c < 0)
@@ -413,11 +466,13 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                     Node<K,V> f = n.next();
                     if (n != b.next())               // inconsistent read
                         break;
-                    if ((v = n.value()) == null) {   // n is deleted
-                        n.helpDelete(b, f);
+                    //if ((v = n.value()) == null) {   // n is deleted
+                    if (n.hasNullValue()) {   // n is deleted
+                        //n.helpDelete(b, f);
                         break;
                     }
-                    if (b.value() == null || v == n) // b is deleted
+                    if (b.value() == null || n.isMarker()) // b is deleted
+                    //if (b.value() == null || v == n)
                         break;
                     if ((c = cpr(cmp, key, n.key())) > 0) {
                         b = n;
@@ -425,6 +480,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                         continue;
                     }
                     if (c == 0) {
+                        v = n.value();
                         if (onlyIfAbsent || n.casValue(v, value)) {
                             @SuppressWarnings("unchecked") V vv = (V)v;
                             return vv;
@@ -485,7 +541,8 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                         Node<K,V> n = r.node();
                         // compare before deletion check avoids needing recheck
                         int c = cpr(cmp, key, n.key());
-                        if (n.value() == null) {
+                        //if (n.value() == null) {
+                        if (n.hasNullValue()) {
                             if (!q.unlink(r))
                                 break;
                             r = q.right();
@@ -501,7 +558,8 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                     if (j == insertionLevel) {
                         if (!q.link(r, t))
                             break; // restart
-                        if (t.node().value() == null) {
+                        //if (t.node().value() == null) {
+                        if (t.node().hasNullValue()) {
                             findNode(key);
                             break splice;
                         }
@@ -535,10 +593,12 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                 if (n != b.next())                    // inconsistent read
                     break;
                 if ((v = n.value()) == null) {        // n is deleted
-                    n.helpDelete(b, f);
+                //if (n.hasNullValue()) {        // n is deleted
+                    //n.helpDelete(b, f);
                     break;
                 }
-                if (b.value() == null || v == n)      // b is deleted
+                //if (b.hasNullValue() || n.isMarker())      // b is deleted
+                if (b.value() == null || v == n)
                     break;
                 if ((c = cpr(cmp, key, n.key())) < 0)
                     break outer;
@@ -547,6 +607,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                     n = f;
                     continue;
                 }
+                //v = n.value();
                 if (value != null && !value.equals(v))
                     break outer;
                 if (!n.casValue(v, null))
@@ -586,9 +647,9 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         for (Node<K,V> b, n;;) {
             if ((n = (b = head().node()).next()) == null)
                 return null;
-            if (n.value() != null)
+            if (!n.hasNullValue())
                 return n;
-            n.helpDelete(b, n.next());
+            //n.helpDelete(b, n.next());
         }
     }
 
@@ -601,7 +662,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                 continue;
             AnyPersistent v = n.value();
             if (v == null) {
-                n.helpDelete(b, f);
+                //n.helpDelete(b, f);
                 continue;
             }
             if (!n.casValue(v, null))
@@ -645,7 +706,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                     break;
                 AnyPersistent v = n.value();
                 if (v == null) {                    // n is deleted
-                    n.helpDelete(b, f);
+                    //n.helpDelete(b, f);
                     break;
                 }
                 if (b.value() == null || v == n)      // b is deleted
@@ -700,7 +761,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                         break;
                     AnyPersistent v = n.value();
                     if (v == null) {                 // n is deleted
-                        n.helpDelete(b, f);
+                        //n.helpDelete(b, f);
                         break;
                     }
                     if (b.value() == null || v == n)      // b is deleted
@@ -754,7 +815,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                 if (n != b.next())                  // inconsistent read
                     break;
                 if ((v = n.value()) == null) {      // n is deleted
-                    n.helpDelete(b, f);
+                    //n.helpDelete(b, f);
                     break;
                 }
                 if (b.value() == null || v == n)      // b is deleted
@@ -795,10 +856,10 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     }
 
     protected PersistentSkipListMap(ObjectType<? extends PersistentSkipListMap> type) {
-        super(type);
-        //transaction?
+        super(type, (PersistentSkipListMap obj) -> {
+        obj.initObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
+        });
         this.comparator = null;
-        setObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
         initialize();
     }
 
@@ -816,9 +877,10 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
      *        ordering} of the keys will be used.
      */
     public PersistentSkipListMap(Comparator<? super K> comparator) {
-        super(TYPE);
+        super(TYPE, (PersistentSkipListMap obj) -> {
+            obj.initObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
+        });
         this.comparator = comparator;
-        setObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
         initialize();
     }
 
@@ -834,9 +896,10 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
      *         or values are null
      */
     public PersistentSkipListMap(Map<? extends K, ? extends V> m) {
-        super(TYPE);
+        super(TYPE, (PersistentSkipListMap obj) -> {
+            obj.initObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
+        });
         this.comparator = null;
-        setObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
         initialize();
         putAll(m);
     }
@@ -851,9 +914,10 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
      *         its keys or values are null
      */
     public PersistentSkipListMap(SortedMap<K, ? extends V> m) {
-        super(TYPE);
+        super(TYPE, (PersistentSkipListMap obj) -> {
+            obj.initObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
+        });
         this.comparator = m.comparator();
-        setObjectField(HEAD, new PersistentAtomicReference<HeadIndex<K,V>>());
         initialize();
         buildFromSorted(m);
     }

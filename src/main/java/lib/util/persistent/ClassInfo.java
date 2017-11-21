@@ -31,10 +31,11 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import lib.xpersistent.XRoot;
 import static lib.util.persistent.Trace.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.lang.reflect.Constructor;
 
 public class ClassInfo {
-    private static Map<String, ClassInfo> classInfo;
-    private static Map<Long, ClassInfo> reverseClassInfo;
+    private static Map<String, ClassInfo> classInfo = new ConcurrentHashMap<>();
+    private static Map<Long, ClassInfo> reverseClassInfo = new ConcurrentHashMap<>();
     protected static AtomicReference<ClassInfo> lastClassInfo = new AtomicReference<>(null);
     private static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
     // field offsets and allocation size
@@ -44,6 +45,7 @@ public class ClassInfo {
 
     private final MemoryRegion region;
     private String className;
+    private Constructor reconstructor;
 
     // constructor
     public ClassInfo(String className) {
@@ -60,6 +62,7 @@ public class ClassInfo {
 
     // reconstuctor
     public ClassInfo(MemoryRegion region) {
+        // trace(true, "ClassInfo reconstructor(%s)", region); 
         this.region = region;
         this.className = className();
     }
@@ -94,8 +97,6 @@ public class ClassInfo {
     public synchronized static void init() {
         // System.out.println("ClassInfo.init() enter");
         // rebuild classInfo map
-        classInfo = new ConcurrentHashMap<>();
-        reverseClassInfo = new ConcurrentHashMap<>();
         XRoot root = (XRoot)heap.getRoot();
         ClassInfo ci = null;
         long rootClassInfoAddr = root.getRootClassInfoAddr();
@@ -126,6 +127,24 @@ public class ClassInfo {
         // System.out.println("ClassInfo.init() exit");
     }        
 
+
+    void initReconstructor(String className) {
+        try {
+            // trace(true, "initReconstructor(%s)", className); 
+            Class<?> cls = Class.forName(className);
+            Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
+            ctor.setAccessible(true);
+            this.reconstructor = ctor;
+        }
+        catch (ClassNotFoundException cnf) {throw new RuntimeException("Exception during initReconstructor: " + cnf.getMessage());}
+        catch (NoSuchMethodException nsm) {throw new RuntimeException("Exception during initReconstructor: " + nsm.getMessage());}
+    }
+
+    public Constructor getReconstructor() {
+        if (reconstructor == null) initReconstructor(className);
+        return reconstructor;
+    }
+
     public MemoryRegion getRegion() {return region;}
 
     public String className() {
@@ -154,5 +173,23 @@ public class ClassInfo {
     public String toString() {
         return "ClassInfo(" + className + ")";
     }
+
+    static class Address {
+        private final long addr;
+        Address(long addr) { this.addr = addr; }
+
+        @Override
+        public int hashCode() {
+            return Long.hashCode(addr >>> 8);
+        }
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof Address) {
+                return addr == ((Address)obj).addr;
+            }
+            return false;
+        }
+    }
+
 
 }

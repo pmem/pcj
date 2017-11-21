@@ -28,13 +28,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/*
- * Class:     lib_xpersistent_UncheckedPersistentMemoryRegion
- * Method:    nativeGetLong
- * Signature: (JJI)J
- */
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativeGetLong
-  (JNIEnv *, jobject, jlong, jlong, jint);
 
 /*
  * Class:     lib_xpersistent_UncheckedPersistentMemoryRegion
@@ -43,6 +36,15 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nat
  */
 JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutLong
   (JNIEnv *, jobject, jlong, jlong, jlong, jint);
+
+/*
+ * Class:     lib_xpersistent_UncheckedPersistentMemoryRegion
+ * Method:    getDirectAddress
+ * Signature: (JJJ)J
+ */
+
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_getDirectAddress
+  (JNIEnv *env, jobject obj, jlong region_offset);
 
 #ifdef __cplusplus
 }

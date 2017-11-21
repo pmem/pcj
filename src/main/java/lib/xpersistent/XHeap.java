@@ -32,12 +32,22 @@ import lib.util.persistent.ObjectDirectory;
 
 import java.util.Properties;
 import java.io.FileInputStream;
+import sun.misc.Unsafe;
 
 public class XHeap implements PersistentHeap {
     static {
         System.loadLibrary("Persistent");
+        try {
+            java.lang.reflect.Field f = Unsafe.class.getDeclaredField("theUnsafe");
+            f.setAccessible(true);
+            UNSAFE = (Unsafe)f.get(null);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Unable to initialize UNSAFE.");
+        }
     }
 
+    static Unsafe UNSAFE;
     private final PersistentMemoryProvider provider;
     private Root root;
     private boolean open;
@@ -116,8 +126,14 @@ public class XHeap implements PersistentHeap {
         nativeMemoryRegionMemcpy(srcRegion.addr(), srcOffset, destRegion.addr(), destOffset, length);
     }
 
+    // public void memcpy(MemoryRegion srcRegion, long srcOffset, byte[] destArray, int destOffset, int length) {
+    //     nativeToByteArrayMemcpy(srcRegion.addr(), srcOffset, destArray, destOffset, length);
+    // }
+
     public void memcpy(MemoryRegion srcRegion, long srcOffset, byte[] destArray, int destOffset, int length) {
-        nativeToByteArrayMemcpy(srcRegion.addr(), srcOffset, destArray, destOffset, length);
+        long srcAddress = ((UncheckedPersistentMemoryRegion)srcRegion).directAddress + srcOffset;
+        long destAddressOffset = UNSAFE.ARRAY_BYTE_BASE_OFFSET + UNSAFE.ARRAY_BYTE_INDEX_SCALE * destOffset;      
+        UNSAFE.copyMemory(null, srcAddress, destArray, destAddressOffset, length);
     }
 
     public void memcpy(byte[] srcArray, int srcOffset, MemoryRegion destRegion, long destOffset, int length) {

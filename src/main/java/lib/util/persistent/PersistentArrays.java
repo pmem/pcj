@@ -98,17 +98,21 @@ public class PersistentArrays{
 
     public static void toByteArray(AnyPersistent src, int srcIndex, byte[] dest, int offset, int length) {
         XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
-        MemoryRegion from = src.getPointer().region();
-        heap.memcpy(from, ((AbstractPersistentArray)src).elementOffset(srcIndex), dest, offset, length);  
+        Util.synchronizedBlock(src, () -> {
+            MemoryRegion from = src.getPointer().region();
+            heap.memcpy(from, ((AbstractPersistentArray)src).elementOffset(srcIndex), dest, offset, length);
+        });
     }
 
     public static void fromByteArray(byte[] src, int offset, AnyPersistent dest, int destIndex, int length) {
         XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
-        MemoryRegion to = dest.getPointer().region();
-        heap.memcpy(src, offset, to, ((AbstractPersistentArray)dest).elementOffset(destIndex), length);
+        Util.synchronizedBlock(dest, () -> {
+            MemoryRegion to = dest.getPointer().region();
+            heap.memcpy(src, offset, to, ((AbstractPersistentArray)dest).elementOffset(destIndex), length);
+        });
     }
 
-    public static void toPersistentByteArray(AnyPersistent src, int srcIndex, AnyPersistent dest, int destIndex, int length) {
+    static void toPersistentByteArray(AnyPersistent src, int srcIndex, AnyPersistent dest, int destIndex, int length) {
         XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
         MemoryRegion to = dest.getPointer().region();
         MemoryRegion from = src.getPointer().region();

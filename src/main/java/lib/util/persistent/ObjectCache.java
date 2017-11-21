@@ -168,21 +168,18 @@ public class ObjectCache {
 
     @SuppressWarnings("unchecked")
     static <T extends AnyPersistent> T objectForAddress(long address, boolean forAdmin) {
-        // trace("objectForAddress(address: %d, forAdmin: %s)", address, forAdmin);
-        MemoryRegion valueRegion = new UncheckedPersistentMemoryRegion(address);
-        long ciAddr = valueRegion.getLong(0);
-        String typeName = ClassInfo.getClassInfo(ciAddr).className();
-        ObjectType<T> type = Types.typeForName(typeName);
-        Class<T> cls = type.cls();
         Box<T> box = new Box<>(null);
         Transaction.run(() -> {
             try {
-                Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
-                ctor.setAccessible(true);
-                box.set((T)ctor.newInstance(new ObjectPointer<T>(type, valueRegion)));
+                MemoryRegion region = new UncheckedPersistentMemoryRegion(address);
+                long classInfoAddress = region.getLong(0);
+                ClassInfo ci = ClassInfo.getClassInfo(classInfoAddress);
+                ObjectType<T> type = Types.typeForName(ci.className());
+                Constructor ctor = ci.getReconstructor();
+                box.set((T)ctor.newInstance(new ObjectPointer<T>(type, region)));
                 if (!forAdmin) box.get().initForGC();
             }
-            catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                 if (e instanceof InvocationTargetException && e.getCause() instanceof TransactionRetryException){
                     throw new TransactionRetryException();
                 }

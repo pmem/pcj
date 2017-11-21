@@ -23,43 +23,6 @@
 #include "persistent_heap.h"
 #include "util.h"
 
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativeGetLong
-  (JNIEnv *env, jobject obj, jlong region_offset, jlong offset, jint size)
-{
-    PMEMoid oid = {get_uuid_lo(), (uint64_t)region_offset};
-
-    jlong ret = 0;
-    char* valChar;
-    short* valShort;
-    int* valInt;
-    long* valLong;
-    void* src = (void*)((uint64_t)pmemobj_direct(oid)+(uint64_t)offset);
-    switch(size) {
-        case 1:
-            valChar = (char*)(src);
-            ret = *valChar;
-            break;
-        case 2:
-            valShort = (short*)(src);
-            ret = *valShort;
-            break;
-        case 4:
-            valInt = (int*)(src);
-            ret = *valInt;
-            break;
-        case 8:
-            valLong = (long*)(src);
-            ret = *valLong;
-            break;
-        default:
-            printf("Asked to get a bad size: %d\n", size);
-            exit(-1);
-    }
-
-    //printf("Getting long from region at %lu at offset %lu, address %p, returning value %lu\n", region_offset, offset, src, ret);
-    //fflush(stdout);
-    return ret;
-}
 
 JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutLong
   (JNIEnv *env, jobject obj, jlong region_offset, jlong offset, jlong value, jint size)
@@ -77,3 +40,12 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nati
     //printf("Putting long into region at %lu at offset %lu, address %p, value %lu\n", region_offset, offset, src, value);
     //fflush(stdout);
 }
+
+
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_getDirectAddress
+  (JNIEnv *env, jobject obj, jlong region_offset)
+{
+    PMEMoid oid = {get_uuid_lo(), (uint64_t)region_offset};
+    return (long)pmemobj_direct(oid);
+}
+

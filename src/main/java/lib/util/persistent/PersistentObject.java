@@ -199,8 +199,8 @@ public class PersistentObject extends AbstractPersistentObject {
         });
         T obj = null;
         try {
-            Constructor ctor = ((ObjectType)type).cls().getDeclaredConstructor(ObjectPointer.class);
-            ctor.setAccessible(true);
+            Constructor ctor = ((ObjectType)type).getReconstructor();
+            // Constructor ctor = ClassInfo.getClassInfo(((ObjectType)type).cls().getName()).getReconstructor();
             ObjectPointer p = new ObjectPointer<T>((ObjectType)type, objRegion);
             obj = (T)ctor.newInstance(p);
         }
