@@ -225,7 +225,7 @@ public class ObjectCache {
         Address(long addr) { this.addr = addr; }
         @Override
         public int hashCode() {
-            return Long.hashCode(addr >>> 8);
+            return Long.hashCode(addr >>> 6);
         }
         @Override
         public boolean equals(Object obj) {

@@ -76,10 +76,7 @@ public class PersistentImmutableArray<T extends AnyPersistent> extends AbstractP
     }
 
     @SuppressWarnings("unchecked")
-    public T[] toArray() {
-        T[] ans = (T[])new Object[length()];
-        int len = length();
-        for (int i = 0; i < len; i++) ans[i] = get(i);
-        return ans;
+    public AnyPersistent[] toArray() {
+        return super.toObjectArray();
     }
 }

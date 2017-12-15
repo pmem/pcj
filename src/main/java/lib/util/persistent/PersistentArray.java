@@ -44,7 +44,7 @@ public class PersistentArray<T extends AnyPersistent> extends AbstractPersistent
         if (ot.isValueBased()) {
             ans = new PersistentValueArray<T>(elementClass, size);
         }
-        else { 
+        else {
             ans = new PersistentArray<T>(size);
         }
         return ans;
@@ -83,34 +83,38 @@ public class PersistentArray<T extends AnyPersistent> extends AbstractPersistent
         // trace(true, "PA.set(%d)", index);
         setObjectElement(index, value);
     }
-    
+
     @SafeVarargs
     public final void insert(int index, T... ts) {
-        for (int i = index; i < index + ts.length; i++) setObjectElement(i, ts[i-index]);
+        Transaction.run(() -> {
+            for (int i = index; i < index + ts.length; i++) setObjectElement(i, ts[i-index]);
+        }, this);
     }
 
-    @SuppressWarnings("unchecked")
+    public AnyPersistent[] toArray() {
+        return super.toObjectArray();
+    }
+
     public T[] toArray(T[] a) {
-        int len = length();
-	if (a.length < len) a = Arrays.copyOf(a,len);
-        for (int i = 0; i < len; i++) a[i] = get(i);
-        return a;
+        return toObjectArray(a);
     }
 
-    public synchronized String toString() {
-        int iMax = this.length() - 1;
-        if (iMax == -1) return "[]";
+    public String toString() {
+        return Util.synchronizedBlock(this, () -> {
+            int iMax = this.length() - 1;
+            if (iMax == -1) return "[]";
 
-        StringBuilder b = new StringBuilder();
-        b.append('[');
-        for (int i = 0; ; i++) {
-            if (this.get(i) != null)
-                b.append(this.get(i).toString());
-            else
-                b.append("NULL");
-            if (i == iMax)
-                return b.append(']').toString();
-            b.append(", ");
-        }
+            StringBuilder b = new StringBuilder();
+            b.append('[');
+            for (int i = 0; ; i++) {
+                if (this.get(i) != null)
+                    b.append(this.get(i).toString());
+                else
+                    b.append("NULL");
+                if (i == iMax)
+                    return b.append(']').toString();
+                b.append(", ");
+            }
+        });
     }
 }

@@ -159,4 +159,18 @@ abstract class AbstractPersistentArray extends AnyPersistent {
             for (int i = 0; i < array.length; i++) setObjectElement(i, array[i]);
         }
     }
+
+    protected <T extends AnyPersistent> T[] toObjectArray(T[] a) {
+        T[] ans = a.length < length() ? java.util.Arrays.copyOf(a, length()): a;
+        for (int i = 0; i < ans.length; i++) {
+            long addr = getRegionLong(elementOffset(i));
+            if (addr != 0) ans[i] = ObjectCache.get(addr);
+        }
+        if (ans.length > length()) ans[length()] = null;
+        return ans;
+    }
+
+    protected AnyPersistent[] toObjectArray() {
+        return toObjectArray(new AnyPersistent[length()]);
+    }
 }

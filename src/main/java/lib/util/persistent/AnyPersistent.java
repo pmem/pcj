@@ -69,6 +69,9 @@ import sun.misc.Unsafe;
 @SuppressWarnings("sunapi")
 public abstract class AnyPersistent {
     protected static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
+    protected static final int[] timeoutArray = new int[256];
+    protected static final int TIMEOUT_MASK = timeoutArray.length - 1;
+    protected static int timeoutCursor = 0;
     protected static Random random = new Random(System.nanoTime());
     public static Unsafe UNSAFE;
 
@@ -83,6 +86,10 @@ public abstract class AnyPersistent {
         }
         catch (Exception e) {
             throw new RuntimeException("Unable to initialize UNSAFE.");
+        }
+        int maxTimeout = Config.MONITOR_ENTER_TIMEOUT;
+        for (int i = 0; i < timeoutArray.length; i++) {
+            timeoutArray[i] = random.nextInt(maxTimeout);
         }
     }
 
@@ -496,7 +503,8 @@ public abstract class AnyPersistent {
 
     public boolean monitorEnterTimeout() {
         TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        int max = info.timeout + random.nextInt(info.timeout);
+        int max = info.timeout + timeoutArray[timeoutCursor++ & TIMEOUT_MASK];
+        //int max = info.timeout + random.nextInt(info.timeout);
         boolean success = monitorEnterTimeout(max);
         if (success) {
             info.timeout = Config.MONITOR_ENTER_TIMEOUT;

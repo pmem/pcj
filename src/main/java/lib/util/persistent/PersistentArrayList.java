@@ -242,16 +242,22 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends AnyPersistent> T[] toArray(T[] a) {
-        Box<T[]> abox = new Box(a);
-        return Util.synchronizedBlock(this, () -> {
-            if (abox.get().length < size())
-                return (T[]) (PersistentArrays.copyOf(getDataArray(), size())).toArray(abox.get());
-            abox.set((T[]) (PersistentArrays.copyOf(getDataArray(),size())).toArray(abox.get()));
-            if (abox.get().length > size())
-                a[size()] = null;
-            return abox.get();
-        });
+    public Object[] toArray() {
+        AnyPersistent[] all = getDataArray().toArray();
+        AnyPersistent[] ans = new AnyPersistent[size()];
+        System.arraycopy(all, 0, ans, 0, ans.length);
+        return ans;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T[] toArray(T[] a) {
+        Object[] oa = toArray();
+        int size = oa.length;
+        if (a.length < size) return (T[]) Arrays.copyOf(oa, size, a.getClass());
+        System.arraycopy(oa, 0, a, 0, oa.length);
+        if (a.length > size)
+            a[size] = null;
+        return a;
     }
 
     @SuppressWarnings("unchecked")

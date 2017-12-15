@@ -111,8 +111,8 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     @PersistentClass
     public static final class Node<K extends AnyPersistent,V extends AnyPersistent> extends PersistentObject {
         private static final FinalObjectField<AnyPersistent> KEY = new FinalObjectField<>();
-        private static final FinalObjectField<PersistentAtomicReference> VALUE = new FinalObjectField<>(PersistentAtomicReference.class);
-        private static final FinalObjectField<PersistentAtomicReference> NEXT = new FinalObjectField<>(PersistentAtomicReference.class);
+        private static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
+        private static final ObjectField<Node> NEXT = new ObjectField<>(Node.class);
         private static final FinalBooleanField MARKER = new FinalBooleanField();
         private static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, KEY, VALUE, NEXT, MARKER);
         private boolean hasNullValue = false;
@@ -123,10 +123,10 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         Node (K key, AnyPersistent value, Node<K,V> next) {
             super(TYPE, (Node obj) -> {
                 obj.initObjectField(KEY, key);
-                obj.initObjectField(VALUE, new PersistentAtomicReference(value));
-                obj.initObjectField(NEXT, new PersistentAtomicReference(next));
                 obj.initBooleanField(MARKER, false);
             });
+                setObjectField(VALUE, value);
+                setObjectField(NEXT, next);
         }
 
         //Creates new marker node.
@@ -134,43 +134,55 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         Node (Node<K,V> next) {
             super(TYPE, (Node obj) -> {
                 obj.initObjectField(KEY, null);
-                obj.initObjectField(VALUE, new PersistentAtomicReference(obj));
-                obj.initObjectField(NEXT, new PersistentAtomicReference(next));
                 obj.initBooleanField(MARKER, true);
             });
+                setObjectField(VALUE, this);
+                setObjectField(NEXT, next);
         }
 
         public Node (ObjectPointer<Node> p) { 
                 super(p); 
             //Transaction.run( ()->{}, ()-> {
-                hasNullValue = (getObjectField(KEY) != null && getObjectField(VALUE).get() == null);
+                hasNullValue = (getObjectField(KEY) != null && getObjectField(VALUE) == null);
             //});
         } 
     
-        @Override
-        public String toString() {
-            System.out.println("marker node!!!");
-            return "I'm a marker node!!";
-        }
-
         @SuppressWarnings("unchecked")
         K key(){ return (K) getObjectField(KEY); }
 
         @SuppressWarnings("unchecked")
-        Node<K,V> next() { return (Node<K,V>)getObjectField(NEXT).get(); }
+        Node<K,V> next() { return (Node<K,V>)getObjectField(NEXT); }
 
-        AnyPersistent value(){ return getObjectField(VALUE).get(); }
+        AnyPersistent value(){ return getObjectField(VALUE); }
 
         @SuppressWarnings("unchecked")
-        private void next(Node<K,V> n){ getObjectField(NEXT).set(n); }
+        private void next(Node<K,V> n){ setObjectField(NEXT, n); }
+
+        @SuppressWarnings("unchecked")
+        private boolean compareAndSetNext(AnyPersistent expect, Node<K,V> update) {
+        return Util.synchronizedBlock(this, () -> {
+		    if(next() != expect) return false; 
+		    setObjectField(NEXT, update);
+		    return true;
+        });
+	    }
+
+        @SuppressWarnings("unchecked")
+        private boolean compareAndSetValue(AnyPersistent expect, AnyPersistent update) {
+        return Util.synchronizedBlock(this, () -> {
+		    if(value() != expect) return false; 
+		    setObjectField(VALUE, update);
+		    return true;
+        });
+	    }
 
         @SuppressWarnings("unchecked")
         boolean casValue(AnyPersistent cmp, AnyPersistent val) {
-            if (val != null) return getObjectField(VALUE).compareAndSet(cmp, val);
+            if (val != null) return compareAndSetValue(cmp, val);
             else {
                  Box<Boolean> ret = new Box<>();
                  Transaction.run(() -> {
-                    ret.set(getObjectField(VALUE).compareAndSet(cmp, val));
+                    ret.set(compareAndSetValue(cmp, val));
                     }, () -> {
                     if (ret.get()) hasNullValue = true;
                     }
@@ -181,7 +193,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
 
         @SuppressWarnings("unchecked")
         boolean casNext(Node<K,V> cmp, Node<K,V> val) {
-            return getObjectField(NEXT).compareAndSet(cmp, val);
+            return compareAndSetNext(cmp, val);
         }
 
         boolean hasNullValue() {
@@ -262,16 +274,6 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
 				if (initializer != null) initializer.accept((T)obj);
             });
         }	
-/*protected <T extends ImmutableKey> ImmutableKey(ObjectType<T> type, long id, int count, boolean ordered, Consumer<T> initializer) {
-			super(type, (ImmutableKey self) -> {
-				self.initLongField(ID, id);
-				self.initIntField(COUNT, count);
-				self.initBooleanField(ORDERED, ordered);
-				if (initializer != null) initializer.accept((T)self);
-			});
-		}*/
-
-
 
         @SuppressWarnings("unchecked")
         Node<K,V> node() { return (Node<K,V>) getObjectField(NODE); }

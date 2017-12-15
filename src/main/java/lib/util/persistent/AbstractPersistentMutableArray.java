@@ -115,7 +115,21 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
         return obj;
     }
 
+    @Override
+    public <T extends AnyPersistent> T[] toObjectArray(T[] a) {
+        return Util.synchronizedBlock(this, () -> {
+            return super.toObjectArray(a);
+        });
+    }
+
+    @Override
+    public AnyPersistent[] toObjectArray() {
+        return Util.synchronizedBlock(this, () -> {
+            return super.toObjectArray();
+        });
+    }
 }
+
 
 
 

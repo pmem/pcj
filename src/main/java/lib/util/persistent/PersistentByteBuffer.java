@@ -34,7 +34,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
     private static final IntField MARK = new IntField();
     private static final IntField CAPACITY = new IntField();
     private static final IntField START = new IntField();
-    private static final ObjectField<PersistentByteArray> BYTES = new ObjectField<>(PersistentByteArray.class);
+    private static final FinalObjectField<PersistentByteArray> BYTES = new FinalObjectField<>(PersistentByteArray.class);
     static final ObjectType<PersistentByteBuffer> TYPE = ObjectType.fromFields(PersistentByteBuffer.class, POSITION, LIMIT, MARK, CAPACITY, START, BYTES);
 
     public static PersistentByteBuffer allocate(int size) {
@@ -42,14 +42,19 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
         return new PersistentByteBuffer(size);
     }
 
-    PersistentByteBuffer(int size) {
-        super(TYPE);
-        bytes(new PersistentByteArray(size));
+    PersistentByteBuffer(int size, PersistentByteArray bytes) {
+        super(TYPE, (PersistentByteBuffer obj) -> {
+            obj.initObjectField(BYTES, bytes);
+        });
         position(0);
         limit(size);
         setMark(-1);
         start(0);
         capacity(size);
+    }
+
+    PersistentByteBuffer(int size) {
+        this(size, new PersistentByteArray(size));
     }
 
     protected PersistentByteBuffer(ObjectPointer<? extends PersistentByteBuffer> p) { super(p); }
@@ -96,7 +101,6 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
     private void start(int start) { setIntField(START, start); }
 
     private PersistentByteArray bytes() { return (PersistentByteArray)getObjectField(BYTES); }
-    private void bytes(PersistentByteArray bytes) { setObjectField(BYTES, bytes); }
 
     public boolean hasRemaining() { return remaining() != 0; }
     public int remaining() {
@@ -404,12 +408,11 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
     public PersistentByteBuffer duplicate() {
         Box<PersistentByteBuffer> ret = new Box<>();
         Transaction.run(() -> {
-            ret.set(new PersistentByteBuffer(capacity()));
+            ret.set(new PersistentByteBuffer(capacity(), bytes()));
             ret.get().position(position());
             ret.get().limit(limit());
             ret.get().setMark(getMark());
             ret.get().start(start());
-            ret.get().bytes(bytes());
         }, this, bytes());
         return ret.get();
     }
@@ -417,12 +420,11 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
     public PersistentByteBuffer slice() {
         Box<PersistentByteBuffer> ret = new Box<>();
         Transaction.run(() -> {
-            ret.set(new PersistentByteBuffer(remaining()));
+            ret.set(new PersistentByteBuffer(remaining(), bytes()));
             ret.get().position(0);
             ret.get().limit(remaining());
             ret.get().setMark(-1);
             ret.get().start(position());
-            ret.get().bytes(bytes());
         }, this, bytes());
         return ret.get();
     }
@@ -435,12 +437,11 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
         PersistentByteArray pba = new PersistentByteArray(array);
         Box<PersistentByteBuffer> ret = new Box<>();
         Transaction.run(() -> {
-            ret.set(new PersistentByteBuffer(array.length));
+            ret.set(new PersistentByteBuffer(array.length, pba));
             ret.get().position(offset);
             ret.get().limit(offset + length);
             ret.get().setMark(-1);
             ret.get().start(0);
-            ret.get().bytes(pba);
         });
         return ret.get();
     }
@@ -452,12 +453,11 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
     public static PersistentByteBuffer wrap(PersistentByteArray array, int offset, int length) {
         Box<PersistentByteBuffer> ret = new Box<>();
         Transaction.run(() -> {
-            ret.set(new PersistentByteBuffer(array.length()));
+            ret.set(new PersistentByteBuffer(array.length(), array));
             ret.get().position(offset);
             ret.get().limit(offset + length);
             ret.get().setMark(-1);
             ret.get().start(0);
-            ret.get().bytes(array);
         });
         return ret.get();
     }
