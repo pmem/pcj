@@ -28,53 +28,31 @@ import java.util.TreeMap;
 class MemoryRegionEqualityTest {
     public static void main(String[] args) {
         Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
-        MemoryRegion mr = h.allocateRawMemoryRegion(10);
+        MemoryRegion<?> mr = h.allocateMemoryRegion(Raw.class, 10);
         assert(mr.addr() != 0);
-        MemoryRegion mr2 = h.rawRegionFromAddress(mr.addr());
+        MemoryRegion<?> mr2 = h.memoryRegionFromAddress(Raw.class, mr.addr());
         assert(mr.addr() == mr2.addr());
         assert(mr.equals(mr2));
 
-        HashMap<MemoryRegion, Integer> hm = new HashMap<>();
+        HashMap<MemoryRegion<?>, Integer> hm = new HashMap<>();
         assert(hm.size() == 0);
         hm.put(mr, 1);
         hm.put(mr2, 2);
         assert(hm.size() == 1);
         assert(hm.get(mr) == 2);
 
-        TreeMap<MemoryRegion, Integer> tm = new TreeMap<>();
+        TreeMap<MemoryRegion<?>, Integer> tm = new TreeMap<>();
         assert(tm.size() == 0);
         tm.put(mr2, 2);
         tm.put(mr, 1);
         assert(tm.size() == 1);
         assert(tm.get(mr2) == 1);
 
-        h.freeRegion(mr);
+        h.freeMemoryRegion(mr);
 
-        mr = h.allocateFlushableMemoryRegion(10);
+        mr = h.allocateMemoryRegion(Flushable.class, 10);
         assert(mr.addr() != 0);
-        mr2 = h.flushableRegionFromAddress(mr.addr());
-        assert(mr.addr() == mr2.addr());
-        assert(mr.equals(mr2));
-
-        hm = new HashMap<>();
-        assert(hm.size() == 0);
-        hm.put(mr, 1);
-        hm.put(mr2, 2);
-        assert(hm.size() == 1);
-        assert(hm.get(mr) == 2);
-
-        tm = new TreeMap<>();
-        assert(tm.size() == 0);
-        tm.put(mr2, 2);
-        tm.put(mr, 1);
-        assert(tm.size() == 1);
-        assert(tm.get(mr2) == 1);
-
-        h.freeRegion(mr);
-
-        mr = h.allocateTransactionalMemoryRegion(10);
-        assert(mr.addr() != 0);
-        mr2 = h.transactionalRegionFromAddress(mr.addr());
+        mr2 = h.memoryRegionFromAddress(Flushable.class, mr.addr());
         assert(mr.addr() == mr2.addr());
         assert(mr.equals(mr2));
 
@@ -92,8 +70,30 @@ class MemoryRegionEqualityTest {
         assert(tm.size() == 1);
         assert(tm.get(mr2) == 1);
 
-        h.freeRegion(mr);
+        h.freeMemoryRegion(mr);
 
-        System.out.println("=================================All MemoryRegionEquality tests passed=================================");
+        mr = h.allocateMemoryRegion(Transactional.class, 10);
+        assert(mr.addr() != 0);
+        mr2 = h.memoryRegionFromAddress(Transactional.class, mr.addr());
+        assert(mr.addr() == mr2.addr());
+        assert(mr.equals(mr2));
+
+        hm = new HashMap<>();
+        assert(hm.size() == 0);
+        hm.put(mr, 1);
+        hm.put(mr2, 2);
+        assert(hm.size() == 1);
+        assert(hm.get(mr) == 2);
+
+        tm = new TreeMap<>();
+        assert(tm.size() == 0);
+        tm.put(mr2, 2);
+        tm.put(mr, 1);
+        assert(tm.size() == 1);
+        assert(tm.get(mr2) == 1);
+
+        h.freeMemoryRegion(mr);
+
+        System.out.println("=================================All MemoryRegionEquality tests passed=======================");
     }
 }

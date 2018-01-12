@@ -19,13 +19,13 @@
 # Boston, MA  02110-1301, USA.
 
 CC = g++
-JAVAC = javac 
+JAVAC = javac
 JAVA = java
 
 JNI_INCLUDES = $(JAVA_HOME)/include $(JAVA_HOME)/include/linux
 
 CFLAGS = -O3 -DNDEBUG -fPIC
-JAVAFLAGS = -Xlint:unchecked -proc:none
+JAVAFLAGS = -Xlint:unchecked -proc:none -XDenableSunApiLintControl
 LINK_FLAGS = -fPIC -O3 -DNDEBUG -shared -lpmem -lpmemobj -Wl,-rpath,/usr/local/lib:/usr/local/lib64
 
 CPP_SOURCE_DIR = src/main/cpp
@@ -45,7 +45,7 @@ ALL_CPP_SOURCES = $(wildcard $(CPP_SOURCE_DIR)/*.cpp)
 ALL_JAVA_SOURCES = $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*.java)
 ALL_OBJ = $(addprefix $(CPP_BUILD_DIR)/, $(notdir $(ALL_CPP_SOURCES:.cpp=.o)))
 
-ALL_TEST_SOURCES = $(addprefix $(TEST_DIR)/, FlushableMemoryRegionTest.java TransactionalMemoryRegionTest.java RawMemoryRegionTest.java MemoryRegionCollectionTest.java MemoryRegionFreeTest.java MemoryRegionEqualityTest.java)
+ALL_TEST_SOURCES = $(addprefix $(TEST_DIR)/, FlushableMemoryRegionTest.java TransactionalMemoryRegionTest.java RawMemoryRegionTest.java MemoryRegionCollectionTest.java MemoryRegionFreeTest.java MemoryRegionEqualityTest.java CopyMemoryTest.java SetMemoryTest.java ReallocateTest.java)
 ALL_TEST_CLASSES = $(addprefix $(TEST_CLASSES_DIR)/, $(notdir $(ALL_TEST_SOURCES:.java=.class)))
 
 LIBRARIES = $(addprefix $(CPP_BUILD_DIR)/, libllpl.so)

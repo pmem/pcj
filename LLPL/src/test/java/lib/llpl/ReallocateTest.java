@@ -21,44 +21,34 @@
 
 package lib.llpl;
 
-class MemoryRegionFreeTest {
+public class ReallocateTest {
     public static void main(String[] args) {
-        Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
-        MemoryRegion<?> mr = h.allocateMemoryRegion(Raw.class, 10);
-        assert(mr.addr() != 0);
-        h.freeMemoryRegion(mr);
-        assert(mr.addr() == 0);
+        Heap h = Heap.getHeap("/mnt/mem/persistent_pool2", 2147483648L);
+
+        MemoryRegion<Raw> mr = h.allocateMemoryRegion(Raw.class, 500000000L);
+        mr.putByte(1000000, (byte)0x50);
+        mr = h.reallocateMemoryRegion(Raw.class, mr, 1000000000L);
+        assert(mr.getByte(1000000) == (byte)0x50);
+
         boolean caught = false;
         try {
-            mr.checkAlive();
-        } catch (IllegalStateException e) {
+            h.reallocateMemoryRegion(Raw.class, mr, 3000000000L);
+        } catch (PersistenceException e) {
             caught = true;
         }
         assert(caught);
 
-        mr = h.allocateMemoryRegion(Transactional.class, 10);
-        assert(mr.addr() != 0);
-        h.freeMemoryRegion(mr);
-        assert(mr.addr() == 0);
+        mr = h.reallocateMemoryRegion(Raw.class, mr, 500000000L);
+
+        MemoryRegion<Raw> mr2 = h.allocateMemoryRegion(Raw.class, 1000000000L);
         caught = false;
         try {
-            mr.checkAlive();
-        } catch (IllegalStateException e) {
+            h.reallocateMemoryRegion(Raw.class, mr2, 1500000000L);
+        } catch (PersistenceException e) {
             caught = true;
         }
         assert(caught);
 
-        mr = h.allocateMemoryRegion(Flushable.class, 10);
-        assert(mr.addr() != 0);
-        h.freeMemoryRegion(mr);
-        assert(mr.addr() == 0);
-        caught = false;
-        try {
-            mr.checkAlive();
-        } catch (IllegalStateException e) {
-            caught = true;
-        }
-        assert(caught);
-        System.out.println("=================================All MemoryRegionFree tests passed===========================");
+        System.out.println("=================================All Reallocate tests passed=================================");
     }
 }

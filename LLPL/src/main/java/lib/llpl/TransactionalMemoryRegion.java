@@ -21,9 +21,11 @@
 
 package lib.llpl;
 
-public class TransactionalMemoryRegion extends AbstractMemoryRegion {
-    TransactionalMemoryRegion(long addr) {
-        super(addr);
+public class TransactionalMemoryRegion extends AbstractMemoryRegion<Transactional> {
+    static final long METADATA_SIZE = 8;
+
+    TransactionalMemoryRegion(long x, boolean isAddr) {
+        super(x, isAddr);
     }
 
     @Override
@@ -36,10 +38,58 @@ public class TransactionalMemoryRegion extends AbstractMemoryRegion {
             throw new IllegalArgumentException("Invalid size: " + size);
         }
 
-        if (nativePutBits(this.addr, offset, value, (int)size) < 0) {
+        if (nativePutBits(this.addr, offset + baseOffset(), value, (int)size) < 0) {
             throw new PersistenceException("Failed to put bits into region!");
         }
     }
 
+    @Override
+    public void flush() { throw new UnsupportedOperationException(); }
+
+    @Override
+    public boolean isFlushed() { throw new UnsupportedOperationException(); }
+
+    @Override
+    public void putByte(long offset, byte value) {
+        nativePutBits(this.addr, offset + baseOffset(), value, Byte.BYTES);
+    }
+
+    @Override
+    public void putShort(long offset, short value) {
+        nativePutBits(this.addr, offset + baseOffset(), value, Short.BYTES);
+    }
+
+    @Override
+    public void putInt(long offset, int value) {
+        nativePutBits(this.addr, offset + baseOffset(), value, Integer.BYTES);
+    }
+
+    @Override
+    public void putLong(long offset, long value) {
+        nativePutBits(this.addr, offset + baseOffset(), value, Long.BYTES);
+    }
+
+    @Override
+    public void copyFromMemory(MemoryRegion<?> srcRegion, long srcOffset, long dstOffset, long length) {
+        if (nativeMemoryRegionMemcpyTransactional(srcRegion.addr(), srcRegion.baseOffset() + srcOffset, addr(), baseOffset() + dstOffset, length) != 0)
+            throw new PersistenceException("Failed to copy from MemoryRegion!");
+    }
+
+    @Override
+    public void copyFromArray(byte[] srcArray, int srcOffset, long dstOffset, int length) {
+        nativeFromByteArrayMemcpyTransactional(srcArray, srcOffset, addr(), baseOffset() + dstOffset, length);
+    }
+
+    @Override
+    public void setMemory(byte val, long offset, long length) {
+        nativeMemoryRegionMemsetTransactional(addr(), baseOffset() + offset, val, length);
+    }
+
+    @Override
+    public long baseOffset() { return METADATA_SIZE; }
+
     protected synchronized native int nativePutBits(long regionOffset, long offset, long value, int size);
+    private synchronized native int nativeMemoryRegionMemcpyTransactional(long srcRegion, long srcOffset, long dstRegion, long dstOffset, long length);
+    private synchronized native int nativeFromByteArrayMemcpyTransactional(byte[] srcArray, int srcOffset, long dstRegion, long dstOffset, int length);
+    private synchronized native int nativeMemoryRegionMemsetTransactional(long region, long offset, int val, long length);
 }

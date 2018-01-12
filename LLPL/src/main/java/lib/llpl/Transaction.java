@@ -55,7 +55,11 @@ public class Transaction {
             t.update(update);
         } catch (Throwable e) {
             //e.printStackTrace();
-            t.abort();
+            if (e instanceof PersistenceException) {
+                t.state.set(Transaction.State.Aborted);
+                if (t.depth.get() == 1) t.nativeEndTransaction();
+            }
+            else t.abort();
             throw e;
         } finally {
             t.commit();
@@ -88,6 +92,7 @@ public class Transaction {
                 depth.set(depth.get() - 1);
                 return;
             }
+            nativeCommitTransaction();
             nativeEndTransaction();
             state.set(Transaction.State.Committed);
         }
@@ -107,6 +112,7 @@ public class Transaction {
     }
 
     private native void nativeStartTransaction();
+    private native void nativeCommitTransaction();
     private native void nativeEndTransaction();
     private native void nativeAbortTransaction();
 }

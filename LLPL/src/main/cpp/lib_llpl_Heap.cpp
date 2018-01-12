@@ -30,20 +30,6 @@ JNIEXPORT void JNICALL Java_lib_llpl_Heap_nativeOpenHeap
     env->ReleaseStringUTFChars(path, native_string);
 }
 
-JNIEXPORT jlong JNICALL Java_lib_llpl_Heap_nativeGetMemoryRegion
-  (JNIEnv *env, jobject obj, jlong size)
-{
-    TOID(char) bytes = TOID_NULL(char);
-
-    jlong ret = 0;
-    TX_BEGIN(pool) {
-        bytes = TX_ZALLOC(char, (size_t)size);
-        ret = bytes.oid.off;
-    } TX_END
-
-    return ret;
-}
-
 JNIEXPORT jint JNICALL Java_lib_llpl_Heap_nativeSetRoot
   (JNIEnv *env, jobject obj, jlong val)
 {
@@ -56,6 +42,24 @@ JNIEXPORT jint JNICALL Java_lib_llpl_Heap_nativeSetRoot
 
     return ret;
 }
+
+JNIEXPORT jint JNICALL Java_lib_llpl_Heap_nativeRealloc
+  (JNIEnv *env, jobject obj, jlong offset, jlong new_size)
+{
+    PMEMoid oid = {get_uuid_lo(), offset};
+    TOID(char) bytes;
+    TOID_ASSIGN(bytes, oid);
+
+    int ret = 0;
+    TX_BEGIN(pool) {
+        TX_REALLOC(bytes, new_size);
+    } TX_ONABORT {
+        ret = -1;
+    } TX_END
+
+    return ret;
+}
+
 
 JNIEXPORT jlong JNICALL Java_lib_llpl_Heap_nativeGetRoot
   (JNIEnv *env, jobject obj)

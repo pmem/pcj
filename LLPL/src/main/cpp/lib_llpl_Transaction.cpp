@@ -33,10 +33,15 @@ JNIEXPORT void JNICALL Java_lib_llpl_Transaction_nativeStartTransaction
     }
 }
 
-JNIEXPORT void JNICALL Java_lib_llpl_Transaction_nativeEndTransaction
+JNIEXPORT void JNICALL Java_lib_llpl_Transaction_nativeCommitTransaction
   (JNIEnv *env, jobject obj)
 {
     pmemobj_tx_commit();
+}
+
+JNIEXPORT void JNICALL Java_lib_llpl_Transaction_nativeEndTransaction
+  (JNIEnv *env, jobject obj)
+{
     pmemobj_tx_end();
 }
 

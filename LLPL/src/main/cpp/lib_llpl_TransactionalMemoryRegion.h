@@ -36,6 +36,30 @@ extern "C" {
 JNIEXPORT jint JNICALL Java_lib_llpl_TransactionalMemoryRegion_nativePutBits
   (JNIEnv *, jobject, jlong, jlong, jlong, jint);
 
+/*
+ * Class:     lib_llpl_TransactionalMemoryRegion
+ * Method:    nativeMemoryRegionMemcpyTransactional
+ * Signature: (JJJJJ)I
+ */
+JNIEXPORT jint JNICALL Java_lib_llpl_TransactionalMemoryRegion_nativeMemoryRegionMemcpyTransactional
+  (JNIEnv *, jobject, jlong, jlong, jlong, jlong, jlong);
+
+/*
+ * Class:     lib_llpl_TransactionalMemoryRegion
+ * Method:    nativeFromByteArrayMemcpyTransactional
+ * Signature: ([BIJJI)I
+ */
+JNIEXPORT jint JNICALL Java_lib_llpl_TransactionalMemoryRegion_nativeFromByteArrayMemcpyTransactional
+  (JNIEnv *, jobject, jbyteArray, jint, jlong, jlong, jint);
+
+/*
+ * Class:     lib_llpl_TransactionalMemoryRegion
+ * Method:    nativeMemoryRegionMemsetTransactional
+ * Signature: (JJIJ)I
+ */
+JNIEXPORT jint JNICALL Java_lib_llpl_TransactionalMemoryRegion_nativeMemoryRegionMemsetTransactional
+  (JNIEnv *, jobject, jlong, jlong, jint, jlong);
+
 #ifdef __cplusplus
 }
 #endif

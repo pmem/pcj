@@ -19,32 +19,32 @@
  * Boston, MA  02110-1301, USA.
  */
 
-package examples.string_store;
+package lib.llpl;
 
-import lib.llpl.*;
-import java.io.Console;
-
-public class Writer {
+public class SetMemoryTest {
     public static void main(String[] args) {
         Heap h = Heap.getHeap("/mnt/mem/persistent_pool", 2147483648L);
 
-        Console c = System.console();
-        if (c == null) {
-            System.out.println("No console.");
-            System.exit(1);
+        MemoryRegion<Raw> rmr = h.allocateMemoryRegion(Raw.class, 120);
+        MemoryRegion<Flushable> fmr = h.allocateMemoryRegion(Flushable.class, 120);
+        MemoryRegion<Transactional> tmr = h.allocateMemoryRegion(Transactional.class, 120);
+
+        h.setMemory(rmr, (byte)0x44, 10, 50);
+        for (int i = 0; i < 50; i++) {
+            assert(rmr.getByte(10 + i) == (byte)0x44);
         }
 
-        String str = c.readLine("Input your test string: ");
-
-        MemoryRegion<Transactional> mr = h.allocateMemoryRegion(Transactional.class, Integer.BYTES + str.length());
-        byte[] bytes = str.getBytes();
-        mr.putInt(0, str.length());
-        for (int i = 0; i < str.length(); i++) {
-            mr.putByte(Integer.BYTES + i, bytes[i]);
+        assert(fmr.isFlushed() == true);
+        h.setMemory(fmr, (byte)0x88, 30, 50);
+        assert(fmr.isFlushed() == false);
+        for (int i = 0; i < 50; i++) {
+            assert(fmr.getByte(30 + i) == (byte)0x88);
         }
 
-        h.setRoot(mr.addr());
-
-        System.out.println("String \"" + str + "\" successfully written.");
+        h.setMemory(tmr, (byte)0xcc, 50, 50);
+        for (int i = 0; i < 50; i++) {
+            assert(tmr.getByte(50 + i) == (byte)0xcc);
+        }
+        System.out.println("=================================All SetMemory tests passed==================================");
     }
 }

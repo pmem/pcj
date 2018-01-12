@@ -21,25 +21,36 @@
 
 package lib.llpl;
 
-public class RawMemoryRegion extends AbstractMemoryRegion {
-    RawMemoryRegion(long addr) {
-        super(addr);
+class RawMemoryRegion extends AbstractMemoryRegion<Raw> {
+    static final long METADATA_SIZE = 8;
+
+    RawMemoryRegion(long x, boolean isAddr) {
+        super(x, isAddr);
     }
 
     @Override
-    public void putBits(long offset, long size, long value) {
-        if (size < 0 || size > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Invalid size: " + size);
-        }
+    public void flush() { throw new UnsupportedOperationException(); }
 
-        if (size != 1 && size != 2 && size != 4 && size != 8) {
-            throw new IllegalArgumentException("Invalid size: " + size);
-        }
+    @Override
+    public boolean isFlushed() { throw new UnsupportedOperationException(); }
 
-        if (nativePutBits(this.addr, offset, value, (int)size) < 0) {
-            throw new PersistenceException("Failed to put bits into region!");
-        }
+    @Override
+    public void copyFromMemory(MemoryRegion<?> srcRegion, long srcOffset, long dstOffset, long length) {
+        nativeMemoryRegionMemcpyRaw(srcRegion.addr(), srcRegion.baseOffset() + srcOffset, addr(), baseOffset() + dstOffset, length);
     }
 
-    protected native int nativePutBits(long regionOffset, long offset, long value, int size);
+    @Override
+    public void copyFromArray(byte[] srcArray, int srcOffset, long dstOffset, int length) {
+        nativeFromByteArrayMemcpyRaw(srcArray, srcOffset, addr(), baseOffset() + dstOffset, length);
+    }
+
+    @Override
+    public void setMemory(byte val, long offset, long length) {
+        nativeMemoryRegionMemsetRaw(addr(), baseOffset() + offset, val, length);
+    }
+
+    @Override
+    public long baseOffset() { return METADATA_SIZE; }
+
+    private native int nativePutBits(long regionOffset, long offset, long value, int size);
 }

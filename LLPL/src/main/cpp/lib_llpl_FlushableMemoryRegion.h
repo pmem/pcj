@@ -47,10 +47,10 @@ JNIEXPORT void JNICALL Java_lib_llpl_FlushableMemoryRegion_nativePutBits
 /*
  * Class:     lib_llpl_FlushableMemoryRegion
  * Method:    nativeSetFlushed
- * Signature: (JI)I
+ * Signature: (JJI)I
  */
 JNIEXPORT jint JNICALL Java_lib_llpl_FlushableMemoryRegion_nativeSetFlushed
-  (JNIEnv *, jobject, jlong, jint);
+  (JNIEnv *, jobject, jlong, jlong, jint);
 
 /*
  * Class:     lib_llpl_FlushableMemoryRegion

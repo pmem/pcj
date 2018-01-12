@@ -22,6 +22,20 @@
 #include "lib_llpl_AbstractMemoryRegion.h"
 #include "persistent_heap.h"
 
+JNIEXPORT jlong JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeGetMemoryRegion
+  (JNIEnv *env, jobject obj, jlong size)
+{
+    TOID(char) bytes = TOID_NULL(char);
+
+    jlong ret = 0;
+    TX_BEGIN(pool) {
+        bytes = TX_ZALLOC(char, (size_t)size);
+        ret = bytes.oid.off;
+    } TX_END
+
+    return ret;
+}
+
 JNIEXPORT jlong JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeGetBits
   (JNIEnv *env, jobject obj, jlong region_offset, jlong offset, jint size)
 {
@@ -57,5 +71,64 @@ JNIEXPORT jlong JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeGetBits
 
     //printf("Getting long from region at %lu at offset %lu, address %p, returning value %lu\n", region_offset, offset, src, ret);
     //fflush(stdout);
+    return ret;
+}
+
+JNIEXPORT jlong JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeGetDirectAddress
+  (JNIEnv *env, jobject obj, jlong region_offset)
+{
+    PMEMoid oid = {get_uuid_lo(), (uint64_t)region_offset};
+    return (long)pmemobj_direct(oid);
+}
+
+JNIEXPORT jint JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeMemoryRegionMemcpyRaw
+  (JNIEnv *env, jobject obj, jlong src_region, jlong src_offset, jlong dest_region, jlong dest_offset, jlong length)
+{
+    PMEMoid src_oid = {get_uuid_lo(), (uint64_t)src_region};
+    PMEMoid dest_oid = {get_uuid_lo(), (uint64_t)dest_region};
+
+    void* src = (void*)((uint64_t)pmemobj_direct(src_oid)+(uint64_t)src_offset);
+    void* dest = (void*)((uint64_t)pmemobj_direct(dest_oid)+(uint64_t)dest_offset);
+
+    memcpy(dest, src, (uint64_t)length);
+    return 0;
+}
+
+JNIEXPORT jint JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeFromByteArrayMemcpyRaw
+  (JNIEnv *env, jobject obj, jbyteArray src_array, jint src_offset, jlong dest_region, jlong dest_offset, jint length)
+{
+    PMEMoid dest_oid = {get_uuid_lo(), (uint64_t)dest_region};
+    jbyte* dest = (jbyte*)((void*)((uint64_t)pmemobj_direct(dest_oid)+(uint64_t)dest_offset));
+
+    jboolean is_copy;
+    jbyte* bytes = env->GetByteArrayElements(src_array, &is_copy);
+
+    memcpy((void*)dest, (void*)(bytes+src_offset), length);
+    return 0;
+}
+
+JNIEXPORT jint JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeMemoryRegionMemsetRaw
+  (JNIEnv *env, jobject obj, jlong region, jlong offset, jint val, jlong length)
+{
+    PMEMoid region_oid = {get_uuid_lo(), (uint64_t)region};
+    void* dest = (void*)((uint64_t)pmemobj_direct(region_oid)+(uint64_t)offset);
+    memset(dest, val, (size_t)length);
+    return 0;
+}
+
+JNIEXPORT jint JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeSetSize
+  (JNIEnv *env, jobject obj, jlong region, jlong offset, jlong size)
+{
+    PMEMoid oid = {get_uuid_lo(), region};
+    void* dest = (void*)((uint64_t)pmemobj_direct(oid)+(uint64_t)offset);
+    void* src = &size;
+
+    int ret = 0;
+    TX_BEGIN(pool) {
+        TX_MEMCPY(dest, src, 8);
+    } TX_ONABORT {
+        ret = -1;
+    } TX_END
+
     return ret;
 }

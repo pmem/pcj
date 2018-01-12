@@ -39,10 +39,10 @@ JNIEXPORT void JNICALL Java_lib_llpl_FlushableMemoryRegion_nativePutBits
 }
 
 JNIEXPORT jint JNICALL Java_lib_llpl_FlushableMemoryRegion_nativeSetFlushed
-  (JNIEnv *env, jobject obj, jlong region_offset, jint value)
+  (JNIEnv *env, jobject obj, jlong region_offset, jlong flush_offset, jint value)
 {
     PMEMoid oid = {get_uuid_lo(), region_offset};
-    void* dest = pmemobj_direct(oid);
+    void* dest = (void*)((uint64_t)pmemobj_direct(oid) + (uint64_t)flush_offset);
     void* src = &value;
 
     int ret = 0;

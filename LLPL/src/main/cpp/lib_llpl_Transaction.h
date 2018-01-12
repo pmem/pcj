@@ -46,6 +46,14 @@ JNIEXPORT void JNICALL Java_lib_llpl_Transaction_nativeEndTransaction
 
 /*
  * Class:     lib_llpl_Transaction
+ * Method:    nativeCommitTransaction
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_lib_llpl_Transaction_nativeCommitTransaction
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     lib_llpl_Transaction
  * Method:    nativeAbortTransaction
  * Signature: ()V
  */

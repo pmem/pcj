@@ -39,7 +39,7 @@ public class Reader {
             System.out.println("No string found!");
             System.exit(0);
         }
-        MemoryRegion mr = h.transactionalRegionFromAddress(rootAddr);
+        MemoryRegion<Transactional> mr = h.memoryRegionFromAddress(Transactional.class, rootAddr);
         byte[] bytes = new byte[mr.getInt(0)];
         for (int i = 0; i < mr.getInt(0); i++) {
             bytes[i] = mr.getByte(Integer.BYTES + i);

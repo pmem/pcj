@@ -30,11 +30,61 @@ extern "C" {
 #endif
 /*
  * Class:     lib_llpl_AbstractMemoryRegion
+ * Method:    nativeGetMemoryRegion
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeGetMemoryRegion
+  (JNIEnv *, jobject, jlong);
+
+
+/*
+ * Class:     lib_llpl_AbstractMemoryRegion
  * Method:    nativeGetBits
  * Signature: (JJI)J
  */
 JNIEXPORT jlong JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeGetBits
   (JNIEnv *, jobject, jlong, jlong, jint);
+
+/*
+ * Class:     lib_llpl_AbstractMemoryRegion
+ * Method:    nativeGDirectAddress
+ * Signature: (JJJ)J
+ */
+
+JNIEXPORT jlong JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeGetDirectAddress
+  (JNIEnv *env, jobject obj, jlong region_offset);
+
+/*
+ * Class:     lib_llpl_AbstractMemoryRegion
+ * Method:    nativeMemoryRegionMemsetRaw
+ * Signature: (JJIJ)I
+ */
+JNIEXPORT jint JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeMemoryRegionMemsetRaw
+  (JNIEnv *, jobject, jlong, jlong, jint, jlong);
+
+/*
+ * Class:     lib_llpl_AbstractMemoryRegion
+ * Method:    nativeFromByteArrayMemcpyRaw
+ * Signature: ([BIJJI)I
+ */
+JNIEXPORT jint JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeFromByteArrayMemcpyRaw
+  (JNIEnv *, jobject, jbyteArray, jint, jlong, jlong, jint);
+
+/*
+ * Class:     lib_llpl_AbstractMemoryRegion
+ * Method:    nativeMemoryRegionMemcpyRaw
+ * Signature: (JJJJJ)I
+ */
+JNIEXPORT jint JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeMemoryRegionMemcpyRaw
+  (JNIEnv *, jobject, jlong, jlong, jlong, jlong, jlong);
+
+/*
+ * Class:     lib_llpl_AbstractMemoryRegion
+ * Method:    nativeSetSize
+ * Signature: (JJJ)I
+ */
+JNIEXPORT jint JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeSetSize
+  (JNIEnv *, jobject, jlong, jlong, jlong);
 
 #ifdef __cplusplus
 }

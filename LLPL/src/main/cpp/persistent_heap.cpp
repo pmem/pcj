@@ -47,7 +47,7 @@ PMEMobjpool* get_or_create_pool(const char* path, size_t size)
     TX_BEGIN (pool) {
         arr = TX_ALLOC(char, 1);
         uuid_lo = arr.oid.pool_uuid_lo;
-        TX_FREE(arr);
+        fflush(stdout);
         TX_MEMSET(pmemobj_direct(arr.oid), 0, 1);
     } TX_ONABORT {
         printf("Encountered error opening pool!\n");
