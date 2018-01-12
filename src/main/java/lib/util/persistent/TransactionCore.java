@@ -19,33 +19,10 @@
  * Boston, MA  02110-1301, USA.
  */
 
-package lib.xpersistent;
+package lib.util.persistent;
 
-import lib.util.persistent.TransactionCore;
-import lib.util.persistent.spi.PersistentMemoryProvider;
-
-public class XTransaction implements TransactionCore {
-
-    static {
-        System.loadLibrary("Persistent");
-        lib.util.persistent.spi.PersistentMemoryProvider.getDefaultProvider().getHeap().open();
-    }
-
-    XTransaction() {}
-
-    public void start() {
-        nativeStartTransaction();
-    }
-
-    public void commit() {
-        nativeEndTransaction();
-    }
-
-    public void abort() {
-        nativeAbortTransaction();
-    }
-
-    private native void nativeStartTransaction();
-    private native void nativeEndTransaction();
-    private native void nativeAbortTransaction();
+public interface TransactionCore {
+    public void start();
+    public void commit();
+    public void abort();
 }

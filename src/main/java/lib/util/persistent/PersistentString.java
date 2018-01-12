@@ -27,7 +27,7 @@ import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.front.PersistentClass;
 
 @PersistentClass
-public final class PersistentString extends PersistentImmutableObject implements Comparable<PersistentString>, ComparableWith<String> {
+public final class PersistentString extends PersistentImmutableObject implements Comparable<PersistentString>, ComparableWith<String>, EquatesWith<String> {
     private static final FinalIntField LENGTH = new FinalIntField();
     private static final FinalObjectField<PersistentImmutableByteArray> BYTES = new FinalObjectField<>(PersistentImmutableByteArray.class);
     private static final ObjectType<PersistentString> TYPE = ObjectType.fromFields(PersistentString.class, LENGTH, BYTES);
@@ -90,5 +90,15 @@ public final class PersistentString extends PersistentImmutableObject implements
 
     public int compareWith(String anotherString) {
         return s.compareTo(anotherString);
+    }
+
+    @Override
+    public int equivalentHash() {
+        return s.hashCode();
+    }
+
+    @Override
+    public boolean equatesWith(String that) {
+        return s == that;
     }
 }

@@ -62,8 +62,8 @@ public class PersistentObject extends AbstractPersistentObject {
     protected byte getByte(long offset) {
         // return Util.synchronizedBlock(this, () -> pointer.region().getByte(offset));
         byte ans;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             monitorEnter();
             ans = pointer.region().getByte(offset);
@@ -72,7 +72,7 @@ public class PersistentObject extends AbstractPersistentObject {
         else {
             boolean success = monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(this);
+                transaction.addLockedObject(this);
                 return pointer.region().getByte(offset);
             }
             else {
@@ -87,8 +87,8 @@ public class PersistentObject extends AbstractPersistentObject {
     protected short getShort(long offset) {
         // return Util.synchronizedBlock(this, () -> pointer.region().getShort(offset));
         short ans;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             monitorEnter();
             ans = pointer.region().getShort(offset);
@@ -97,7 +97,7 @@ public class PersistentObject extends AbstractPersistentObject {
         else {
             boolean success = monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(this);
+                transaction.addLockedObject(this);
                 ans = pointer.region().getShort(offset);
             }
             else {
@@ -112,8 +112,8 @@ public class PersistentObject extends AbstractPersistentObject {
     protected int getInt(long offset) {
         // return Util.synchronizedBlock(this, () -> pointer.region().getInt(offset));
         int ans;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             monitorEnter();
             ans = pointer.region().getInt(offset);
@@ -122,7 +122,7 @@ public class PersistentObject extends AbstractPersistentObject {
         else {
             boolean success = monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(this);
+                transaction.addLockedObject(this);
                 ans = pointer.region().getInt(offset);
             }
             else {
@@ -138,8 +138,8 @@ public class PersistentObject extends AbstractPersistentObject {
         // trace(true, "PO.getLong(%d)", offset);
         // return Util.synchronizedBlock(this, () -> pointer.region().getLong(offset));
         long ans;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             monitorEnter();
             ans = pointer.region().getLong(offset);
@@ -148,7 +148,7 @@ public class PersistentObject extends AbstractPersistentObject {
         else {
             boolean success = monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(this);
+                transaction.addLockedObject(this);
                 ans = pointer.region().getLong(offset);
             }
             else {
@@ -164,12 +164,12 @@ public class PersistentObject extends AbstractPersistentObject {
     <T extends AnyPersistent> T getObject(long offset, PersistentType type) {
         // trace(true, "PO.getObject(%d, %s)", offset, type);
         T ans = null;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         boolean success = (inTransaction ? monitorEnterTimeout() : monitorEnterTimeout(5000));
         if (success) {
             try {
-                if (inTransaction) info.transaction.addLockedObject(this);
+                if (inTransaction) transaction.addLockedObject(this);
                 long objAddr = getRegionLong(offset);
                 if (objAddr != 0) ans = (T)ObjectCache.get(objAddr);
             }

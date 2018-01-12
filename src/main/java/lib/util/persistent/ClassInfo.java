@@ -32,6 +32,7 @@ import lib.xpersistent.XRoot;
 import static lib.util.persistent.Trace.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 
 public class ClassInfo {
     private static Map<String, ClassInfo> classInfo = new ConcurrentHashMap<>();
@@ -42,10 +43,14 @@ public class ClassInfo {
     private static final int CLASS_NAME = 0;  
     private static final int NEXT_CLASS_INFO = 8; 
     private static final int ALLOCATION_SIZE = 16;
+    public static final String TYPE_FIELD_NAME = "TYPE";
+    private static boolean initialized = false;
+
 
     private final MemoryRegion region;
     private String className;
     private Constructor reconstructor;
+    private PersistentType type;
 
     // constructor
     public ClassInfo(String className) {
@@ -67,30 +72,30 @@ public class ClassInfo {
         this.className = className();
     }
 
+    public static boolean isInitialized() {return initialized;}
+
     public static synchronized ClassInfo getClassInfo(String className) {
+        // System.out.println("getClassInfo(" + className + ")");
         ClassInfo ci = classInfo.get(className);
-        // System.out.println("hit on " + className + ", classInfo = " + classInfo);
         if (ci == null) {
-            // trace(true, "----------------------------------------------------------- miss on " + className);
             Transaction.runOuter(() -> {
                 ClassInfo nci = new ClassInfo(className);
                 if (lastClassInfo.get() != null) {
                     lastClassInfo.get().setNextClassInfoAddr(nci.getRegion().addr());
-                    // trace(true, "linked %s (%d) -> %s (%d)", lastClassInfo, lastClassInfo.get().getRegion().addr(), nci, nci.getRegion().addr());
-                    // assert(lastClassInfo.get().getNextClassInfoAddr() == nci.getRegion().addr());
                 }
                 classInfo.put(className, nci);
                 reverseClassInfo.put(nci.getRegion().addr(), nci);
                 lastClassInfo.set(nci);
-                // trace(true, "set lastClassInfo to %s", nci);
-                // trace(true, "classInfo.size() = %d", classInfo.size());
             }); 
         }
         return ci == null ? classInfo.get(className) : ci;
     }
 
+    public static ClassInfo getClassInfo(Class<?> cls) {
+        return getClassInfo(cls.getName());
+    }
+
     public static synchronized ClassInfo getClassInfo(long addr) {
-        // System.out.println("getClassInfo for addr " + addr);
         return reverseClassInfo.get(addr);
     }
 
@@ -100,11 +105,9 @@ public class ClassInfo {
         XRoot root = (XRoot)heap.getRoot();
         ClassInfo ci = null;
         long rootClassInfoAddr = root.getRootClassInfoAddr();
-        // System.out.println("root address = " + rootClassInfoAddr);
         if (rootClassInfoAddr == 0) {
             ci = new ClassInfo("lib.util.persistent.PersistentString");
             rootClassInfoAddr = ci.getRegion().addr();
-            // trace(true, "root address now = " + rootClassInfoAddr);
             root.setRootClassInfoAddr(rootClassInfoAddr);
         }
         else ci = new ClassInfo(new UncheckedPersistentMemoryRegion(rootClassInfoAddr));
@@ -112,7 +115,6 @@ public class ClassInfo {
         classInfo.put(ci.className(), ci);
         reverseClassInfo.put(ci.getRegion().addr(), ci);
         long nextAddr = ci.getNextClassInfoAddr();
-        // trace(true, "nextAddr = " + nextAddr);
         while(nextAddr != 0) {
             ClassInfo old = ci;
             ci = new ClassInfo(new UncheckedPersistentMemoryRegion(nextAddr));
@@ -122,15 +124,13 @@ public class ClassInfo {
             lastClassInfo.set(ci);
             nextAddr = ci.getNextClassInfoAddr();
         }
-        // trace(true, "%s (%d) had nextClassInfo of zero", ci, ci.getRegion().addr());
-        // System.out.println("ClassInfo map size = " + classInfo.size());
+        initialized = true;        
         // System.out.println("ClassInfo.init() exit");
     }        
 
 
     void initReconstructor(String className) {
         try {
-            // trace(true, "initReconstructor(%s)", className); 
             Class<?> cls = Class.forName(className);
             Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
             ctor.setAccessible(true);
@@ -145,6 +145,42 @@ public class ClassInfo {
         return reconstructor;
     }
 
+    void initType() {
+        Field typeField = getTypeField(className);
+        try {
+            type = (PersistentType)typeField.get(null);
+        }
+        catch (IllegalAccessException e) {throw new RuntimeException("illegal access accessing persistent type field ");}
+    }
+
+    public static synchronized PersistentType getType(Class<?> cls) {
+        if (cls == AnyPersistent.class) return null;        
+        if (initialized) return getClassInfo(cls).getType();
+        else {
+            try {
+                Field typeField = getTypeField(cls.getName());
+                return (PersistentType)typeField.get(null);
+            }
+            catch (IllegalAccessException e) {throw new RuntimeException("illegal access accessing persistent type field ");}
+        }
+    }
+
+    private static Field getTypeField(String className) {
+        try {
+            Class<?> cls = Class.forName(className);
+            Field field = cls.getDeclaredField(TYPE_FIELD_NAME);
+            field.setAccessible(true);
+            return field;
+        }
+        catch (NoSuchFieldException nsf) {throw new RuntimeException("Exception during initTypeField: " + nsf.getMessage());}
+        catch (ClassNotFoundException cnf) {throw new RuntimeException("Exception during initTypeField: " + cnf.getMessage());}
+    }
+
+    public synchronized PersistentType getType() {
+        if (type == null) initType();
+        return type;
+    }
+
     public MemoryRegion getRegion() {return region;}
 
     public String className() {
@@ -153,16 +189,11 @@ public class ClassInfo {
         return className;
     }
 
-    public long getClassNameAddr() {
-        return region.getLong(CLASS_NAME);
-    }
+    public long getClassNameAddr() {return region.getLong(CLASS_NAME);}
 
+    public long getNextClassInfoAddr() {return region.getLong(NEXT_CLASS_INFO);}
 
-    public synchronized long getNextClassInfoAddr() {
-        return region.getLong(NEXT_CLASS_INFO);
-    }
-
-    public synchronized void setNextClassInfoAddr(long addr) {
+    public void setNextClassInfoAddr(long addr) {
         Transaction.run(() -> {
             region.putLong(NEXT_CLASS_INFO, addr);
         });
@@ -170,9 +201,7 @@ public class ClassInfo {
 
     private int allocationSize() {return ALLOCATION_SIZE;}
 
-    public String toString() {
-        return "ClassInfo(" + className + ")";
-    }
+    public String toString() {return "ClassInfo(" + className + ")";}
 
     static class Address {
         private final long addr;
@@ -190,6 +219,4 @@ public class ClassInfo {
             return false;
         }
     }
-
-
 }

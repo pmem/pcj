@@ -21,7 +21,7 @@
 
 package lib.xpersistent;
 
-import lib.util.persistent.Transaction;
+import lib.util.persistent.TransactionCore;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import lib.util.persistent.PersistentHeap;
 
@@ -36,7 +36,7 @@ public class XPersistentMemory extends PersistentMemoryProvider {
     }
 
     @Override
-    public Transaction newTransaction() {
+    public TransactionCore newTransaction() {
         return new XTransaction();
     }
 

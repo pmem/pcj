@@ -31,6 +31,7 @@ import java.util.concurrent.*;
 
 public class PersistentSIHashMapTest {
     static boolean verbose = false;
+    static TreeSet<PersistentUUID> set = new TreeSet<PersistentUUID>();
 
     public static void main(String[] args) {
         PersistentMemoryProvider.getDefaultProvider().getHeap().open();
@@ -53,10 +54,10 @@ public class PersistentSIHashMapTest {
         return id + "_" + Thread.currentThread().getId();
     }
 
-    static PersistentSIHashMap<PersistentInteger, PersistentString> getMap() {
+    static PersistentSIHashMap<PersistentUUID, PersistentString> getMap() {
         String id = safeThreadID("tests.persistent_sihashmap");
         @SuppressWarnings("unchecked")
-            PersistentSIHashMap<PersistentInteger, PersistentString> map = ObjectDirectory.get(id, PersistentSIHashMap.class);
+            PersistentSIHashMap<PersistentUUID, PersistentString> map = ObjectDirectory.get(id, PersistentSIHashMap.class);
         if (map == null) {
             map = new PersistentSIHashMap<>();
             ObjectDirectory.put(id, map);
@@ -66,25 +67,35 @@ public class PersistentSIHashMapTest {
 
     static boolean testInsertion() {
         if (verbose) System.out.println("****************Testing insertion**********************");
-        PersistentSIHashMap<PersistentInteger, PersistentString> map = getMap();
+        PersistentSIHashMap<PersistentUUID, PersistentString> map = getMap();
         map.clear();
         for (int i = 0; i < 1000; i++) {
-            map.put(new PersistentInteger(i), new PersistentString("test_" + i));
+            PersistentUUID uuid = PersistentUUID.randomUUID();
+            set.add(uuid);
+        }
+        assert(set.size() == 1000);
+
+        int i=0;
+        for (PersistentUUID uuid : set) {
+            map.put(uuid, new PersistentString("test_" + i++));
         }
         assert(map.size() == 1000);
-        for (int i = 0; i < 1000; i++) {
-            assert(map.get(new PersistentInteger(i)).equals(new PersistentString("test_" + i)));
+
+        i=0;
+        for (PersistentUUID uuid : set) {
+            assert(map.get(uuid).equals(new PersistentString("test_" + i++)));
         }
         return true;
     }
 
     static boolean testRemoval() {
         if (verbose) System.out.println("****************Testing removal************************");
-        PersistentSIHashMap<PersistentInteger, PersistentString> map = getMap();
-        for (int i = 0; i < 1000; i++) {
-            map.remove(new PersistentInteger(i));
-            assert(map.size() == 999 - i);
-            assert(map.get(new PersistentInteger(i)) == null);
+        PersistentSIHashMap<PersistentUUID, PersistentString> map = getMap();
+        int i=0;
+        for (PersistentUUID uuid : set) {
+            map.remove(uuid);
+            assert(map.size() == 999 - i++);
+            assert(map.get(uuid) == null);
         }
         assert(map.isEmpty());
         return true;
@@ -92,19 +103,19 @@ public class PersistentSIHashMapTest {
 
     static boolean testIteration() {
         if (verbose) System.out.println("****************Testing iteration**********************");
-        PersistentSIHashMap<PersistentInteger, PersistentString> map = getMap();
+        PersistentSIHashMap<PersistentUUID, PersistentString> map = getMap();
 
         assert(map != null);
         assert(map.size() == 0);
 
         for (int i = 0; i < 1000; i++) {
-            map.put(new PersistentInteger(i), new PersistentString("test_" + i));
+            map.put(PersistentUUID.randomUUID(), new PersistentString("test_" + i));
         }
 
-        Set<Map.Entry<PersistentInteger, PersistentString>> es = map.entrySet();
+        Set<Map.Entry<PersistentUUID, PersistentString>> es = map.entrySet();
         assert(es.size() == 1000);
 
-        for (Map.Entry<PersistentInteger, PersistentString> e : es) {
+        for (Map.Entry<PersistentUUID, PersistentString> e : es) {
             assert(map.get(e.getKey()).equals(e.getValue()));
             assert(map.containsKey(e.getKey()));
             assert(map.containsValue(e.getValue()));
@@ -115,7 +126,7 @@ public class PersistentSIHashMapTest {
 
     static boolean testClear() {
         if (verbose) System.out.println("****************Testing clear**************************");
-        final PersistentSIHashMap<PersistentInteger, PersistentString> map = getMap();
+        final PersistentSIHashMap<PersistentUUID, PersistentString> map = getMap();
 
         assert(map.size() == 1000);
         map.clear();
@@ -125,17 +136,19 @@ public class PersistentSIHashMapTest {
 
     static boolean testMultithread() {
         if (verbose) System.out.println("****************Testing multithread********************");
-        final PersistentSIHashMap<PersistentInteger, PersistentString> map = getMap();
+        final PersistentSIHashMap<PersistentUUID, PersistentString> map = getMap();
 
         final int iterations = 1000;
+        
         Thread[] threads = new Thread[5];
         for (int i = 0; i < threads.length; i++) {
             final int ii = i;
             threads[i] = new Thread(() -> {
-                for (int j = 0; j < iterations; j++) {
-                    final int jj = j;
+                int j=0;
+                for (PersistentUUID uuid : set) {
+                    final int jj = j++;
                     Transaction.run(() -> {
-                        map.put(new PersistentInteger(jj), new PersistentString("test_" + jj));
+                        map.put(uuid, new PersistentString("test_" + jj));
                     });
                 }
             });
@@ -147,64 +160,75 @@ public class PersistentSIHashMapTest {
         } catch (Exception e) { e.printStackTrace(); }
         assert(map.size() == iterations);
 
-        for (int i = 0; i < iterations; i++) {
-            assert(map.get(new PersistentInteger(i)).equals(new PersistentString("test_" + i)));
+        int i=0;
+        for (PersistentUUID uuid : set) {
+            assert(map.get(uuid).equals(new PersistentString("test_" + i++)));
         }
 
         final int removeInterval = iterations / threads.length;
-        for (int i = 0; i < threads.length; i++) {
+        PersistentUUID[] arr = set.toArray(new PersistentUUID[0]);
+        for (i = 0; i < threads.length; i++) {
             final int ii = i;
             threads[i] = new Thread(() -> {
                 for (int j = ii * removeInterval; j < (ii + 1) * removeInterval; j++) {
-                    map.remove(new PersistentInteger(j));
+                    map.remove(arr[j]);
                 }
             });
             threads[i].start();
         }
         try {
-            for (int i = 0; i < threads.length; i++)
+            for (i = 0; i < threads.length; i++)
                 threads[i].join();
         } catch (Exception e) { e.printStackTrace(); }
 
         assert(map.size() == 0);
-        for (int i = 0; i < iterations; i++) {
-            assert(map.containsKey(new PersistentInteger(i)) == false);
+        i = 0;
+        for (PersistentUUID uuid : set) {
+            assert(map.containsKey(uuid) == false);
             assert(map.containsValue(new PersistentString("test_" + i)) == false);
-            assert(map.get(new PersistentInteger(i)) == null);
+            assert(map.get(uuid) == null);
         }
         return true;
     }
 
     static boolean testReplaceAll() {
         if (verbose) System.out.println("****************Testing replaceAll*********************");
-        PersistentSIHashMap<PersistentInteger, PersistentString> map = getMap();
+        PersistentSIHashMap<PersistentUUID, PersistentString> map = getMap();
 
         map.clear();
-        for (int i = 0; i < 10; i++) {
-            map.put(new PersistentInteger(i), new PersistentString("test_" + i));
+        int i=0;
+        for (PersistentUUID uuid : set) {
+            map.put(uuid, new PersistentString("test_" + i++));
+            if (i >= 10) break;
         }
 
-        map.replaceAll((PersistentInteger i, PersistentString s) -> {
-            return new PersistentString(s.toString() + i.toString());
+        map.replaceAll((PersistentUUID u, PersistentString s) -> {
+            return new PersistentString(s.toString() + u.toString());
         });
 
-        for (int i = 0; i < 10; i++) {
-            assert(map.get(new PersistentInteger(i)).equals(new PersistentString("test_" + i + i)));
+        i=0;
+        for (PersistentUUID uuid : set) {
+            assert(map.get(uuid).equals(new PersistentString("test_" + i++ + uuid.toString())));
+            if (i >= 10) break;
         }
         return true;
     }
 
     static boolean testVolatileGet() {
         if (verbose) System.out.println("****************Testing volatileGet********************");
-        PersistentSIHashMap<PersistentInteger, PersistentString> map = getMap();
+        PersistentSIHashMap<PersistentUUID, PersistentString> map = getMap();
 
         map.clear();
-        for (int i = 0; i < 10; i++) {
-            map.put(new PersistentInteger(i), new PersistentString("test_" + i));
+        int i=0;
+        for (PersistentUUID uuid : set) {
+            map.put(uuid , new PersistentString("test_" + i++));
+            if (i >= 10) break;
         }
 
-        for (int i = 0; i < 10; i++) {
-            assert(map.get(new Integer(i), PersistentInteger.class).equals(new PersistentString("test_" + i)));
+        i=0;
+        for (PersistentUUID uuid : set) {
+            assert(map.get(UUID.fromString(uuid.toString()), PersistentUUID.class).equals(new PersistentString("test_" + i++)));
+            if (i >= 10) break;
         }
 
         return true;

@@ -42,7 +42,7 @@ import static lib.util.persistent.Trace.*;
 public class ObjectCache {
     private static final Map<Address, Reference<? extends AnyPersistent>> cache;
     private static ReferenceQueue<AnyPersistent> queue;
-    private static Map<Long, PRef<?>> prefs;
+    private static Map<Address, PRef<?>> prefs;
     private static final PersistentHeap heap;
     private static Thread collector;
     private static long counter;                    // only used for ObjectCache stats
@@ -57,12 +57,12 @@ public class ObjectCache {
             try {
                 while (true) {
                     PRef<?> qref = (PRef)queue.remove();
-                    trace(qref.getAddress(), "object enqueued");
+                    //trace(qref.getAddress(), "object enqueued");
                     Stats.current.memory.enqueued++;
                     prefs.remove(qref.getAddress());
                     if (!qref.isForAdmin()) {
                         Transaction.run(() -> {
-                            long address = qref.getAddress();
+                            long address = qref.getAddress().addr();
                             deregisterObject(address);
                             AnyPersistent obj = get(address, true);
                             Transaction.run(() -> {
@@ -101,7 +101,7 @@ public class ObjectCache {
     }
 
     public static class PRef<T extends AnyPersistent> extends PhantomReference<T> {
-        private long address;
+        private Address address;
         private boolean forAdmin;
 
         public PRef(T obj) {
@@ -110,13 +110,14 @@ public class ObjectCache {
 
         public PRef(T obj, boolean forAdmin) {
             super(obj, queue);
-            trace("created PRef object for address " + obj.getPointer().addr());
-            this.address = obj.getPointer().addr();
+            //trace("created PRef object for address " + obj.getPointer().addr());
+            this.address = new Address(obj.getPointer().addr());
             this.forAdmin = forAdmin;
             prefs.put(this.address, this);
         }
 
-        public long getAddress() {return address;}
+        //public long getAddress() {return address;}
+        public Address getAddress() {return address;}
         public boolean isForAdmin() {return forAdmin;}
         public void setForAdmin(boolean forAdmin) {this.forAdmin = forAdmin;}
         public String toString() {return String.format("PRef(%d, %s)\n", address, isForAdmin());}
@@ -185,7 +186,7 @@ public class ObjectCache {
                 }
                 else throw new RuntimeException("failed to call reflected constructor"+e);
             }
-            if (!forAdmin) XTransaction.addNewObject(box.get());
+            if (!forAdmin) Transaction.addNewObject(box.get());
         });
         return box.get();
     }
@@ -201,7 +202,7 @@ public class ObjectCache {
         Ref<T> ref = new Ref<>(obj);
         cache.put(new Address(address), ref);
         // updateCacheSizeStats();                     // uncomment for ObjectCache stats
-        XTransaction.addNewObject(obj);
+        Transaction.addNewObject(obj);
     }
 
     static <T extends AnyPersistent> void registerObject(T obj) {
@@ -223,6 +224,7 @@ public class ObjectCache {
     static class Address {
         private final long addr;
         Address(long addr) { this.addr = addr; }
+        long addr() { return addr; }
         @Override
         public int hashCode() {
             return Long.hashCode(addr >>> 6);

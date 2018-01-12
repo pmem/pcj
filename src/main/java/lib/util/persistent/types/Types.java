@@ -22,6 +22,7 @@
 package lib.util.persistent.types;
 
 import lib.util.persistent.AnyPersistent;
+import lib.util.persistent.ClassInfo;
 import java.lang.reflect.Field;
 
 public class Types {
@@ -42,23 +43,7 @@ public class Types {
 
     @SuppressWarnings("unchecked")
     public static synchronized <T extends AnyPersistent> PersistentType typeForClass(Class<T> cls) {
-        if (cls == AnyPersistent.class) return null;
-        try {
-            Field typeField = null;
-            // TODO: remove inner try and catch when old name gone
-            try {
-                typeField = cls.getDeclaredField(TYPE_FIELD_NAME);
-            } 
-            catch (NoSuchFieldException e) {
-                typeField = cls.getDeclaredField(OLD_TYPE_FIELD_NAME);
-            }
-            typeField.setAccessible(true);
-            PersistentType type = (PersistentType)typeField.get(null);
-            typeField.setAccessible(false);
-            return type;
-        } 
-        catch (NoSuchFieldException e) {throw new RuntimeException("no type field in " + cls);}
-        catch (IllegalAccessException e) {throw new RuntimeException("illegal access on type field in " + cls);}
+        return ClassInfo.getType(cls);
     }
 
     @SuppressWarnings("unchecked")

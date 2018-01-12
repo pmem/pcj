@@ -114,8 +114,8 @@ public class Util {
     public static <T> T synchronizedBlock(AnyPersistent obj, Supplier<T> func) {
         // System.out.println("Supplier");
         T ans;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             obj.monitorEnter();
             try {ans = func.get();}
@@ -124,7 +124,7 @@ public class Util {
         else {
             boolean success = obj.monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(obj);
+                transaction.addLockedObject(obj);
                 ans = func.get();
             }
             else {
@@ -138,8 +138,8 @@ public class Util {
     public static byte synchronizedBlock(AnyPersistent obj, ByteSupplier func) {
         // System.out.println("ByteSupplier");
         byte ans;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             obj.monitorEnter();
             try {ans = func.getAsByte();}
@@ -148,7 +148,7 @@ public class Util {
         else {
             boolean success = obj.monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(obj);
+                transaction.addLockedObject(obj);
                 ans = func.getAsByte();
             }
             else {
@@ -162,8 +162,8 @@ public class Util {
     public static short synchronizedBlock(AnyPersistent obj, ShortSupplier func) {
         // System.out.println("ShortSupplier");
         short ans;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             obj.monitorEnter();
             try {ans = func.getAsShort();}
@@ -172,7 +172,7 @@ public class Util {
         else {
             boolean success = obj.monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(obj);
+                transaction.addLockedObject(obj);
                 ans = func.getAsShort();
             }
             else {
@@ -186,8 +186,8 @@ public class Util {
     public static int synchronizedBlock(AnyPersistent obj, IntSupplier func) {
         // System.out.println("IntSupplier");
         int ans;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             obj.monitorEnter();
             try {ans = func.getAsInt();}
@@ -196,7 +196,7 @@ public class Util {
         else {
             boolean success = obj.monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(obj);
+                transaction.addLockedObject(obj);
                 ans = func.getAsInt();
             }
             else {
@@ -210,8 +210,8 @@ public class Util {
     public static long synchronizedBlock(AnyPersistent obj, LongSupplier func) {
         // System.out.println("LongSupplier");
         long ans;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             obj.monitorEnter();
             try {ans = func.getAsLong();}
@@ -220,7 +220,7 @@ public class Util {
         else {
             boolean success = obj.monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(obj);
+                transaction.addLockedObject(obj);
                 ans = func.getAsLong();
             }
             else {
@@ -234,8 +234,8 @@ public class Util {
     public static boolean synchronizedBlock(AnyPersistent obj, BooleanSupplier func) {
         // System.out.println("BooleanSupplier");
         boolean ans;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             obj.monitorEnter();
             try {ans = func.getAsBoolean();}
@@ -244,7 +244,7 @@ public class Util {
         else {
             boolean success = obj.monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(obj);
+                transaction.addLockedObject(obj);
                 ans = func.getAsBoolean();
             }
             else {
@@ -256,8 +256,8 @@ public class Util {
     }
 
     public static void synchronizedBlock(AnyPersistent obj, Runnable func) {
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             obj.monitorEnter();
             try {func.run();}
@@ -266,7 +266,7 @@ public class Util {
         else {
             boolean success = obj.monitorEnterTimeout();
             if (success) {
-                info.transaction.addLockedObject(obj);
+                transaction.addLockedObject(obj);
                 func.run();
             }
             else {

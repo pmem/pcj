@@ -104,6 +104,7 @@ public class Stats {
     public static class TransactionStats {
         public long total;
         public long topLevel;
+        public long runCalls;
         public long maxDepth;
         public long totalRetries;
         private long maxRetries;
@@ -116,6 +117,7 @@ public class Stats {
         public void clear() {
             total = -1;
             topLevel = -1;
+            runCalls = 0;
             maxDepth = -1;
             totalRetries = 0;
             maxRetries = 0;
@@ -182,6 +184,7 @@ public class Stats {
         System.out.println("total          :" + format(stats.transactions.total));
         System.out.println("topLevel       :" + format(stats.transactions.topLevel));
         System.out.println("maxDepth       :" + format(stats.transactions.maxDepth));
+        System.out.println("runCalls       :" + format(stats.transactions.runCalls));
         System.out.println("totalRetries   :" + format(stats.transactions.totalRetries));
         System.out.println("maxRetries     :" + format(stats.transactions.maxRetries));
         System.out.println("failures       :" + format(stats.transactions.failures));

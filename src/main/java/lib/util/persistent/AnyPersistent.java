@@ -502,21 +502,19 @@ public abstract class AnyPersistent {
     }
 
     public boolean monitorEnterTimeout() {
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        int max = info.timeout + timeoutArray[timeoutCursor++ & TIMEOUT_MASK];
-        //int max = info.timeout + random.nextInt(info.timeout);
+        Transaction transaction = Transaction.getTransaction();
+        int max = transaction.timeout() + timeoutArray[timeoutCursor++ & TIMEOUT_MASK];
         boolean success = monitorEnterTimeout(max);
         if (success) {
-            info.timeout = Config.MONITOR_ENTER_TIMEOUT;
+            transaction.timeout(Config.MONITOR_ENTER_TIMEOUT);
         }
         else {
-            info.timeout = Math.min((int)(info.timeout * Config.MONITOR_ENTER_TIMEOUT_INCREASE_FACTOR), Config.MAX_MONITOR_ENTER_TIMEOUT);
+            transaction.timeout(Math.min((int)(transaction.timeout() * Config.MONITOR_ENTER_TIMEOUT_INCREASE_FACTOR), Config.MAX_MONITOR_ENTER_TIMEOUT));
         }
         return success;
     }
 
     public void monitorEnter() {
-        // trace(true, getPointer().addr(), "blocking monitorEnter for %s, attempt = %d", this.getPointer().addr(), lib.xpersistent.XTransaction.tlInfo.get().attempts);
         lock.lock();
     }
 

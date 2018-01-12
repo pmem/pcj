@@ -241,12 +241,14 @@ public class PersistentConcurrentHashMapInternal {
             this.capacity.addAndGet(size);
         }
 
-        void debug() {
+        void debug(boolean verbose) {
             for (int i = 0; i < tableList.size(); i++) {
                 Slot[] slots = tableList.get(i);
                 System.out.println("Slots at index " + i);
-                for (int j = 0; j < slots.length; j++) {
-                    System.out.println("    Slot at index " + j + ": " + slots[j]);
+                if (verbose) {
+                    for (int j = 0; j < slots.length; j++) {
+                        System.out.println("    Slot at index " + j + ": " + slots[j]);
+                    }
                 }
             }
         }
@@ -586,7 +588,7 @@ public class PersistentConcurrentHashMapInternal {
 
     // murmur3 hash
     private int hash(long key) {
-        int h = HASH_SEED;
+        /*int h = HASH_SEED;
         int k1 = (int)(key & 0xffffffffL);
         int k2 = (int)((key & 0xffffffff00000000L) >>> 32);
 
@@ -611,7 +613,8 @@ public class PersistentConcurrentHashMapInternal {
         h *= 0xc2b2ae35;
         h ^= (h >> 16);
 
-        return Math.abs(h);
+        return Math.abs(h);*/
+        return Integer.hashCode((int)(key >>> 7));
     }
 
     private NodeLL getSentinel(int slot) {
@@ -744,7 +747,8 @@ public class PersistentConcurrentHashMapInternal {
         System.out.println(sb.toString());
     }
 
-    public void debugTable() { table.debug(); }
+    public void debugTable() { table.debug(false); }
+    public void debugTable(boolean verbose) { table.debug(verbose); }
 
     public long addr() { return head.addr(); }
 

@@ -24,6 +24,7 @@ package lib.util.persistent.spi;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import lib.util.persistent.Transaction;
+import lib.util.persistent.TransactionCore;
 import lib.xpersistent.XPersistentMemory;
 import lib.util.persistent.PersistentHeap;
 import lib.xpersistent.XHeap;
@@ -59,6 +60,6 @@ public abstract class PersistentMemoryProvider {
     }
 
     public abstract String getName();
-    public abstract Transaction newTransaction();
+    public abstract TransactionCore newTransaction();
     public abstract PersistentHeap getHeap();
 }

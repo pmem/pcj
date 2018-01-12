@@ -115,7 +115,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
                 throw new IndexOutOfBoundsException();
             PersistentArrays.fromByteArray(src, arrOffset, bytes(), start() + position(), length);
             position(position() + length);
-        }, this, bytes());
+        }/*, this, bytes()*/);
         return this;
     }
 
@@ -124,7 +124,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
             if (1 > remaining()) throw new BufferOverflowException();
             bytes().set(start() + position(), b);
             position(position() + 1);
-        }, this, bytes());
+        }/*, this, bytes()*/);
         return this;
     }
 
@@ -135,7 +135,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
             PersistentArrays.toPersistentByteArray(src.bytes(), src.start() + src.position(), bytes(), start() + position(), src.remaining());
             position(position() + src.remaining());
             src.position(src.position() + src.remaining());
-        }, src, src.bytes(), this, bytes());
+        }/*, src, src.bytes(), this, bytes()*/);
         return this;
     }
 
@@ -146,7 +146,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
             src.get(srcBytes);    // also increments src's position
             PersistentArrays.fromByteArray(srcBytes, 0, bytes(), start() + position(), srcBytes.length);
             position(position() + srcBytes.length);
-        }, this, bytes());
+        }/*, this, bytes()*/);
         return this;
     }
 
@@ -154,7 +154,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
         Transaction.run(() -> {
             if (index < 0 || !(index < (limit() - (length - 1)))) throw new IndexOutOfBoundsException();
             PersistentArrays.fromByteArray(src, 0, bytes(), start() + index, length);
-        }, this, bytes());
+        }/*, this, bytes()*/);
         // does not modify position in the absolute case
         return this;
     }
@@ -163,7 +163,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
         Transaction.run(() -> {
             if (index < 0 || index >= limit()) throw new IndexOutOfBoundsException();
             bytes().set(start() + index, b);
-        }, this, bytes());
+        }/*, this, bytes()*/);
         return this;
     }
 
@@ -249,7 +249,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
         Transaction.run(() -> {
             position(0);
             setMark(-1);
-        }, this);
+        }/*, this*/);
         return this;
     }
 
@@ -257,7 +257,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
         Transaction.run(() -> {
             if (getMark() < 0) throw new InvalidMarkException();
             position(getMark());
-        }, this);
+        }/*, this*/);
         return this;
     }
 
@@ -269,7 +269,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
                 throw new IndexOutOfBoundsException();
             PersistentArrays.toByteArray(bytes(), start() + position(), dst, arrOffset, length);
             position(position() + length);
-        }, this, bytes());
+        }/*, this, bytes()*/);
         return this;
     }
 
@@ -392,7 +392,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
         Transaction.run(() -> {
             position(0);
             limit(capacity());
-        }, this);
+        }/*, this*/);
         return this;
     }
 
@@ -401,7 +401,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
             limit(position());
             position(0);
             setMark(-1);
-        }, this);
+        }/*, this*/);
         return this;
     }
 
@@ -413,7 +413,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
             ret.get().limit(limit());
             ret.get().setMark(getMark());
             ret.get().start(start());
-        }, this, bytes());
+        }/*, this, bytes()*/);
         return ret.get();
     }
 
@@ -425,7 +425,7 @@ public final class PersistentByteBuffer extends PersistentObject implements Comp
             ret.get().limit(remaining());
             ret.get().setMark(-1);
             ret.get().start(position());
-        }, this, bytes());
+        }/*, this, bytes()*/);
         return ret.get();
     }
 

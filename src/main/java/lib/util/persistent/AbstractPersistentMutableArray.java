@@ -74,12 +74,12 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
     <T extends AnyPersistent> T getObject(long offset, PersistentType type) {
         // trace(true, "APMO.getObject(%d, %s)", offset, type);
         T ans = null;
-        TransactionInfo info = lib.xpersistent.XTransaction.tlInfo.get();
-        boolean inTransaction = info.state == Transaction.State.Active;
+        Transaction transaction = Transaction.getTransaction();
+        boolean inTransaction = transaction != null && transaction.isActive();
         boolean success = (inTransaction ? monitorEnterTimeout() : monitorEnterTimeout(5000));
         if (success) {
             try {
-                if (inTransaction) info.transaction.addLockedObject(this);
+                if (inTransaction) transaction.addLockedObject(this);
                 long valueAddr = getLong(offset);
                 if (valueAddr != 0) ans = (T)ObjectCache.get(valueAddr);
             }
