@@ -56,7 +56,7 @@ LIBRARIES = $(addprefix $(CPP_BUILD_DIR)/, libPersistent.so)
 EXAMPLES_DIR = src/examples
 ALL_EXAMPLE_DIRS = $(wildcard $(EXAMPLES_DIR)/*)
 
-all: sources examples
+all: sources examples testsources
 sources: cpp java
 cpp: $(LIBRARIES)
 java: classes

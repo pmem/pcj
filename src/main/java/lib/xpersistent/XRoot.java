@@ -23,7 +23,6 @@ package lib.xpersistent;
 
 import lib.util.persistent.*;
 import lib.util.persistent.types.*;
-import lib.xpersistent.PersistentConcurrentHashMapInternal.EntryIterator;
 import lib.util.persistent.spi.*;
 import java.util.HashSet;
 import lib.util.persistent.PersistentLong;

@@ -129,6 +129,7 @@ public abstract class AnyPersistent {
         lock = new ReentrantLock(true);
         Stats.current.memory.reconstructions++;
         this.pointer = p;
+        if (p != null) ObjectCache.uncommittedConstruction(this);
     }
 
     boolean isValueBased() {return getPointer().type().isValueBased();}
@@ -168,6 +169,7 @@ public abstract class AnyPersistent {
         });
     }
 
+    // TODO: make non-public, currently needed in test package
     public ObjectPointer<? extends AnyPersistent> getPointer() {
         return pointer;
     }
@@ -421,6 +423,7 @@ public abstract class AnyPersistent {
         }, this);
     }
 
+    // TODO: make non-public, currently called from XRoot 
     public static void deleteResidualReferences(long address, int count) {
         AnyPersistent obj = ObjectCache.get(address, true);
         assert(!obj.getPointer().type().isValueBased());
@@ -501,7 +504,7 @@ public abstract class AnyPersistent {
         return getPointer().region().getByte(Header.TYPE.getOffset(Header.REF_COLOR));
     }
 
-    public boolean monitorEnterTimeout() {
+    boolean monitorEnterTimeout() {
         Transaction transaction = Transaction.getTransaction();
         int max = transaction.timeout() + timeoutArray[timeoutCursor++ & TIMEOUT_MASK];
         boolean success = monitorEnterTimeout(max);
@@ -514,11 +517,11 @@ public abstract class AnyPersistent {
         return success;
     }
 
-    public void monitorEnter() {
+    void monitorEnter() {
         lock.lock();
     }
 
-    public boolean monitorEnterTimeout(long timeout) {
+    boolean monitorEnterTimeout(long timeout) {
         boolean success = false;
         if (!Config.USE_BLOCKING_LOCKS_FOR_DEBUG) {
             try {
@@ -535,7 +538,23 @@ public abstract class AnyPersistent {
         return success;
     }
 
-    public void monitorExit() {
+    void monitorExit() {
         lock.unlock();
+    }
+
+    // used internally only.  
+    static AnyPersistent asLock() {return new AsLock();}
+
+    private static class AsLock extends AnyPersistent {
+        public AsLock() {
+            super((ObjectPointer<?>)null);
+        }
+
+        byte getByte(long offset) {throw new UnsupportedOperationException();}
+        short getShort(long offset) {throw new UnsupportedOperationException();}
+        int getInt(long offset) {throw new UnsupportedOperationException();}
+        long getLong(long offset) {throw new UnsupportedOperationException();}
+        <T extends AnyPersistent> T getObject(long offset, PersistentType type) {throw new UnsupportedOperationException();}
+        <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {throw new UnsupportedOperationException();}
     }
 }

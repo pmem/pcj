@@ -50,6 +50,12 @@ public class PersistentArray<T extends AnyPersistent> extends AbstractPersistent
         return ans;
     }
 
+    public <T extends AnyPersistent> PersistentArray<T> make(int size) {
+        return Transaction.run(() -> {
+            return new PersistentArray<>(size);
+        });
+    }
+
     public PersistentArray(int size) {
         super(TYPE, size);
     }

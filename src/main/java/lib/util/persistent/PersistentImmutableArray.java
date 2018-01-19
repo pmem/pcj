@@ -52,6 +52,13 @@ public class PersistentImmutableArray<T extends AnyPersistent> extends AbstractP
     }
 
     @SafeVarargs
+    public static <T extends AnyPersistent> PersistentImmutableArray<T> make(T... ts) {
+        return Transaction.run(() -> {
+            return new PersistentImmutableArray<>(ts);
+        });
+    }
+
+    @SafeVarargs
     public PersistentImmutableArray(T... ts) {
         super(TYPE, ts.length, ts);
     }

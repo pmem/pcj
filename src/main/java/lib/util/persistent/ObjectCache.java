@@ -23,6 +23,8 @@ package lib.util.persistent;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import java.lang.ref.PhantomReference;
@@ -42,27 +44,32 @@ import static lib.util.persistent.Trace.*;
 public class ObjectCache {
     private static final Map<Address, Reference<? extends AnyPersistent>> cache;
     private static ReferenceQueue<AnyPersistent> queue;
-    private static Map<Address, PRef<?>> prefs;
+    private static Set<Long> uncommittedConstructions;
     private static final PersistentHeap heap;
     private static Thread collector;
     private static long counter;                    // only used for ObjectCache stats
     private static final long counterMod = 10000;   // only used for ObjectCache stats
-
+    private static final AnyPersistent cacheLock;
+    
     static {
         cache = new ConcurrentHashMap<>();
         queue = new ReferenceQueue<>();
-        prefs = new ConcurrentHashMap<>();
+        cacheLock = AnyPersistent.asLock();
+        uncommittedConstructions = new ConcurrentSkipListSet<>();
         heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
         collector = new Thread(() -> {
             try {
                 while (true) {
-                    PRef<?> qref = (PRef)queue.remove();
-                    //trace(qref.getAddress(), "object enqueued");
+                    Ref<?> qref = (Ref)queue.remove();
+                    // trace(true, qref.getAddress(), "object enqueued");
+                    long address = qref.getAddress();
                     Stats.current.memory.enqueued++;
-                    prefs.remove(qref.getAddress());
                     if (!qref.isForAdmin()) {
+                        if (uncommittedConstructions.contains(address)) {
+                            remove(address);
+                            continue;
+                        }
                         Transaction.run(() -> {
-                            long address = qref.getAddress().addr();
                             deregisterObject(address);
                             AnyPersistent obj = get(address, true);
                             Transaction.run(() -> {
@@ -89,7 +96,7 @@ public class ObjectCache {
         }
 
         public Ref(T obj, boolean forAdmin) {
-            super(obj);
+            super(obj, queue);
             this.address = obj.getPointer().addr();
             this.forAdmin = forAdmin;
         }
@@ -98,29 +105,6 @@ public class ObjectCache {
         public boolean isForAdmin() {return forAdmin;}
         public void setForAdmin(boolean forAdmin) {this.forAdmin = forAdmin;}
         public String toString() {return String.format("Ref(%d, %s)\n", address, isForAdmin());}
-    }
-
-    public static class PRef<T extends AnyPersistent> extends PhantomReference<T> {
-        private Address address;
-        private boolean forAdmin;
-
-        public PRef(T obj) {
-            this(obj, false);
-        }
-
-        public PRef(T obj, boolean forAdmin) {
-            super(obj, queue);
-            //trace("created PRef object for address " + obj.getPointer().addr());
-            this.address = new Address(obj.getPointer().addr());
-            this.forAdmin = forAdmin;
-            prefs.put(this.address, this);
-        }
-
-        //public long getAddress() {return address;}
-        public Address getAddress() {return address;}
-        public boolean isForAdmin() {return forAdmin;}
-        public void setForAdmin(boolean forAdmin) {this.forAdmin = forAdmin;}
-        public String toString() {return String.format("PRef(%d, %s)\n", address, isForAdmin());}
     }
 
     public static <T extends AnyPersistent> T get(long address) {
@@ -169,26 +153,27 @@ public class ObjectCache {
 
     @SuppressWarnings("unchecked")
     static <T extends AnyPersistent> T objectForAddress(long address, boolean forAdmin) {
-        Box<T> box = new Box<>(null);
-        Transaction.run(() -> {
+        T obj = Transaction.run(() -> {
+            T ans = null;
             try {
                 MemoryRegion region = new UncheckedPersistentMemoryRegion(address);
                 long classInfoAddress = region.getLong(0);
                 ClassInfo ci = ClassInfo.getClassInfo(classInfoAddress);
                 ObjectType<T> type = Types.typeForName(ci.className());
                 Constructor ctor = ci.getReconstructor();
-                box.set((T)ctor.newInstance(new ObjectPointer<T>(type, region)));
-                if (!forAdmin) box.get().initForGC();
+                ans = (T)ctor.newInstance(new ObjectPointer<T>(type, region));
+                if (!forAdmin) ans.initForGC();
             }
             catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                 if (e instanceof InvocationTargetException && e.getCause() instanceof TransactionRetryException){
                     throw new TransactionRetryException();
                 }
-                else throw new RuntimeException("failed to call reflected constructor"+e);
+                else throw new RuntimeException("failed to call reflected constructor: " + e.getCause());
             }
-            if (!forAdmin) Transaction.addNewObject(box.get());
-        });
-        return box.get();
+            if (!forAdmin) Transaction.addNewObject(ans);
+            return ans;
+        }, cacheLock);
+        return obj;
     }
 
     public static void remove(long address) {
@@ -216,9 +201,14 @@ public class ObjectCache {
         ((XRoot)(heap.getRoot())).deregisterObject(addr);
     }
 
+    public static void uncommittedConstruction(AnyPersistent obj) {
+        uncommittedConstructions.add(obj.getPointer().addr());
+        // trace(true, obj.getPointer().addr(), "added uncommitedConstruction");
+    }
+
     public static void committedConstruction(AnyPersistent obj) {
         // trace(obj.getPointer().addr(), "committedConstruction called");
-        new PRef<AnyPersistent>(obj);
+        uncommittedConstructions.remove(obj.getPointer().addr());
     }
 
     static class Address {

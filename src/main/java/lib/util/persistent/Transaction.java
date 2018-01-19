@@ -29,6 +29,7 @@ import java.util.concurrent.Future;
 import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.function.Supplier;
 import static lib.util.persistent.Trace.*;
 
 public final class Transaction {
@@ -72,8 +73,9 @@ public final class Transaction {
         threadsTransaction.set(transaction);
     }
 
-    static void run(PersistentMemoryProvider provider, Runnable update, Runnable onCommit, Runnable onAbort, AnyPersistent toLock1, AnyPersistent toLock2) {
+    static <T> T run(PersistentMemoryProvider provider, Supplier<T> body, Runnable onCommit, Runnable onAbort, AnyPersistent toLock1, AnyPersistent toLock2) {
         Stats.current.transactions.runCalls++;
+        T ans = null;
         boolean success = false;
         Transaction transaction = getTransaction();
         if (transaction != null && transaction.state == Transaction.State.Active) {
@@ -81,7 +83,7 @@ public final class Transaction {
             if (toLock2 != null) transaction.aquireLock(false, toLock2);
             if (onCommit != null) transaction.addCommitHandler(onCommit);
             if (onAbort != null) transaction.addAbortHandler(onAbort);    
-            update.run();
+            ans = body.get();
         }
         else {
             int attempts = 1;
@@ -104,7 +106,7 @@ public final class Transaction {
                     if (onCommit != null) transaction.addCommitHandler(onCommit);
                     if (onAbort != null) transaction.addAbortHandler(onAbort);    
                     transaction.start(block, toLock1, toLock2);
-                    transaction.update(update);
+                    ans = body.get();
                     success = true;
                 }
                 catch (Throwable e) {
@@ -149,42 +151,46 @@ public final class Transaction {
                 }
             }
         }
+        return ans;
     }
 
-    public static void run(PersistentMemoryProvider provider, Runnable update) {
-        run(provider, update, null, null, null, null);
+    public static void run(PersistentMemoryProvider provider, Runnable body) {
+        run(provider, () -> {body.run(); return (Void)null;}, null, null, null, null);
     }
 
-    public static void run(Runnable update) {
-        run(PersistentMemoryProvider.getDefaultProvider(), update, null, null, null, null);
+    public static void run(Runnable body) {
+        run(PersistentMemoryProvider.getDefaultProvider(), () -> {body.run(); return (Void)null;}, null, null, null, null);
     }
 
-    public static void run(Runnable update, AnyPersistent toLock) {
-        run(PersistentMemoryProvider.getDefaultProvider(), update, null, null, toLock, null);
+    public static void run(Runnable body, AnyPersistent toLock) {
+        run(PersistentMemoryProvider.getDefaultProvider(), () -> {body.run(); return (Void)null;}, null, null, toLock, null);
     }
 
-    public static void run(Runnable update, AnyPersistent toLock1, AnyPersistent toLock2) {
-        run(PersistentMemoryProvider.getDefaultProvider(), update, null, null, toLock1, toLock2);
+    public static void run(Runnable body, AnyPersistent toLock1, AnyPersistent toLock2) {
+        run(PersistentMemoryProvider.getDefaultProvider(), () -> {body.run(); return (Void)null;}, null, null, toLock1, toLock2);
     }
 
-    // public static void run(Runnable update, AnyPersistent... toLock) {
-    //     System.out.println("DING DING");
-    //     run(PersistentMemoryProvider.getDefaultProvider(), update, null, null, toLock[0], toLock[1]);
-    // }
-
-    public static void run(Runnable update, Runnable onCommit) {
-        run(PersistentMemoryProvider.getDefaultProvider(), update, onCommit, null, null, null);
+    public static void run(Runnable body, Runnable onCommit) {
+        run(PersistentMemoryProvider.getDefaultProvider(), () -> {body.run(); return (Void)null;}, onCommit, null, null, null);
     }
 
-    public static void run(Runnable update, Runnable onCommit, Runnable onAbort) {
-        run(PersistentMemoryProvider.getDefaultProvider(), update, onCommit, onAbort, null, null);
+    public static void run(Runnable body, Runnable onCommit, Runnable onAbort) {
+        run(PersistentMemoryProvider.getDefaultProvider(), () -> {body.run(); return (Void)null;}, onCommit, onAbort, null, null);
     }
 
-    public static void runOuter(Runnable update) {
+    public static <T> T run(Supplier<T> body) {
+        return run(PersistentMemoryProvider.getDefaultProvider(), body, null, null, null, null);
+    }
+
+    public static <T> T run(Supplier<T> body, AnyPersistent toLock) {
+        return run(PersistentMemoryProvider.getDefaultProvider(), body, null, null, toLock, null);
+    }
+
+    public static void runOuter(Runnable body) {
         Box<Throwable> errorBox = new Box<>();
         Future<?> outer = outerThreadPool.submit(() -> {
-            try {Transaction.run(update);}
-            catch (Throwable error) { errorBox.set(error);}
+            try {Transaction.run(body);}
+            catch (Throwable error) {errorBox.set(error);}
         });
 
         try {outer.get(); }
@@ -204,6 +210,7 @@ public final class Transaction {
 
     static void addNewObject(AnyPersistent obj) {
         getTransaction().constructions.add(obj);
+        ObjectCache.uncommittedConstruction(obj);
     }
 
     void addLockedObject(AnyPersistent obj) {
@@ -247,10 +254,6 @@ public final class Transaction {
     }
 
     private void clearAbortHandlers() {if (abortHandlers != null) abortHandlers.clear();}
-
-    private void update(Runnable update) {
-        update.run();
-    }
 
     private void start(boolean block, AnyPersistent toLock1, AnyPersistent toLock2) {
         if (toLock1 != null) aquireLock(block, toLock1);

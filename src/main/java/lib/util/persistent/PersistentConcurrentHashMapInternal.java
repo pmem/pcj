@@ -19,9 +19,8 @@
  * Boston, MA  02110-1301, USA.
  */
 
-package lib.xpersistent;
+package lib.util.persistent;
 
-import lib.util.persistent.*;
 import lib.util.persistent.types.*;
 import lib.util.persistent.spi.*;
 import java.util.Iterator;
@@ -34,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
-
+import lib.xpersistent.UncheckedPersistentMemoryRegion;
 // A long-to-long concurrent hashmap; no negative values are allowed.
 
 public class PersistentConcurrentHashMapInternal {
@@ -56,7 +55,7 @@ public class PersistentConcurrentHashMapInternal {
     static final int m = 5;
     static final int n = 0xe6546b64;
 
-    private static final XHeap heap = (XHeap)(PersistentMemoryProvider.getDefaultProvider().getHeap());
+    private static final PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
     //private int size;
 
     private NodeLL head;
@@ -139,24 +138,16 @@ public class PersistentConcurrentHashMapInternal {
         public boolean isSentinel() { return ((this.getHash() & 0x1) == 0); }
     }
 
-    static final class Lock extends PersistentObject {
-        static final ObjectType<Lock> TYPE = new ObjectType<>(Lock.class);
-        Lock() { super(TYPE); }
-        Lock(ObjectPointer<Lock> p) { super(p); }
-    }
-
     final class Slot {
         NodeLL sentinel;
-        Lock lock;
+        AnyPersistent lock;
 
         Slot() {
             this.sentinel = null;
-
-            MemoryRegion objReg = new VolatileMemoryRegion(Lock.TYPE.getAllocationSize());
-            this.lock = PersistentObject.fromPointer(new ObjectPointer<Lock>(Lock.TYPE, objReg));
+            this.lock = AnyPersistent.asLock();
         }
 
-        Lock getLock() {
+        AnyPersistent getLock() {
             return this.lock;
         }
 

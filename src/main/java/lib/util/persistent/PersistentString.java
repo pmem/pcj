@@ -33,6 +33,13 @@ public final class PersistentString extends PersistentImmutableObject implements
     private static final ObjectType<PersistentString> TYPE = ObjectType.fromFields(PersistentString.class, LENGTH, BYTES);
     private final String s;
 
+    public static PersistentString make(String s) {
+        return Transaction.run(() -> {
+            return new PersistentString(s);
+        });
+    }
+
+    // TODO: make constructors private
     public PersistentString(String s) {
         super(TYPE, (PersistentImmutableObject obj) -> {
             obj.initIntField(LENGTH, s.length());
@@ -99,6 +106,6 @@ public final class PersistentString extends PersistentImmutableObject implements
 
     @Override
     public boolean equatesWith(String that) {
-        return s == that;
+        return s.equals(that);
     }
 }

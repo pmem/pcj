@@ -53,6 +53,7 @@ import static lib.util.persistent.Util.*;
 public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements ConcurrentNavigableMap<K,V>, PersistentSortedMap<K,V> {
     private KeySet<K> keySet;
     private EntrySet<K,V> entrySet;
+    private CachedEntrySet<K,V> cachedEntrySet;
     private Values<V> values;
     private ConcurrentNavigableMap<K,V> descendingMap;
 
@@ -96,6 +97,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     private void initialize() {
         keySet = null;
         entrySet = null;
+        cachedEntrySet = null;
         values = null;
         descendingMap = null;
         head(new HeadIndex<K,V>(new Node<K,V>(null, baseHeader(), null),null, null, 1));
@@ -498,6 +500,12 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                  break outer;
              }
         }
+        // Invalidate CachedEntrySet
+        if(cachedEntrySet != null)  {
+            Util.synchronizedBlock(this, ()-> {
+                cachedEntrySet=null;
+            });
+        }
 
         //int rnd = ThreadLocalRandom.current().nextSecondarySeed();
         int rnd = new Random().nextInt();
@@ -622,6 +630,12 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                         tryReduceLevel();
                 }
                 @SuppressWarnings("unchecked") V vv = (V)v;
+                // Invalidate CachedEntrySet
+                if(cachedEntrySet != null)  {
+                    Util.synchronizedBlock(this, ()-> {
+                        cachedEntrySet=null;
+                    });
+                }
                 return vv;
             }
         }
@@ -1168,6 +1182,14 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         return (es != null) ? es : (entrySet = new EntrySet<K,V>(this));
     }
 
+    @SuppressWarnings("unchecked")
+    public Set<Map.Entry<K,V>> cachedEntrySet() {
+        return Util.synchronizedBlock(this, ()-> {
+            CachedEntrySet<K,V> ces = cachedEntrySet;
+            return (ces != null) ? ces : (cachedEntrySet = new CachedEntrySet<K,V>(this));
+        });
+    }
+
     public ConcurrentNavigableMap<K,V> descendingMap() {
         ConcurrentNavigableMap<K,V> dm = descendingMap;
         return (dm != null) ? dm : (descendingMap = new SubMap<K,V>
@@ -1462,6 +1484,26 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         }
     }
 
+    final class CachedEntryIterator implements Iterator<Map.Entry<K,V>> {
+        int cursor;
+        int lastRet = -1;
+
+        public boolean hasNext() {
+            return cursor != cachedEntrySet.size();
+        }
+
+        @SuppressWarnings("unchecked")
+        public Map.Entry<K,V> next() {
+            int i = cursor;
+            cursor = i + 1;
+            return (Map.Entry<K,V>) cachedEntrySet.cache.get(lastRet = i);
+        }
+
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
+    }
+
     Iterator<K> keyIterator() {
         return new KeyIterator();
     }
@@ -1474,7 +1516,12 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         return new EntryIterator();
     }
 
-    /* ---------------- View Classes -------------- */
+    Iterator<Map.Entry<K,V>> cachedEntryIterator() {
+        return new CachedEntryIterator();
+    }
+
+
+        /* ---------------- View Classes -------------- */
 
     static final <E> List<E> toList(Collection<E> c) {
         // Using size() here would be a pessimization.
@@ -1610,7 +1657,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         }
         @SuppressWarnings("unchecked")
         public Iterator<Map.Entry<K1,V1>> iterator() {
-            if (m instanceof PersistentSkipListMap)
+            if (m instanceof PersistentSkipListMap) 
                 return ((PersistentSkipListMap<K1,V1>)m).entryIterator();
             else
                 return ((SubMap<K1,V1>)m).entryIterator();
@@ -1664,6 +1711,66 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                     ((SubMap<K1,V1>)m).entryIterator();
         }
     }
+
+    static final class CachedEntrySet<K1 extends AnyPersistent,V1 extends AnyPersistent> extends AbstractSet<Map.Entry<K1,V1>> {
+        final ConcurrentNavigableMap<K1, V1> m;
+        private ArrayList<Map.Entry<K1,V1>> cache;
+        CachedEntrySet(ConcurrentNavigableMap<K1, V1> map) {
+            m = map;
+            cache = new ArrayList<Map.Entry<K1,V1>>();
+                for (Map.Entry<K1,V1> entry : m.entrySet()) {
+                    cache.add(entry);
+                }
+        }
+
+        @SuppressWarnings("unchecked")
+        public Iterator<Map.Entry<K1,V1>> iterator() {
+            return ((PersistentSkipListMap<K1,V1>)m).cachedEntryIterator();
+        }
+        
+        public boolean contains(Object o) {
+            if (!(o instanceof Map.Entry))
+                return false;
+            Map.Entry<?,?> e = (Map.Entry<?,?>)o;
+            V1 v = m.get(e.getKey());
+            return v != null && v.equals(e.getValue());
+        }
+        public boolean remove(Object o) {
+            if (!(o instanceof Map.Entry))
+                return false;
+            Map.Entry<?,?> e = (Map.Entry<?,?>)o;
+            return m.remove(e.getKey(),
+                            e.getValue());
+        }
+        public boolean isEmpty() {
+            return m.isEmpty();
+        }
+        public int size() {
+            return cache.size();
+        }
+        public void clear() {
+            m.clear();
+        }
+        public boolean equals(Object o) {
+            if (o == this)
+                return true;
+            if (!(o instanceof Set))
+                return false;
+            return false;
+        }
+        /*public Object[] toArray()     { return toList(this).toArray();  }
+        public <T> T[] toArray(T[] a) { return toList(this).toArray(a); }
+        @SuppressWarnings("unchecked")
+        public Spliterator<Map.Entry<K1,V1>> spliterator() {
+            if (m instanceof PersistentSkipListMap)
+                return ((PersistentSkipListMap<K1,V1>)m).entrySpliterator();
+            else
+                return (Spliterator<Map.Entry<K1,V1>>)
+                    ((SubMap<K1,V1>)m).entryIterator();
+        }*/
+    }
+
+
 
     static final class SubMap<K extends AnyPersistent,V extends AnyPersistent> extends AbstractMap<K,V>
         implements ConcurrentNavigableMap<K,V>, Cloneable {
