@@ -22,10 +22,10 @@
 package lib.llpl;
 
 public class TransactionalMemoryRegion extends AbstractMemoryRegion<Transactional> {
-    static final long METADATA_SIZE = 8;
+    private static final long METADATA_SIZE = 8;
 
-    TransactionalMemoryRegion(long x, boolean isAddr) {
-        super(x, isAddr);
+    TransactionalMemoryRegion(Heap h, long x, boolean isAddr) {
+        super(h, x, isAddr);
     }
 
     @Override
@@ -88,8 +88,8 @@ public class TransactionalMemoryRegion extends AbstractMemoryRegion<Transactiona
     @Override
     public long baseOffset() { return METADATA_SIZE; }
 
-    protected synchronized native int nativePutBits(long regionOffset, long offset, long value, int size);
-    private synchronized native int nativeMemoryRegionMemcpyTransactional(long srcRegion, long srcOffset, long dstRegion, long dstOffset, long length);
-    private synchronized native int nativeFromByteArrayMemcpyTransactional(byte[] srcArray, int srcOffset, long dstRegion, long dstOffset, int length);
-    private synchronized native int nativeMemoryRegionMemsetTransactional(long region, long offset, int val, long length);
+    private native int nativePutBits(long regionOffset, long offset, long value, int size);
+    private native int nativeMemoryRegionMemcpyTransactional(long srcRegion, long srcOffset, long dstRegion, long dstOffset, long length);
+    private native int nativeFromByteArrayMemcpyTransactional(byte[] srcArray, int srcOffset, long dstRegion, long dstOffset, int length);
+    private native int nativeMemoryRegionMemsetTransactional(long region, long offset, int val, long length);
 }

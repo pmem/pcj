@@ -72,22 +72,22 @@ public class Heap {
     @SuppressWarnings("unchecked")
     public <K extends MemoryRegion.Kind> MemoryRegion<K> allocateMemoryRegion(Class<K> kind, long size) {
         if (kind == Raw.class)
-            return (MemoryRegion<K>)new RawMemoryRegion(size, false);
+            return (MemoryRegion<K>)new RawMemoryRegion(this, size, false);
         else if (kind == Flushable.class)
-            return (MemoryRegion<K>)new FlushableMemoryRegion(size, false);
+            return (MemoryRegion<K>)new FlushableMemoryRegion(this, size, false);
         else if (kind == Transactional.class)
-            return (MemoryRegion<K>)new TransactionalMemoryRegion(size, false);
+            return (MemoryRegion<K>)new TransactionalMemoryRegion(this, size, false);
         else throw new IllegalArgumentException("Kind must be one of Raw, Flushable, or Transactional!");
     }
 
     @SuppressWarnings("unchecked")
     public <K extends MemoryRegion.Kind> MemoryRegion<K> memoryRegionFromAddress(Class<K> kind, long addr) {
         if (kind == Raw.class)
-            return (MemoryRegion<K>)new RawMemoryRegion(addr, true);
+            return (MemoryRegion<K>)new RawMemoryRegion(this, addr, true);
         else if (kind == Flushable.class)
-            return (MemoryRegion<K>)new FlushableMemoryRegion(addr, true);
+            return (MemoryRegion<K>)new FlushableMemoryRegion(this, addr, true);
         else if (kind == Transactional.class)
-            return (MemoryRegion<K>)new TransactionalMemoryRegion(addr, true);
+            return (MemoryRegion<K>)new TransactionalMemoryRegion(this, addr, true);
         else throw new IllegalArgumentException("Kind must be one of Raw, Flushable, or Transactional!");
     }
 
@@ -147,10 +147,10 @@ public class Heap {
         region.setMemory(val, offset, length);
     }
 
+    synchronized native long nativeAllocate(long size);
     private synchronized native void nativeOpenHeap(String path, long size);
     private synchronized native int nativeSetRoot(long val);
     private synchronized native int nativeRealloc(long offset, long newSize);
+    private synchronized native int nativeFree(long addr);
     private native long nativeGetRoot();
-    private native int nativeFree(long addr);
-    private native void nativeFlush(long addr, long size);
 }

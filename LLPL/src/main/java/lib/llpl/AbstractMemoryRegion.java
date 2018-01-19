@@ -22,7 +22,7 @@
 package lib.llpl;
 
 abstract class AbstractMemoryRegion<K extends MemoryRegion.Kind> implements MemoryRegion<K>, Comparable<AbstractMemoryRegion<K>> {
-    static final long SIZE_OFFSET = 0;
+    protected static final long SIZE_OFFSET = 0;
 
     protected long size;
     protected long addr;
@@ -32,12 +32,12 @@ abstract class AbstractMemoryRegion<K extends MemoryRegion.Kind> implements Memo
         System.loadLibrary("llpl");
     }
 
-    AbstractMemoryRegion(long x, boolean isAddr) {
+    AbstractMemoryRegion(Heap h, long x, boolean isAddr) {
         if (isAddr) {
             this.addr = x;
             this.size = nativeGetBits(this.addr, SIZE_OFFSET, Long.BYTES);
         } else {
-            this.addr = nativeGetMemoryRegion(x + baseOffset());
+            this.addr = h.nativeAllocate(x + baseOffset());
             this.size = x;
             if (this.addr == 0) throw new PersistenceException("Failed to allocate MemoryRegion of size " + x + "!");
             if (nativeSetSize(this.addr, SIZE_OFFSET, this.size) != 0) throw new PersistenceException("Failed to allocate MemoryRegion of size " + x + "!");
@@ -67,7 +67,6 @@ abstract class AbstractMemoryRegion<K extends MemoryRegion.Kind> implements Memo
     public void checkBounds(long offset) throws IndexOutOfBoundsException {
         if (offset < 0 || offset >= this.size) throw new IndexOutOfBoundsException();
     }
-
 
     public long getBits(long offset, long size, boolean isSigned) {
         if (size < 0 || size > Integer.MAX_VALUE) {
@@ -164,7 +163,6 @@ abstract class AbstractMemoryRegion<K extends MemoryRegion.Kind> implements Memo
         else return 0;
     }
 
-    private native long nativeGetMemoryRegion(long size);
     protected native long nativeGetBits(long regionOffset, long offset, int size);
     protected native long nativeGetDirectAddress(long regionOffset);
     protected native int nativeMemoryRegionMemcpyRaw(long srcRegion, long srcOffset, long dstRegion, long dstOffset, long length);

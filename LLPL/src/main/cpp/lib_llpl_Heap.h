@@ -9,6 +9,14 @@ extern "C" {
 #endif
 /*
  * Class:     lib_llpl_Heap
+ * Method:    nativeGetMemoryRegion
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_lib_llpl_Heap_nativeAllocate
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     lib_llpl_Heap
  * Method:    nativeOpenHeap
  * Signature: (Ljava/lang/String;J)V
  */
@@ -46,14 +54,6 @@ JNIEXPORT jlong JNICALL Java_lib_llpl_Heap_nativeGetRoot
  */
 JNIEXPORT jint JNICALL Java_lib_llpl_Heap_nativeFree
   (JNIEnv *, jobject, jlong);
-
-/*
- * Class:     lib_llpl_Heap
- * Method:    nativeFlush
- * Signature: (JJ)V
- */
-JNIEXPORT void JNICALL Java_lib_llpl_Heap_nativeFlush
-  (JNIEnv *, jobject, jlong, jlong);
 
 #ifdef __cplusplus
 }

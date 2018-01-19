@@ -29,17 +29,17 @@ import javax.print.DocFlavor.BYTE_ARRAY;
 import java.util.Iterator;
 
 class FlushableMemoryRegion extends AbstractMemoryRegion<Flushable> {
-    static final long FLUSH_FLAG_OFFSET = 8;    // store the flushed flag as an int at the 8th offset, real data starts at offset 12
-    static final long FLUSH_FLAG_LENGTH = 4;    // flushed flag is an int
-    static final long METADATA_SIZE = 12;
-    static final int FLUSHED = 0;               // need to maintain 0 for default (flushed)
-    static final int DIRTY = 1;                 // so "flushed" flag is really "dirty" flag
-    static final int FLUSH_GRANULARITY = 64;    // flushing is aligned to 64 byte cache lines
+    private static final long FLUSH_FLAG_OFFSET = 8;    // store the flushed flag as an int at the 8th offset, real data starts at offset 12
+    private static final long FLUSH_FLAG_LENGTH = 4;    // flushed flag is an int
+    private static final long METADATA_SIZE = 12;
+    private static final int FLUSHED = 0;               // need to maintain 0 for default (flushed)
+    private static final int DIRTY = 1;                 // so "flushed" flag is really "dirty" flag
+    private static final int FLUSH_GRANULARITY = 64;    // flushing is aligned to 64 byte cache lines
 
     private ConcurrentHashMap<Long, Long> addressRanges;
 
-    FlushableMemoryRegion(long x, boolean isAddr) {
-        super(x, isAddr);
+    FlushableMemoryRegion(Heap h, long x, boolean isAddr) {
+        super(h, x, isAddr);
         this.addressRanges = new ConcurrentHashMap<Long, Long>();
     }
 

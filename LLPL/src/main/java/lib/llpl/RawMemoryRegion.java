@@ -22,10 +22,10 @@
 package lib.llpl;
 
 class RawMemoryRegion extends AbstractMemoryRegion<Raw> {
-    static final long METADATA_SIZE = 8;
+    private static final long METADATA_SIZE = 8;
 
-    RawMemoryRegion(long x, boolean isAddr) {
-        super(x, isAddr);
+    RawMemoryRegion(Heap h, long x, boolean isAddr) {
+        super(h, x, isAddr);
     }
 
     @Override

@@ -28,14 +28,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/*
- * Class:     lib_llpl_AbstractMemoryRegion
- * Method:    nativeGetMemoryRegion
- * Signature: (J)J
- */
-JNIEXPORT jlong JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeGetMemoryRegion
-  (JNIEnv *, jobject, jlong);
-
 
 /*
  * Class:     lib_llpl_AbstractMemoryRegion

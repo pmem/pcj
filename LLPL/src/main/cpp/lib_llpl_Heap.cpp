@@ -22,6 +22,20 @@
 #include "lib_llpl_Heap.h"
 #include "persistent_heap.h"
 
+JNIEXPORT jlong JNICALL Java_lib_llpl_Heap_nativeAllocate
+  (JNIEnv *env, jobject obj, jlong size)
+{
+    TOID(char) bytes = TOID_NULL(char);
+
+    jlong ret = 0;
+    TX_BEGIN(pool) {
+        bytes = TX_ZALLOC(char, (size_t)size);
+        ret = bytes.oid.off;
+    } TX_END
+
+    return ret;
+}
+
 JNIEXPORT void JNICALL Java_lib_llpl_Heap_nativeOpenHeap
   (JNIEnv *env, jobject obj, jstring path, jlong size)
 {
@@ -82,10 +96,4 @@ JNIEXPORT jint JNICALL Java_lib_llpl_Heap_nativeFree
     } TX_END
 
     return ret;
-}
-
-JNIEXPORT void JNICALL Java_lib_llpl_Heap_nativeFlush
-  (JNIEnv *env, jobject obj, jlong addr, jlong size)
-{
-    pmemobj_persist(pool, (void*)((uint64_t)addr), (size_t)size);
 }

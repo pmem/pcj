@@ -22,20 +22,6 @@
 #include "lib_llpl_AbstractMemoryRegion.h"
 #include "persistent_heap.h"
 
-JNIEXPORT jlong JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeGetMemoryRegion
-  (JNIEnv *env, jobject obj, jlong size)
-{
-    TOID(char) bytes = TOID_NULL(char);
-
-    jlong ret = 0;
-    TX_BEGIN(pool) {
-        bytes = TX_ZALLOC(char, (size_t)size);
-        ret = bytes.oid.off;
-    } TX_END
-
-    return ret;
-}
-
 JNIEXPORT jlong JNICALL Java_lib_llpl_AbstractMemoryRegion_nativeGetBits
   (JNIEnv *env, jobject obj, jlong region_offset, jlong offset, jint size)
 {
