@@ -31,8 +31,8 @@ life of a Java VM instance. Persistent classes include:
 14. AtomicReference
 15. ByteBuffer
 
-This Java library uses the libpmemobj library from the Non-Volatile Memory Library (NVML). 
-For more information on NVML, please visit http://pmem.io and https://github.com/pmem/nvml.
+This Java library uses the libpmemobj library from the Persistent Memory Development Kit (PMDK). 
+For more information on PMDK, please visit http://pmem.io and https://github.com/pmem/pmdk.
 
 For a brief introduction on use of the library, please see [Introduction.txt](Introduction.txt).
 
@@ -42,7 +42,7 @@ For a brief introduction on use of the library, please see [Introduction.txt](In
 The following are the prerequisites for building this Java library:
 
 1. Linux operating system (tested on CentOS 7.2 and Ubuntu 16.04)
-2. Non-Volatile Memory Library (NVML)
+2. Persistent Memory Development Kit (PMDK)
 3. Java 8 or above
 4. Build tools - g++ compiler and make
 
@@ -99,7 +99,6 @@ In the meantime, we would love to hear your comments and suggestions via the con
 
 ## Contacts ##
 For more information on this library, contact Lei Fan (lei.t.fan@intel.com), Steve Dohrmann
-(steve.dohrmann@intel.com), Olasoji Denloye (olasoji.denloye@intel.com), or Vamsi Parasa
-(srinivas.vamsi.parasa@intel.com).
+(steve.dohrmann@intel.com), or Olasoji Denloye (olasoji.denloye@intel.com).
 
 \* Other names and brands may be claimed as the property of others.
