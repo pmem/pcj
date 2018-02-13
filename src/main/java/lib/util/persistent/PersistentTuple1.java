@@ -49,11 +49,11 @@ public class PersistentTuple1<T1 extends AnyPersistent> extends PersistentObject
     protected PersistentTuple1(ObjectPointer<? extends PersistentTuple1> p) {super(p);}
 
     @SuppressWarnings("unchecked")
-        public synchronized T1 _1() {
+        public T1 _1() {
             return (T1)getObjectField(FIELD1);
         }
 
-    public synchronized void _1(T1 t1) {
+    public void _1(T1 t1) {
             setObjectField(FIELD1, t1);
         }
 

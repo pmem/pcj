@@ -41,11 +41,11 @@ public final class PersistentFloatArray extends AbstractPersistentMutableArray {
         super(pointer);
     }
 
-    public synchronized  float get(int index) {
+    public float get(int index) {
         return getFloatElement(index);
     }
 
-    public synchronized void set(int index, float value) {
+    public void set(int index, float value) {
         setFloatElement(index, value);
     }
 

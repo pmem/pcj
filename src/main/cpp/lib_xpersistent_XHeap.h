@@ -46,18 +46,18 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeCloseHeap
 
 /*
  * Class:     lib_xpersistent_XHeap
- * Method:    nativeGetMemoryRegion
+ * Method:    nativeAllocate
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeGetMemoryRegion
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeAllocate
   (JNIEnv *, jobject, jlong);
 
 /*
  * Class:     lib_xpersistent_XHeap
  * Method:    nativeFree
- * Signature: (J)V
+ * Signature: (J)I
  */
-JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeFree
+JNIEXPORT jint JNICALL Java_lib_xpersistent_XHeap_nativeFree
   (JNIEnv *, jobject, jlong);
 
 /*

@@ -37,10 +37,15 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XTransaction_nativeStartTransaction
     }
 }
 
-JNIEXPORT void JNICALL Java_lib_xpersistent_XTransaction_nativeEndTransaction
+JNIEXPORT void JNICALL Java_lib_xpersistent_XTransaction_nativeCommitTransaction
   (JNIEnv *env, jobject obj)
 {
     pmemobj_tx_commit();
+}
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_XTransaction_nativeEndTransaction
+  (JNIEnv *env, jobject obj)
+{
     pmemobj_tx_end();
 }
 
@@ -48,5 +53,4 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XTransaction_nativeAbortTransaction
   (JNIEnv *env, jobject obj)
 {
     pmemobj_tx_abort(0);
-    pmemobj_tx_end();
 }

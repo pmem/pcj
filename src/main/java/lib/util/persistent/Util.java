@@ -117,12 +117,12 @@ public class Util {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            obj.monitorEnter();
+            obj.lock();
             try {ans = func.get();}
-            finally {obj.monitorExit();}
+            finally {obj.unlock();}
         }
         else {
-            boolean success = obj.monitorEnterTimeout();
+            boolean success = obj.tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(obj);
                 ans = func.get();
@@ -141,12 +141,12 @@ public class Util {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            obj.monitorEnter();
+            obj.lock();
             try {ans = func.getAsByte();}
-            finally {obj.monitorExit();}
+            finally {obj.unlock();}
         }
         else {
-            boolean success = obj.monitorEnterTimeout();
+            boolean success = obj.tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(obj);
                 ans = func.getAsByte();
@@ -165,12 +165,12 @@ public class Util {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            obj.monitorEnter();
+            obj.lock();
             try {ans = func.getAsShort();}
-            finally {obj.monitorExit();}
+            finally {obj.unlock();}
         }
         else {
-            boolean success = obj.monitorEnterTimeout();
+            boolean success = obj.tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(obj);
                 ans = func.getAsShort();
@@ -189,12 +189,12 @@ public class Util {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            obj.monitorEnter();
+            obj.lock();
             try {ans = func.getAsInt();}
-            finally {obj.monitorExit();}
+            finally {obj.unlock();}
         }
         else {
-            boolean success = obj.monitorEnterTimeout();
+            boolean success = obj.tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(obj);
                 ans = func.getAsInt();
@@ -213,12 +213,12 @@ public class Util {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            obj.monitorEnter();
+            obj.lock();
             try {ans = func.getAsLong();}
-            finally {obj.monitorExit();}
+            finally {obj.unlock();}
         }
         else {
-            boolean success = obj.monitorEnterTimeout();
+            boolean success = obj.tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(obj);
                 ans = func.getAsLong();
@@ -237,12 +237,12 @@ public class Util {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            obj.monitorEnter();
+            obj.lock();
             try {ans = func.getAsBoolean();}
-            finally {obj.monitorExit();}
+            finally {obj.unlock();}
         }
         else {
-            boolean success = obj.monitorEnterTimeout();
+            boolean success = obj.tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(obj);
                 ans = func.getAsBoolean();
@@ -259,12 +259,12 @@ public class Util {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            obj.monitorEnter();
+            obj.lock();
             try {func.run();}
-            finally {obj.monitorExit();}
+            finally {obj.unlock();}
         }
         else {
-            boolean success = obj.monitorEnterTimeout();
+            boolean success = obj.tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(obj);
                 func.run();

@@ -41,11 +41,11 @@ public final class PersistentDoubleArray extends AbstractPersistentMutableArray 
         super(pointer);
     }
 
-    public synchronized  double get(int index) {
+    public double get(int index) {
         return getDoubleElement(index);
     }
 
-    public synchronized void set(int index, double value) {
+    public void set(int index, double value) {
         setDoubleElement(index, value);
     }
 

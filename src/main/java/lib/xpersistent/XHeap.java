@@ -29,6 +29,7 @@ import lib.util.persistent.Root;
 import lib.util.persistent.CycleCollector;
 import lib.util.persistent.Transaction;
 import lib.util.persistent.ObjectDirectory;
+import lib.util.persistent.Util;
 
 import java.util.Properties;
 import java.io.FileInputStream;
@@ -92,21 +93,25 @@ public class XHeap implements PersistentHeap {
     }
 
     public synchronized void close() {
-        if (!open) throw new PersistenceException("Heap not open!");
+        if (!open) return;
         this.open = false;
         nativeCloseHeap();
     }
 
     public MemoryRegion allocateRegion(long size) {
         if (!open) open();
-        long addr = nativeGetMemoryRegion(size);
-        MemoryRegion reg = new UncheckedPersistentMemoryRegion(addr);
-        return reg;
+        return Transaction.run(() -> {
+            long addr = nativeAllocate(size);
+            if (addr == -1) throw new PersistenceException("Failed to allocate region of size " + size + "!");
+            return new UncheckedPersistentMemoryRegion(addr);
+        });
     }
 
     public void freeRegion(MemoryRegion region) {
         if (!open) open();
-        nativeFree(region.addr());
+        Transaction.run(() -> {
+            if (nativeFree(region.addr()) != 0) throw new PersistenceException("Failed to free region!");
+        });
     }
 
     public synchronized Root getRoot() {
@@ -132,7 +137,7 @@ public class XHeap implements PersistentHeap {
 
     public void memcpy(MemoryRegion srcRegion, long srcOffset, byte[] destArray, int destOffset, int length) {
         long srcAddress = ((UncheckedPersistentMemoryRegion)srcRegion).directAddress + srcOffset;
-        long destAddressOffset = UNSAFE.ARRAY_BYTE_BASE_OFFSET + UNSAFE.ARRAY_BYTE_INDEX_SCALE * destOffset;      
+        long destAddressOffset = UNSAFE.ARRAY_BYTE_BASE_OFFSET + UNSAFE.ARRAY_BYTE_INDEX_SCALE * destOffset;
         UNSAFE.copyMemory(null, srcAddress, destArray, destAddressOffset, length);
     }
 
@@ -162,8 +167,8 @@ public class XHeap implements PersistentHeap {
 
     private synchronized native void nativeOpenHeap(String path, long size);
     private synchronized native void nativeCloseHeap();
-    private native long nativeGetMemoryRegion(long size);
-    private native void nativeFree(long addr);
+    private native long nativeAllocate(long size);
+    private native int nativeFree(long addr);
     private synchronized native void nativeMemoryRegionMemcpy(long srcRegion, long srcOffset, long destRegion, long destOffset, long length);
     private synchronized native void nativeToByteArrayMemcpy(long srcRegion, long srcOffset, byte[] destArray, int destOffset, int length);
     private synchronized native void nativeFromByteArrayMemcpy(byte[] srcArray, int srcOffset, long destRegion, long destOffset, int length);

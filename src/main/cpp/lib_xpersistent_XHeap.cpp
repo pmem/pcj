@@ -44,32 +44,36 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeCloseHeap
     close_pool();
 }
 
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeGetMemoryRegion
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeAllocate
   (JNIEnv *env, jobject obj, jlong size)
 {
     TOID(char) bytes = TOID_NULL(char);
 
-    TX_BEGIN(pool) {
+    //TX_BEGIN(pool) {
         bytes = TX_ZALLOC(char, size);
-    } TX_ONABORT {
+    /*} TX_ONABORT {
         throw_persistence_exception(env, "Failed to allocate MemoryRegion! ");
-    } TX_END
+    } TX_END*/
 
-    return bytes.oid.off;
+    // printf("error is %d\n", pmemobj_tx_errno());
+    // fflush(stdout);
+    if (pmemobj_tx_errno() == 0) return bytes.oid.off;
+    else return -1;
 }
 
-JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeFree
+JNIEXPORT jint JNICALL Java_lib_xpersistent_XHeap_nativeFree
   (JNIEnv *env, jobject obj, jlong region_offset)
 {
     PMEMoid oid = {get_uuid_lo(), (uint64_t)region_offset};
     TOID(char) bytes;
     TOID_ASSIGN(bytes, oid);
 
-    TX_BEGIN(pool) {
+    //TX_BEGIN(pool) {
         TX_FREE(bytes);
-    } TX_ONABORT {
+    /*} TX_ONABORT {
         throw_persistence_exception(env, "Failed to free! ");
-    } TX_END
+    } TX_END*/
+    return pmemobj_tx_errno() == 0 ? 0 : -1;
 }
 
 JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeMemoryRegionMemcpy

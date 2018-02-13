@@ -57,47 +57,47 @@ public class PersistentTuple5<T1 extends AnyPersistent, T2 extends AnyPersistent
     protected PersistentTuple5(ObjectPointer<? extends PersistentTuple5> p) {super(p);}
 
     @SuppressWarnings("unchecked")
-        public synchronized T1 _1() {
+        public T1 _1() {
             return (T1)getObjectField(FIELD1);
         }
 
     @SuppressWarnings("unchecked")
-        public synchronized T2 _2() {
+        public T2 _2() {
             return (T2)getObjectField(FIELD2);
         }
 
     @SuppressWarnings("unchecked")
-        public synchronized T3 _3() {
+        public T3 _3() {
             return (T3)getObjectField(FIELD3);
         }
 
     @SuppressWarnings("unchecked")
-        public synchronized T4 _4() {
+        public T4 _4() {
             return (T4)getObjectField(FIELD4);
         }
 
     @SuppressWarnings("unchecked")
-        public synchronized T5 _5() {
+        public T5 _5() {
             return (T5)getObjectField(FIELD5);
         }
 
-    public synchronized void _1(T1 t1) {
+    public void _1(T1 t1) {
             setObjectField(FIELD1, t1);
         }
 
-    public synchronized void _2(T2 t2) {
+    public void _2(T2 t2) {
             setObjectField(FIELD2, t2);
         }
 
-    public synchronized void _3(T3 t3) {
+    public void _3(T3 t3) {
             setObjectField(FIELD3, t3);
         }
 
-    public synchronized void _4(T4 t4) {
+    public void _4(T4 t4) {
             setObjectField(FIELD4, t4);
         }
 
-    public synchronized void _5(T5 t5) {
+    public void _5(T5 t5) {
             setObjectField(FIELD5, t5);
         }
 

@@ -41,11 +41,11 @@ public final class PersistentBooleanArray extends AbstractPersistentMutableArray
         super(pointer);
     }
 
-    public synchronized  boolean get(int index) {
+    public boolean get(int index) {
         return getBooleanElement(index);
     }
 
-    public synchronized void set(int index, boolean value) {
+    public void set(int index, boolean value) {
         setBooleanElement(index, value);
     }
 

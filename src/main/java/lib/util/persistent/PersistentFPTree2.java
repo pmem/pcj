@@ -830,6 +830,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 			this.keycount = 0;
 			this.children = new AtomicReferenceArray<>(MAX_INTERNAL_KEYS + 2);
 			this.nodeLock = new StampedLock();
+			if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(InternalNode.class.getName(), 0, 16 + 8 + 8 * 8 + 8 + 30, 1);   // uncomment for allocation stats
 		}
 
 		@SuppressWarnings("unchecked")

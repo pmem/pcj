@@ -105,17 +105,17 @@ public abstract class AnyPersistent {
     <T extends AnyPersistent> AnyPersistent(ObjectType<T> type, MemoryRegion region) {
         // trace(true, region.addr(), "creating object of type %s", type.getName());
         lock = new ReentrantLock(true);
-        Stats.current.memory.constructions++;
+        if (Config.ENABLE_MEMORY_STATS) Stats.current.memory.constructions++;
         this.pointer = new ObjectPointer<T>(type, region);
         List<PersistentType> ts = type.getTypes();
         Transaction.run(() -> {
-            for (int i = 0; i < ts.size(); i++) initializeField(offset(i), ts.get(i));
+            // for (int i = 0; i < ts.size(); i++) initializeField(offset(i), ts.get(i));  // not required, zeroing allocation used
             if (!(type instanceof ValueBasedObjectType)) {
                 ClassInfo ci = ClassInfo.getClassInfo(type.getName());
                 // System.out.format("ClassInfo for type name %s = %s\n", type.getName(), ci);
                 setClassInfo(ci);
-                setVersion(99);
-                initForGC();
+                setRefCount(1);
+                ObjectCache.registerObject(this);
                 if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
                     ((XRoot)(heap.getRoot())).addToAllObjects(getPointer().region().addr());
                 }
@@ -127,9 +127,8 @@ public abstract class AnyPersistent {
     protected AnyPersistent(ObjectPointer<? extends AnyPersistent> p) {
         // trace(true, p.region().addr(), "recreating object of type %s", p.type().getName());
         lock = new ReentrantLock(true);
-        Stats.current.memory.reconstructions++;
+        if (Config.ENABLE_MEMORY_STATS) Stats.current.memory.reconstructions++;
         this.pointer = p;
-        if (p != null) ObjectCache.uncommittedConstruction(this);
     }
 
     boolean isValueBased() {return getPointer().type().isValueBased();}
@@ -150,8 +149,9 @@ public abstract class AnyPersistent {
             obj = (T)p.type().getReconstructor().newInstance(p);
         }
         catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-            throw new RuntimeException("Exception in reconstructor: " + e.getMessage());
+            throw new RuntimeException(e.getCause());
         }
+        ObjectCache.uncommittedConstruction(obj);
         return obj;
     }
 
@@ -333,14 +333,6 @@ public abstract class AnyPersistent {
         return index;
     }
 
-    protected int getVersion() {
-        return getInt(offset(Header.VERSION));
-    }
-
-    protected void setVersion(int version) {
-        setIntField(Header.VERSION, version);
-    }
-
     protected synchronized void setClassInfo(ClassInfo classInfo) {
         setLongField(Header.CLASS_INFO, classInfo.getRegion().addr());
     }
@@ -353,6 +345,10 @@ public abstract class AnyPersistent {
     synchronized int getRefCount() {
         MemoryRegion reg = getPointer().region();
         return reg.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
+    }
+
+    private void setRefCount(int n) {
+        getPointer().region().putInt(Header.TYPE.getOffset(Header.REF_COUNT), n);
     }
 
     void incRefCount() {
@@ -504,10 +500,9 @@ public abstract class AnyPersistent {
         return getPointer().region().getByte(Header.TYPE.getOffset(Header.REF_COLOR));
     }
 
-    boolean monitorEnterTimeout() {
-        Transaction transaction = Transaction.getTransaction();
+    boolean tryLock(Transaction transaction) {
         int max = transaction.timeout() + timeoutArray[timeoutCursor++ & TIMEOUT_MASK];
-        boolean success = monitorEnterTimeout(max);
+        boolean success = tryLock(max);
         if (success) {
             transaction.timeout(Config.MONITOR_ENTER_TIMEOUT);
         }
@@ -517,11 +512,11 @@ public abstract class AnyPersistent {
         return success;
     }
 
-    void monitorEnter() {
+    void lock() {
         lock.lock();
     }
 
-    boolean monitorEnterTimeout(long timeout) {
+    boolean tryLock(long timeout) {
         boolean success = false;
         if (!Config.USE_BLOCKING_LOCKS_FOR_DEBUG) {
             try {
@@ -530,15 +525,14 @@ public abstract class AnyPersistent {
             catch (InterruptedException ie) {throw new RuntimeException(ie.getMessage());}
         }
         else {
-            monitorEnter();
+            lock();
             success = true;
         }
-        // if (success) Stats.current.locks.acquired++;
-        // else Stats.current.locks.timeouts++;
+        if (Config.ENABLE_LOCK_STATS) if (success) Stats.current.locks.acquired++; else Stats.current.locks.timeouts++;
         return success;
     }
 
-    void monitorExit() {
+    void unlock() {
         lock.unlock();
     }
 
@@ -548,6 +542,7 @@ public abstract class AnyPersistent {
     private static class AsLock extends AnyPersistent {
         public AsLock() {
             super((ObjectPointer<?>)null);
+            if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(AsLock.class.getName(), 0, 70, 1);  // uncomment for allocation stats
         }
 
         byte getByte(long offset) {throw new UnsupportedOperationException();}

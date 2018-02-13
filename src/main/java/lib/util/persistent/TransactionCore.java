@@ -24,5 +24,5 @@ package lib.util.persistent;
 public interface TransactionCore {
     public void start();
     public void commit();
-    public void abort();
+    public void abort(TransactionException e);
 }

@@ -42,7 +42,7 @@ CPP_BUILD_DIR = $(TARGET_DIR)/cppbuild
 CLASSES_DIR = $(TARGET_DIR)/classes
 TEST_CLASSES_DIR = $(TARGET_DIR)/test_classes
 
-BASE_CLASSPATH = $(CLASSES_DIR):lib:lib/ST-4.0.8.jar:
+BASE_CLASSPATH = $(CLASSES_DIR):lib:src:lib/ST-4.0.8.jar:
 
 ALL_CPP_SOURCES = $(wildcard $(CPP_SOURCE_DIR)/*.cpp)
 ALL_JAVA_SOURCES = $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*.java) $(wildcard $(JAVA_SOURCE_DIR)/$(XPACKAGE_NAME)/*.java) $(wildcard $(JAVA_SOURCE_DIR)/$(PACKAGE_NAME)/*/*.java)

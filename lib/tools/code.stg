@@ -211,11 +211,11 @@ public final class Persistent<identifier>Array extends AbstractPersistentMutable
         super(pointer);
     }
 
-    public synchronized  <smallcaps> get(int index) {
+    public <smallcaps> get(int index) {
         return get<identifier>Element(index);
     }
 
-    public synchronized void set(int index, <smallcaps> value) {
+    public void set(int index, <smallcaps> value) {
         set<identifier>Element(index, value);
     }
 
@@ -280,11 +280,11 @@ public class <class_prefix>Tuple<n>\<<range:{ x | T<x> extends AnyPersistent};se
     protected <class_prefix>Tuple<n>(ObjectPointer\<? extends <class_prefix>Tuple<n>\> p) {super(p);}
 
     <range:{ x | @SuppressWarnings("unchecked")
-    public synchronized T<x> _<x>() {
+    public T<x> _<x>() {
         return (T<x>)getObjectField(FIELD<x>);
     \}};separator="\n\n">
 
-    <range:{x | public synchronized void _<x>(T<x> t<x>) {
+    <range:{x | public void _<x>(T<x> t<x>) {
         setObjectField(FIELD<x>, t<x>);
     \}};separator="\n\n">
 

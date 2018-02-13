@@ -41,11 +41,11 @@ public final class PersistentShortArray extends AbstractPersistentMutableArray {
         super(pointer);
     }
 
-    public synchronized  short get(int index) {
+    public short get(int index) {
         return getShortElement(index);
     }
 
-    public synchronized void set(int index, short value) {
+    public void set(int index, short value) {
         setShortElement(index, value);
     }
 

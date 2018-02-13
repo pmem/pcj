@@ -23,24 +23,43 @@
 #include "persistent_heap.h"
 #include "util.h"
 
+// the four put calls below are always called from within a transaction 
 
-JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutLong
-  (JNIEnv *env, jobject obj, jlong region_offset, jlong offset, jlong value, jint size)
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutByte
+  (JNIEnv *env, jobject obj, jlong address, jbyte value)
 {
-    PMEMoid oid = {get_uuid_lo(), (uint64_t)region_offset};
-
-    void* dest = (void*)((uint64_t)pmemobj_direct(oid)+(uint64_t)offset);
-    void* src = &value;
-    TX_BEGIN(pool) {
-        TX_MEMCPY(dest, src, size);
-    } TX_ONABORT {
-        throw_persistence_exception(env, "Failed to put into MemoryRegion! ");
-    } TX_END
-
-    //printf("Putting long into region at %lu at offset %lu, address %p, value %lu\n", region_offset, offset, src, value);
-    //fflush(stdout);
+    char *ptr = (char*)address;
+    int result = pmemobj_tx_add_range_direct(ptr, 1);
+    if (result == 0) *ptr = value;
+    else throw_persistence_exception(env, "Failed to write byte value.");
 }
 
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutShort
+  (JNIEnv *env, jobject obj, jlong address, jshort value)
+{
+    int16_t *ptr = (int16_t*)address;
+    int result = pmemobj_tx_add_range_direct(ptr, 2);
+    if (result == 0) *ptr = value;
+    else throw_persistence_exception(env, "Failed to write short value.");
+}
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutInt
+  (JNIEnv *env, jobject obj, jlong address, jint value)
+{
+    int *ptr = (int*)address;
+    int result = pmemobj_tx_add_range_direct(ptr, 4);
+    if (result == 0) *ptr = value;
+    else throw_persistence_exception(env, "Failed to write int value.");
+}
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutLong
+  (JNIEnv *env, jobject obj, jlong address, jlong value)
+{
+    long *ptr = (long*)address;
+    int result = pmemobj_tx_add_range_direct(ptr, 8);
+    if (result == 0) *ptr = value;
+    else throw_persistence_exception(env, "Failed to write long value.");
+}
 
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_getDirectAddress
   (JNIEnv *env, jobject obj, jlong region_offset)

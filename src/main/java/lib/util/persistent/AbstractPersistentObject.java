@@ -55,6 +55,7 @@ abstract class AbstractPersistentObject extends AnyPersistent {
 
     public AbstractPersistentObject(ObjectType<? extends AbstractPersistentObject> type) {
         super(type);
+        if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(type.cls().getName(), type.getAllocationSize(), Stats.AllocationStats.WRAPPER_PER_INSTANCE + 8, 1);  // uncomment for allocation stats
     }
 
     @SuppressWarnings("unchecked")
@@ -74,6 +75,7 @@ abstract class AbstractPersistentObject extends AnyPersistent {
 
     public AbstractPersistentObject(ObjectPointer<? extends AnyPersistent> p) {
         super(p);
+        if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(p.type().cls().getName() + "<rctor>", 0, Stats.AllocationStats.WRAPPER_PER_INSTANCE + 8, 1);   // uncomment for allocation stats
     }
 
     public byte getByteField(ByteField f) {return getByte(offset(check(f.getIndex(), Types.BYTE)));}

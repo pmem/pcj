@@ -29,20 +29,23 @@
 extern "C" {
 #endif
 
-/*
- * Class:     lib_xpersistent_UncheckedPersistentMemoryRegion
- * Method:    nativePutLong
- * Signature: (JJJI)V
- */
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutByte
+  (JNIEnv *env, jobject obj, jlong address, jbyte value);
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutShort
+  (JNIEnv *env, jobject obj, jlong address, jshort value);
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutInt
+  (JNIEnv *env, jobject obj, jlong address, jint value);
+
 JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutLong
-  (JNIEnv *, jobject, jlong, jlong, jlong, jint);
+  (JNIEnv *env, jobject obj, jlong address, jlong value);
 
 /*
  * Class:     lib_xpersistent_UncheckedPersistentMemoryRegion
  * Method:    getDirectAddress
  * Signature: (JJJ)J
  */
-
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_getDirectAddress
   (JNIEnv *env, jobject obj, jlong region_offset);
 

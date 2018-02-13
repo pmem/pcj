@@ -73,14 +73,20 @@ public class PersistentConcurrentHashMapInternal {
         private MemoryRegion reg;
 
         public NodeLL(int hash, long key, long value, NodeLL next) {
-            this.reg = heap.allocateRegion(NODE_SIZE);
-            this.reg.putInt(HASH_OFFSET, hash);
-            this.reg.putLong(KEY_OFFSET, key);
-            this.reg.putLong(VALUE_OFFSET, value);
-            this.reg.putLong(NEXT_OFFSET, next == null ? 0 : next.addr());
+            Transaction.run(() -> {
+                this.reg = heap.allocateRegion(NODE_SIZE);
+                this.reg.putInt(HASH_OFFSET, hash);
+                this.reg.putLong(KEY_OFFSET, key);
+                this.reg.putLong(VALUE_OFFSET, value);
+                this.reg.putLong(NEXT_OFFSET, next == null ? 0 : next.addr());
+                if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(NodeLL.class.getName(), NODE_SIZE,  16 + 64, 1);  // uncomment for allocation stats
+            });
         }
 
-        protected NodeLL(long addr) { this.reg = new UncheckedPersistentMemoryRegion(addr); }
+        protected NodeLL(long addr) {
+            if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(NodeLL.class.getName() + "<rctor>", 0, 16 + 64, 1);  // uncomment for allocation stats
+            this.reg = new UncheckedPersistentMemoryRegion(addr);
+        }
 
         public static NodeLL copyOf(NodeLL old) {
             if (old == null) return null;
@@ -100,9 +106,9 @@ public class PersistentConcurrentHashMapInternal {
             }
         }
         public final long getNextAddr() { return this.reg.getLong(NEXT_OFFSET); }
-        final void setNextAddr(long nextAddr) { this.reg.putLong(NEXT_OFFSET, nextAddr); }
+        final void setNextAddr(long nextAddr) { Transaction.run(() -> { this.reg.putLong(NEXT_OFFSET, nextAddr); }); }
 
-        public final void setNext(NodeLL next) { this.reg.putLong(NEXT_OFFSET, next == null? 0 : next.addr()); }
+        public final void setNext(NodeLL next) { Transaction.run(() -> { this.reg.putLong(NEXT_OFFSET, next == null? 0 : next.addr()); }); }
 
         public final int getHash() { return this.reg.getInt(HASH_OFFSET); }
 
@@ -116,7 +122,7 @@ public class PersistentConcurrentHashMapInternal {
 
         public final long setValue(long newValue) {
             long oldValue = getValue();
-            this.reg.putLong(VALUE_OFFSET, newValue);
+            Transaction.run(() -> { this.reg.putLong(VALUE_OFFSET, newValue); });
             return oldValue;
         }
 
@@ -131,8 +137,11 @@ public class PersistentConcurrentHashMapInternal {
 
         public final long addr() { return this.reg.addr(); }
         public final void free() {
-            heap.freeRegion(this.reg);
-            ((UncheckedPersistentMemoryRegion)this.reg).addr(0);
+            Transaction.run(() -> {
+                heap.freeRegion(this.reg);
+            }, () -> {
+                ((UncheckedPersistentMemoryRegion)this.reg).addr(0);
+            });
         }
 
         public boolean isSentinel() { return ((this.getHash() & 0x1) == 0); }
@@ -145,6 +154,7 @@ public class PersistentConcurrentHashMapInternal {
         Slot() {
             this.sentinel = null;
             this.lock = AnyPersistent.asLock();
+            if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(Slot.class.getName(), 0,  32, 1);  // uncomment for allocation stats
         }
 
         AnyPersistent getLock() {
@@ -179,6 +189,7 @@ public class PersistentConcurrentHashMapInternal {
             addSlots(initialCapacity);
             ((tableList.get(0))[0]).setSentinel(headSentinel == null ? new NodeLL(makeSentinelKey(0), 0, SENTINEL_NODE_VALUE, null) : headSentinel);
             this.resizing = new AtomicBoolean(false);
+            if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(Table.class.getName(), 0,  28 + capacity.get() * 40, 1);  // uncomment for allocation stats
         }
 
         Table(int initialCapacity) {
@@ -341,27 +352,27 @@ public class PersistentConcurrentHashMapInternal {
     @SuppressWarnings("unchecked")
     private long doPut(long key, long value, boolean onlyIfAbsent, boolean increment) {
         final int hash = hash(key);
-        Box<long[]> ret = new Box<>();
+        long[] ret;
 
         while (true) {
             int slot = hash % table.getCapacity();
             // System.out.println("table length is " + table.length() + ", slot is " + slot);
-            Transaction.run(() -> {
+            ret = Transaction.run(() -> {
                 NodeLL sentinel = getSentinel(slot);
                 // System.out.println("thread " + Thread.currentThread().getId() + " attempting to insert " + key + " from slot " + slot);
-                ret.set(addOrUpdateNode(sentinel, hash, key, value, onlyIfAbsent, increment));
+                return addOrUpdateNode(sentinel, hash, key, value, onlyIfAbsent, increment);
             }, table.getSlot(slot, false).getLock());
 
-            if (ret.get()[0] != ERROR_RETURN_VALUE) break;
+            if (ret[0] != ERROR_RETURN_VALUE) break;
         }
         // System.out.println("thread " + Thread.currentThread().getId() + " succeeded in inserting " + key);
 
         // System.out.format("while inserting (%d, %d), traversed %d nodes\n", key, value, ret[1]);
-        if ((ret.get())[1] > this.resizeThreshold && table.getCapacity() < MAXIMUM_CAPACITY && table.isResizing() == false) {
+        if (ret[1] > this.resizeThreshold && table.getCapacity() < MAXIMUM_CAPACITY && table.isResizing() == false) {
             // System.out.println("insertion of key " + key + " triggered resize");
             resize();
         }
-        return (ret.get())[0];
+        return ret[0];
     }
 
     public long get(long key) {
@@ -386,16 +397,16 @@ public class PersistentConcurrentHashMapInternal {
 
     private long doRemove(long key, boolean decrement) {
         int hash = hash(key);
-        Box<Long> ret = new Box<>();
+        long ret;
         while (true) {
             int slot = hash % table.getCapacity();
-            Transaction.run(() -> {
+            ret = Transaction.run(() -> {
                 NodeLL sentinel = getSentinel(slot);
-                ret.set(removeNodeFromSentinel(sentinel, hash, key, decrement));
+                return removeNodeFromSentinel(sentinel, hash, key, decrement);
             }, table.getSlot(slot, false).getLock());
-            if (ret.get() != ERROR_RETURN_VALUE) break;
+            if (ret != ERROR_RETURN_VALUE) break;
         }
-        return ret.get();
+        return ret;
     }
 
     public int size() {
@@ -605,7 +616,7 @@ public class PersistentConcurrentHashMapInternal {
         h ^= (h >> 16);
 
         return Math.abs(h);*/
-        return Integer.hashCode((int)(key >>> 7));
+        return Integer.hashCode((int)(key >>> 8));
     }
 
     private NodeLL getSentinel(int slot) {
@@ -619,14 +630,13 @@ public class PersistentConcurrentHashMapInternal {
         }
 
         int sentinelKey = makeSentinelKey(slot);
-        final Box<NodeLL> ret = new Box<>();
         final int parentSlotIndex = findParentSlot(slot);
         final Slot parentSlot = table.getSlot(parentSlotIndex, false);
         final NodeLL parentSentinel = getSentinel(parentSlotIndex);        // guaranteed not to be null
         // System.out.println("thread " + Thread.currentThread().getId() + " trying to lock parentSlot 0x" + Long.toHexString(parentSlotIndex));
-        Transaction.run(() -> {
+        return Transaction.run(() -> {
             // System.out.println("thread " + Thread.currentThread().getId() + " locked parentSlot 0x" + Long.toHexString(parentSlotIndex));
-            NodeLL curr = NodeLL.copyOf(parentSentinel), next = curr.getNext();
+            NodeLL curr = NodeLL.copyOf(parentSentinel), next = curr.getNext(), ret = null;
             while (true) {
                 if (next != null) {
                     int c;
@@ -656,25 +666,26 @@ public class PersistentConcurrentHashMapInternal {
                         continue;
                     } else if (c == 0) {
                         // System.out.println("thread " + Thread.currentThread().getId() + " just got slot 0x" + hexSlot);
-                        ret.set(next);
+                        ret = next;
                         setNodeIfNull(slot, next);
                         break;
                     } else break;
                 } else break;
             }
-            if (ret.get() == null) {
+            if (ret == null) {
                 final NodeLL nextF = next, currF = curr;
+                Box<NodeLL> retBox = new Box<>();
                 Transaction.runOuter(() -> {
                     NodeLL newSentinel = new NodeLL(sentinelKey, slot, SENTINEL_NODE_VALUE, nextF);
-                    ret.set(newSentinel);
+                    retBox.set(newSentinel);
                     currF.setNext(newSentinel);
                 });
+                ret = retBox.get();
                 setNodeIfNull(slot, curr.getNext());
                 // System.out.println("thread " + Thread.currentThread().getId() + " inserted new slot 0x" + hexSlot + ", curr is " + curr + ", new node is " + curr.getNext());
             }
+            return ret;
         }, parentSlot.getLock());
-
-        return ret.get();
     }
 
     private int makeSentinelKey(int key) {
@@ -704,18 +715,18 @@ public class PersistentConcurrentHashMapInternal {
     private NodeLL setNodeIfNull(int index, NodeLL node) {
         Slot slot = table.getSlot(index, false);
         // System.out.println("thread " + Thread.currentThread().getId() + " to set sentinel for index 0x" + Long.toHexString(index));
-        final Box<NodeLL> ret = new Box<>();
+        NodeLL ret;
         // Transaction.run(() -> {
             if (slot.getSlotSentinel() == null) {
                 // System.out.println("thread " + Thread.currentThread().getId() + " null, so sentinel is now " + node);
                 table.setSentinelAtSlot(index, node);
-                ret.set(node);
+                ret = node;
             } else {
                 // System.out.println("thread " + Thread.currentThread().getId() + " not null, old sentinel is " + slot.getSlotSentinel());
-                ret.set(slot.getSlotSentinel());
+                ret = slot.getSlotSentinel();
             }
         // }, slot.getLock());
-        return ret.get();
+        return ret;
     }
 
     private NodeLL getNode(int index) {
@@ -756,7 +767,7 @@ public class PersistentConcurrentHashMapInternal {
             });
             curr.changeAddr(nextAddr);
         }
-        if (removeHead) head.free();
+        if (removeHead) deleteHead();
     }
 
     public void delete() {

@@ -335,6 +335,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
             this.node = node;
             this.down = down;
             this.right = right;
+            // Stats.current.allocStats.update(Index.class.getName(), 0, 10 + 8 + 8 + 8, 1);
         }
 
         /**

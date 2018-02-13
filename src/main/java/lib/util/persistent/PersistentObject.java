@@ -40,6 +40,8 @@ import java.util.function.Consumer;
 
 @SuppressWarnings("sunapi")
 public class PersistentObject extends AbstractPersistentObject {
+    private static final String LOCK_FAIL_MESSAGE = "failed to acquire lock (timeout) in getObject";
+
     public PersistentObject(ObjectType<? extends PersistentObject> type) {
         super(type);
     }
@@ -65,12 +67,12 @@ public class PersistentObject extends AbstractPersistentObject {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            monitorEnter();
+            lock();
             ans = pointer.region().getByte(offset);
-            monitorExit();
+            unlock();
         }
         else {
-            boolean success = monitorEnterTimeout();
+            boolean success = tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(this);
                 return pointer.region().getByte(offset);
@@ -90,12 +92,12 @@ public class PersistentObject extends AbstractPersistentObject {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            monitorEnter();
+            lock();
             ans = pointer.region().getShort(offset);
-            monitorExit();
+            unlock();
         }
         else {
-            boolean success = monitorEnterTimeout();
+            boolean success = tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(this);
                 ans = pointer.region().getShort(offset);
@@ -115,12 +117,12 @@ public class PersistentObject extends AbstractPersistentObject {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            monitorEnter();
+            lock();
             ans = pointer.region().getInt(offset);
-            monitorExit();
+            unlock();
         }
         else {
-            boolean success = monitorEnterTimeout();
+            boolean success = tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(this);
                 ans = pointer.region().getInt(offset);
@@ -141,12 +143,12 @@ public class PersistentObject extends AbstractPersistentObject {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            monitorEnter();
+            lock();
             ans = pointer.region().getLong(offset);
-            monitorExit();
+            unlock();
         }
         else {
-            boolean success = monitorEnterTimeout();
+            boolean success = tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(this);
                 ans = pointer.region().getLong(offset);
@@ -166,22 +168,23 @@ public class PersistentObject extends AbstractPersistentObject {
         T ans = null;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
-        boolean success = (inTransaction ? monitorEnterTimeout() : monitorEnterTimeout(5000));
-        if (success) {
-            try {
-                if (inTransaction) transaction.addLockedObject(this);
+        if (!inTransaction) {
+            if (tryLock(5000)) {
+                try {
+                    long objAddr = getRegionLong(offset);
+                    if (objAddr != 0) ans = (T)ObjectCache.get(objAddr);
+                }
+                finally {unlock();}
+            }
+            else throw new RuntimeException(LOCK_FAIL_MESSAGE);
+        }
+        else {
+            if (tryLock(transaction)) {
+                transaction.addLockedObject(this);
                 long objAddr = getRegionLong(offset);
                 if (objAddr != 0) ans = (T)ObjectCache.get(objAddr);
             }
-            finally {
-                if (!inTransaction) monitorExit();
-            }
-        }
-        else {
-            String message = "failed to acquire lock (timeout) in getObject";
-            // trace(true, getPointer().addr(), message + ", inTransaction = %s", inTransaction);
-            if (inTransaction) throw new TransactionRetryException(message);
-            else throw new RuntimeException(message);
+            else throw new TransactionRetryException(LOCK_FAIL_MESSAGE);
         }
         return ans;
     }

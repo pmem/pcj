@@ -76,7 +76,7 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
         T ans = null;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
-        boolean success = (inTransaction ? monitorEnterTimeout() : monitorEnterTimeout(5000));
+        boolean success = (inTransaction ? tryLock(transaction) : tryLock(5000));
         if (success) {
             try {
                 if (inTransaction) transaction.addLockedObject(this);
@@ -84,7 +84,7 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
                 if (valueAddr != 0) ans = (T)ObjectCache.get(valueAddr);
             }
             finally {
-                if (!inTransaction) monitorExit();
+                if (!inTransaction) unlock();
             }
         }
         else {

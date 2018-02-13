@@ -41,11 +41,11 @@ public final class PersistentCharArray extends AbstractPersistentMutableArray {
         super(pointer);
     }
 
-    public synchronized  char get(int index) {
+    public char get(int index) {
         return getCharElement(index);
     }
 
-    public synchronized void set(int index, char value) {
+    public void set(int index, char value) {
         setCharElement(index, value);
     }
 

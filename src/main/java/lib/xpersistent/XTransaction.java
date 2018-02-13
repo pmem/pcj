@@ -22,6 +22,8 @@
 package lib.xpersistent;
 
 import lib.util.persistent.TransactionCore;
+import lib.util.persistent.TransactionException;
+import lib.util.persistent.PersistenceException;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
 public class XTransaction implements TransactionCore {
@@ -38,14 +40,18 @@ public class XTransaction implements TransactionCore {
     }
 
     public void commit() {
+        nativeCommitTransaction();
         nativeEndTransaction();
     }
 
-    public void abort() {
-        nativeAbortTransaction();
+    public void abort(TransactionException e) {
+        if (!(e.getCause() instanceof PersistenceException))
+            nativeAbortTransaction();
+        nativeEndTransaction();
     }
 
     private native void nativeStartTransaction();
+    private native void nativeCommitTransaction();
     private native void nativeEndTransaction();
     private native void nativeAbortTransaction();
 }

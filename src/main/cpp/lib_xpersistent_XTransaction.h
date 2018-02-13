@@ -52,6 +52,14 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XTransaction_nativeEndTransaction
 JNIEXPORT void JNICALL Java_lib_xpersistent_XTransaction_nativeAbortTransaction
   (JNIEnv *, jobject);
 
+/*
+ * Class:     lib_xpersistent_XTransaction
+ * Method:    nativeCommitTransaction
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_lib_xpersistent_XTransaction_nativeCommitTransaction
+  (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif

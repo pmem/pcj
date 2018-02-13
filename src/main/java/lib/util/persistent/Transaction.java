@@ -34,11 +34,10 @@ import static lib.util.persistent.Trace.*;
 
 public final class Transaction {
     private static ThreadLocal<Transaction> threadsTransaction;
-    private static ExecutorService outerThreadPool; 
+    private static ExecutorService outerThreadPool;
     private TransactionCore core;
     private ArrayList<AnyPersistent> locked;
     private ArrayList<AnyPersistent> constructions;
-    private static int attempts;
     private int timeout;
     private int depth;
     private State state;
@@ -46,7 +45,7 @@ public final class Transaction {
     private ArrayList<Runnable> abortHandlers;
 
     static {
-        threadsTransaction = new ThreadLocal<>(); 
+        threadsTransaction = new ThreadLocal<>();
         outerThreadPool = Executors.newCachedThreadPool((Runnable r) -> {
             Thread t = new Thread(r);
             t.setDaemon(true);
@@ -58,12 +57,20 @@ public final class Transaction {
 
     private Transaction(TransactionCore core) {
         this.core = core;
-        this.locked = new ArrayList<>();
-        this.constructions = new ArrayList<>();
+        this.locked = new ArrayList<>(20);
+        this.constructions = new ArrayList<>(20);
         this.timeout = Config.MONITOR_ENTER_TIMEOUT;
         this.depth = 0;
-        this.state = Transaction.State.None;    
+        this.state = Transaction.State.None;
     }
+
+    private void reset() {
+        locked.clear();
+        constructions.clear();
+        timeout = Config.MONITOR_ENTER_TIMEOUT;
+        depth = 0;
+        state = Transaction.State.None;
+    }        
 
     static Transaction getTransaction() {
         return threadsTransaction.get();
@@ -74,82 +81,74 @@ public final class Transaction {
     }
 
     static <T> T run(PersistentMemoryProvider provider, Supplier<T> body, Runnable onCommit, Runnable onAbort, AnyPersistent toLock1, AnyPersistent toLock2) {
-        Stats.current.transactions.runCalls++;
+        if (Config.ENABLE_TRANSACTION_STATS) Stats.current.transactions.runCalls++;
         T ans = null;
         boolean success = false;
         Transaction transaction = getTransaction();
-        if (transaction != null && transaction.state == Transaction.State.Active) {
-            if (toLock1 != null) transaction.aquireLock(false, toLock1);
-            if (toLock2 != null) transaction.aquireLock(false, toLock2);
-            if (onCommit != null) transaction.addCommitHandler(onCommit);
-            if (onAbort != null) transaction.addAbortHandler(onAbort);    
-            ans = body.get();
-        }
-        else {
-            int attempts = 1;
-            int sleepTime = Config.MONITOR_ENTER_TIMEOUT;
-            int retryDelay = Config.BASE_TRANSACTION_RETRY_DELAY; 
-            while (!success && attempts <= Config.MAX_TRANSACTION_ATTEMPTS) {
+        if (transaction == null) {
                 transaction = new Transaction(provider.newTransaction());
                 setTransaction(transaction);
-                if (transaction.depth == 0) transaction.state = Transaction.State.None;
-                transaction.depth++;
-                // for stats
+        }            
+        int attempts = 1;
+        int sleepTime = Config.MONITOR_ENTER_TIMEOUT;
+        int retryDelay = Config.BASE_TRANSACTION_RETRY_DELAY;
+        while (!success && attempts <= Config.MAX_TRANSACTION_ATTEMPTS) {
+            if (transaction.state != Transaction.State.Active) {
+                transaction.reset();
+                if (Config.ENABLE_TRANSACTION_STATS) Stats.current.transactions.topLevel++;
+            }
+            transaction.depth++;
+            if (Config.ENABLE_TRANSACTION_STATS) {
                 int currentDepth = transaction.depth;
                 Stats.current.transactions.total++;
-                Stats.current.transactions.topLevel++;
                 Stats.current.transactions.maxDepth = Math.max(Stats.current.transactions.maxDepth, currentDepth);
-                // end for stats
-                try {
-                    boolean block = Config.BLOCK_ON_MAX_TRANSACTION_ATTEMPTS && attempts == Config.MAX_TRANSACTION_ATTEMPTS;
-                    // trace(true, "%s about to call start, attempts = %d, depth = %d, block = %s", t, attempts, transaction.depth, block);
-                    if (onCommit != null) transaction.addCommitHandler(onCommit);
-                    if (onAbort != null) transaction.addAbortHandler(onAbort);    
-                    transaction.start(block, toLock1, toLock2);
-                    ans = body.get();
-                    success = true;
+            }
+            try {
+                boolean block = Config.BLOCK_ON_MAX_TRANSACTION_ATTEMPTS && attempts == Config.MAX_TRANSACTION_ATTEMPTS;
+                // trace(true, "%s about to call start, attempts = %d, depth = %d, block = %s", t, attempts, transaction.depth, block);
+                if (onCommit != null) transaction.addCommitHandler(onCommit);
+                if (onAbort != null) transaction.addAbortHandler(onAbort);
+                transaction.start(block, toLock1, toLock2);
+                ans = body.get();
+                success = true;
+            }
+            catch (Throwable e) {
+                transaction.abort(new TransactionException(e));
+                success = false;
+                // trace(true, "%s Transaction.run() caught %s, depth = %d", t,  e, transaction.depth);
+                if (e instanceof PersistenceException) {
+                    e.printStackTrace();
+                    System.out.println("A fatal error has occurred, unable to continue, exiting: " + e);
+                    // System.exit(-1);
                 }
-                catch (Throwable e) {
-                    success = false;
-                    // trace(true, "%s Transaction.run() caught %s, depth = %d", t,  e, transaction.depth);
-                    if (e instanceof PersistenceException) {
-                        e.printStackTrace();
-                        System.out.println("A fatal error has occurred, unable to continue, exiting: " + e);
-                        System.exit(-1);
-                    }
-                    transaction.abort();
-                    if (transaction.depth > 1 || !(e instanceof TransactionRetryException)) throw e; // unwind stack or not a retry-able exception
-                    // retry
-                }
-                finally {
-                    transaction.commit();
-                }
-                if (!success) {
-                    attempts++;
-                    Stats.current.transactions.totalRetries++;
-                    Stats.current.transactions.updateMaxRetries(attempts - 1);
-                    sleepTime = retryDelay + Util.randomInt(retryDelay);
-                    retryDelay = Math.min((int)(retryDelay * Config.TRANSACTION_RETRY_DELAY_INCREASE_FACTOR), Config.MAX_TRANSACTION_RETRY_DELAY);
-                    // trace(true, "retry #%d, sleepTime = %d", attempts - 1, sleepTime);
-                    try {Thread.sleep(sleepTime);} catch(InterruptedException ie) {ie.printStackTrace();}
-                }
+                if (transaction.depth > 1 || !(e instanceof TransactionRetryException)) throw e; // unwind stack or not a retry-able exception
+                // retry
+            }
+            finally {
+                transaction.commit();
             }
             if (!success) {
-                Stats.current.transactions.failures++;
-                trace(true, "failed transaction");
-                RuntimeException e = new TransactionException(String.format("failed to execute transaction after %d attempts", attempts));
-                if (Config.EXIT_ON_TRANSACTION_FAILURE) {
-                    e.printStackTrace();
-                    Stats.printStats();
-                    System.exit(-1);
+                attempts++;
+                if (Config.ENABLE_TRANSACTION_STATS) {
+                    Stats.current.transactions.totalRetries++;
+                    Stats.current.transactions.updateMaxRetries(attempts - 1);
                 }
-                throw e;
+                sleepTime = retryDelay + Util.randomInt(retryDelay);
+                retryDelay = Math.min((int)(retryDelay * Config.TRANSACTION_RETRY_DELAY_INCREASE_FACTOR), Config.MAX_TRANSACTION_RETRY_DELAY);
+                // trace(true, "retry #%d, sleepTime = %d", attempts - 1, sleepTime);
+                try {Thread.sleep(sleepTime);} catch(InterruptedException ie) {ie.printStackTrace();}
             }
-            else {
-                if (transaction.depth == 1) {
-                    attempts = 1;
-                }
+        }
+        if (!success) {
+            if (Config.ENABLE_TRANSACTION_STATS) Stats.current.transactions.failures++;
+            trace(true, "failed transaction");
+            RuntimeException e = new TransactionException(String.format("failed to execute transaction after %d attempts", attempts));
+            if (Config.EXIT_ON_TRANSACTION_FAILURE) {
+                e.printStackTrace();
+                Stats.printStats();
+                System.exit(-1);
             }
+            throw e;
         }
         return ans;
     }
@@ -219,16 +218,16 @@ public final class Transaction {
 
     private void aquireLock(boolean block, AnyPersistent obj) {
         if (!block) {
-            if (!obj.monitorEnterTimeout()) throw new TransactionRetryException("failed to get transaction locks");
+            if (!obj.tryLock(this)) throw new TransactionRetryException("failed to get transaction locks");
         }
-        else obj.monitorEnter();
+        else obj.lock();
         locked.add(obj);
-    }        
+    }
 
     private void releaseLocks() {
         for (int i = locked.size() - 1; i >= 0; i--) {
             AnyPersistent obj = locked.get(i);
-            obj.monitorExit();
+            obj.unlock();
         }
         locked.clear();
     }
@@ -293,17 +292,22 @@ public final class Transaction {
         }
     }
 
-    private void abort() {
+    private void abort(TransactionException e) {
         if (state != Transaction.State.Active) {
             state = Transaction.State.Aborted;
             releaseLocks();
             return;
         }
         if (depth == 1) {
-            core.abort();
+            core.abort(e);
+            for (AnyPersistent obj : constructions) {
+                // TODO: remove dependency on xpersistent package
+                ((lib.xpersistent.UncheckedPersistentMemoryRegion)obj.getPointer().region()).clear();
+            }
             constructions.clear();
             state = Transaction.State.Aborted;
             releaseLocks();
+            clearCommitHandlers();
             if (abortHandlers != null) {
                 Collections.reverse(abortHandlers);
                 Runnable[] handlers = abortHandlers.toArray(new Runnable[0]);

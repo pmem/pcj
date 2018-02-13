@@ -63,7 +63,7 @@ public class ObjectCache {
                     Ref<?> qref = (Ref)queue.remove();
                     // trace(true, qref.getAddress(), "object enqueued");
                     long address = qref.getAddress();
-                    Stats.current.memory.enqueued++;
+                    if (Config.ENABLE_MEMORY_STATS) Stats.current.memory.enqueued++;
                     if (!qref.isForAdmin()) {
                         if (uncommittedConstructions.contains(address)) {
                             remove(address);
@@ -99,6 +99,7 @@ public class ObjectCache {
             super(obj, queue);
             this.address = obj.getPointer().addr();
             this.forAdmin = forAdmin;
+            if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(Ref.class.getName(), 0, 25, 1);   // uncomment for allocation stats
         }
 
         public long getAddress() {return address;}
@@ -127,22 +128,27 @@ public class ObjectCache {
         ref = (Ref<T>)cache.get(cacheAddress);
         if (ref == null || (obj = (T)ref.get()) == null) {
             // trace(address, "MISS: " + (ref == null ? "simple" : "null referent"));
-            // if (ref == null) Stats.current.objectCache.simpleMisses++; else Stats.current.objectCache.referentMisses++;  // uncomment for ObjectCache stats
+            if (Config.ENABLE_OBJECT_CACHE_STATS) {if (ref == null) Stats.current.objectCache.simpleMisses++; else Stats.current.objectCache.referentMisses++;}  // uncomment for ObjectCache stats
             obj = objectForAddress(address, forAdmin);
             ref = new Ref(obj, forAdmin);
             cache.put(cacheAddress, ref);
-            // updateCacheSizeStats();                       // uncomment for ObjectCache stats
+            if (Config.ENABLE_OBJECT_CACHE_STATS) updateCacheSizeStats();                       // uncomment for ObjectCache stats
         }
         else if (ref.isForAdmin() && !forAdmin) {
                 // trace(address, "HIT: forAdmin -> !forAdmin");
                 ref.setForAdmin(false);
                 obj = (T)ref.get();
                 obj.initForGC();
-                // Stats.current.objectCache.promotedHits++; // uncomment for ObjectCache stats
+                if (Config.ENABLE_OBJECT_CACHE_STATS) Stats.current.objectCache.promotedHits++; // uncomment for ObjectCache stats
         }
-        // else Stats.current.objectCache.simpleHits++;      // uncomment for ObjectCache stats
+        else if (Config.ENABLE_OBJECT_CACHE_STATS) Stats.current.objectCache.simpleHits++;      // uncomment for ObjectCache stats
         assert(obj != null);
         return ref;
+    }
+
+    // TODO: not sound, only usable for testing
+    public static void clear() {
+        cache.clear();
     }
 
     private static void updateCacheSizeStats() {
@@ -186,7 +192,7 @@ public class ObjectCache {
         long address = obj.getPointer().addr();
         Ref<T> ref = new Ref<>(obj);
         cache.put(new Address(address), ref);
-        // updateCacheSizeStats();                     // uncomment for ObjectCache stats
+        if (Config.ENABLE_OBJECT_CACHE_STATS) updateCacheSizeStats();                     // uncomment for ObjectCache stats
         Transaction.addNewObject(obj);
     }
 
@@ -213,12 +219,21 @@ public class ObjectCache {
 
     static class Address {
         private final long addr;
-        Address(long addr) { this.addr = addr; }
-        long addr() { return addr; }
+
+        Address(long addr) {
+            if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(Address.class.getName(), 0,  16 + 8, 1);  // uncomment for allocation stats
+            this.addr = addr;
+        }
+
+        long addr() {
+            return addr; 
+        }
+
         @Override
         public int hashCode() {
             return Long.hashCode(addr >>> 6);
         }
+
         @Override
         public boolean equals(Object obj) {
             if (obj instanceof Address) {

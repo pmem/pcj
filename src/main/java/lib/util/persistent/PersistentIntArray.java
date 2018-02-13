@@ -41,11 +41,11 @@ public final class PersistentIntArray extends AbstractPersistentMutableArray {
         super(pointer);
     }
 
-    public synchronized  int get(int index) {
+    public int get(int index) {
         return getIntElement(index);
     }
 
-    public synchronized void set(int index, int value) {
+    public void set(int index, int value) {
         setIntElement(index, value);
     }
 

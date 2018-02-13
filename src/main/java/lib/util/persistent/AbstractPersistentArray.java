@@ -27,28 +27,30 @@ import lib.util.persistent.types.ArrayType;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
+import lib.xpersistent.*;
+import lib.util.persistent.spi.PersistentMemoryProvider;
 import static lib.util.persistent.Trace.*;
 
 abstract class AbstractPersistentArray extends AnyPersistent {
     private int length = -1; // cache immutable length
+    private static XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
 
     protected AbstractPersistentArray(ArrayType<? extends AnyPersistent> type, int count, Object data) {
         super(type, heap.allocateRegion(type.getAllocationSize(count)));
         setInt(ArrayType.LENGTH_OFFSET, count);
         length = count;
-        initializeElements(data, type.getElementType());
+        if (data != null) initializeElements(data, type.getElementType());
+        if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(type.cls().getName(), type.getAllocationSize(count), Stats.AllocationStats.WRAPPER_PER_INSTANCE + 4, 1); // uncomment for allocation stats
     }
 
     protected AbstractPersistentArray(ArrayType<? extends AnyPersistent> type, int count) {
-        super(type, heap.allocateRegion(type.getAllocationSize(count)));
-        setInt(ArrayType.LENGTH_OFFSET, count);
-        length = count;
-        for (int i = 0; i < count; i++) {initializeElement(i, type.getElementType());} 
+        this(type, count, null);
     }
 
     protected AbstractPersistentArray(ObjectPointer<? extends AbstractPersistentArray>  p) {
         super(p);
         length = getRegionInt(ArrayType.LENGTH_OFFSET);
+        if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(p.type().cls().getName() + "<rctor>", 0, Stats.AllocationStats.WRAPPER_PER_INSTANCE + 4, 1);  // uncomment for allocation stats
     }
 
     public byte getByteElement(int index) {return getByte(elementOffset(check(index)));}
@@ -100,27 +102,13 @@ abstract class AbstractPersistentArray extends AnyPersistent {
         return index;
     }
 
-   // only called during construction; thread-safe
-    void initializeElement(int index, PersistentType t)
-    {
-        if (t == Types.BYTE) setByteElement(index, (byte)0);
-        else if (t == Types.SHORT) setShortElement(index, (short)0);
-        else if (t == Types.INT) setIntElement(index, 0);
-        else if (t == Types.LONG) setLongElement(index, 0L);
-        else if (t == Types.FLOAT) setFloatElement(index, 0f);
-        else if (t == Types.DOUBLE) setDoubleElement(index, 0d);
-        else if (t == Types.CHAR) setCharElement(index, (char)0);
-        else if (t == Types.BOOLEAN) setBooleanElement(index, false);
-        else if (t instanceof ObjectType) setObjectElement(index, null);
-        else if (t instanceof ArrayType) setObjectElement(index, null);
-    }
-
     // only called during construction; thread-safe
     private void initializeElements(Object data, PersistentType t)
     {
         if (t == Types.BYTE) {
             byte[] array = (byte[])data;
-            for (int i = 0; i < array.length; i++) setByteElement(i, array[i]);
+            //for (int i = 0; i < array.length; i++) setByteElement(i, array[i]);
+            heap.memcpy(array, 0, getPointer().region(), elementOffset(0), array.length);
         }
         else if (t == Types.SHORT) {
             short[] array = (short[])data;

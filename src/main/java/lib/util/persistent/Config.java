@@ -40,4 +40,11 @@ public class Config {
 
     public static final boolean REMOVE_FROM_OBJECT_CACHE_ON_ENQUEUE = false;
     public static final boolean COLLECT_CYCLES = false;
+
+    public static boolean ENABLE_STATS = true;
+    public static final boolean ENABLE_OBJECT_CACHE_STATS = ENABLE_STATS &&     false;
+    public static final boolean ENABLE_MEMORY_STATS = ENABLE_STATS &&           true;
+    public static final boolean ENABLE_TRANSACTION_STATS = ENABLE_STATS &&      true;
+    public static final boolean ENABLE_LOCK_STATS = ENABLE_STATS &&             false;
+    public static final boolean ENABLE_ALLOC_STATS = ENABLE_STATS &&            false;
 }

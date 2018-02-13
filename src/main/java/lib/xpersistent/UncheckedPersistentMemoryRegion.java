@@ -31,17 +31,26 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
         System.loadLibrary("Persistent");
     }
 
+    // TODO: should not be public
     public UncheckedPersistentMemoryRegion(long addr) {
         this.addr = addr;
         this.directAddress = getDirectAddress(addr);
     }
 
+    // TODO: should not be public
+    public void clear() {
+        addr = 0;
+        directAddress = 0;
+    }
+
+    // TODO: should not be public
     public long addr() {
         return this.addr;
     }
 
-    public void addr(long addr) { 
-        this.addr = addr; 
+    // TODO: should not be public
+    public void addr(long addr) {
+        this.addr = addr;
         this.directAddress = getDirectAddress(addr);
     }
 
@@ -49,24 +58,29 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
     public void checkAlive() {}
     public void checkBounds(long offset) throws IndexOutOfBoundsException {}
 
-    private void putBits(long offset, long size, long value) {
-        nativePutLong(this.addr, offset, value, (int)size);
+    private void checkAddress() {
+        if (directAddress != 0) return;
+        throw new IllegalArgumentException();
     }
 
     public byte getByte(long offset) {
+        checkAddress();
         return XHeap.UNSAFE.getByte(directAddress + offset);
     }
 
     public short getShort(long offset) {
+        checkAddress();
         return XHeap.UNSAFE.getShort(directAddress + offset);
     }
 
     public int getInt(long offset) {
-        return XHeap.UNSAFE.getInt(directAddress + offset);
+        checkAddress();
+		return XHeap.UNSAFE.getInt(directAddress + offset);
     }
 
     public long getLong(long offset) {
-        return XHeap.UNSAFE.getLong(directAddress + offset);
+        checkAddress();
+		return XHeap.UNSAFE.getLong(directAddress + offset);
     }
 
     public long getAddress(long offset) {
@@ -74,19 +88,23 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
     }
 
     public void putByte(long offset, byte value) {
-        putBits(offset, 1, value);
+        checkAddress();
+        nativePutByte(directAddress + offset, value);
     }
 
     public void putShort(long offset, short value) {
-        putBits(offset, 2, value);
+        checkAddress();
+        nativePutShort(directAddress + offset, value);
     }
 
     public void putInt(long offset, int value) {
-        putBits(offset, 4, value);
+        checkAddress();
+        nativePutInt(directAddress + offset, value);
     }
 
     public void putLong(long offset, long value) {
-        putBits(offset, 8, value);
+        checkAddress();
+        nativePutLong(directAddress + offset, value);
     }
 
     public void putAddress(long offset, long value) {
@@ -94,5 +112,8 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
     }
 
     private native long getDirectAddress(long regionOffset);
-    private native void nativePutLong(long regionOffset, long offset, long value, int size);
+    private native void nativePutByte(long address, byte value);
+    private native void nativePutShort(long address, short value);
+    private native void nativePutInt(long address, int value);
+    private native void nativePutLong(long address, long value);
 }

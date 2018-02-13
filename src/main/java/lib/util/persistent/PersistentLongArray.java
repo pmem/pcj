@@ -41,11 +41,11 @@ public final class PersistentLongArray extends AbstractPersistentMutableArray {
         super(pointer);
     }
 
-    public synchronized  long get(int index) {
+    public long get(int index) {
         return getLongElement(index);
     }
 
-    public synchronized void set(int index, long value) {
+    public void set(int index, long value) {
         setLongElement(index, value);
     }
 
