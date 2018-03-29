@@ -69,21 +69,23 @@ public class Util {
         // System.out.println("dst size = " + ((VolatileMemoryRegion)dst).size);
         // trace(true, "memCopyVV src = %d, srcOffset = %d, dst = %d, dstOffset = %d, size = %d", src.addr(), srcOffset, dst.addr(), dstOffset, size);
         System.arraycopy(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, ((VolatileMemoryRegion)dst).getBytes(), (int)dstOffset, (int)size);
-        // for (long i = 0; i < size; i++) dst.putByte(dstOffset + i, src.getByte(srcOffset + i));
 
     }
     
     public static void memCopyVP(MemoryRegion src, long srcOffset, MemoryRegion dst, long dstOffset, long size) {
         // trace(true, "memCopyVP src = %s, srcOffset = %d, dst = %s, dstOffset = %d, size = %d", src, srcOffset, dst, dstOffset, size);
         Transaction.run(() -> {
-            // for (long i = 0; i < size; i++) dst.putByte(dstOffset + i, src.getByte(srcOffset + i));
-            heap.memcpy(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, dst, dstOffset, (int)size);
+// <<<<<<< HEAD
+            // heap.memcpy(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, dst, dstOffset, (int)size);
+            heap.copyBytesToRegion(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, dst, dstOffset, (int)size);
+// =======
+//             heap.memcpy(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, dst, dstOffset, (int)size);
+// >>>>>>> persistent_bytes
         });
     }
     
     public static void memCopyPV(MemoryRegion src, long srcOffset, MemoryRegion dst, long dstOffset, long size) {
-        // trace(true, "memCopyPV src = %s, srcOffset = %d, dst = %s, dstOffset = %d, size = %d", src, srcOffset, dst, dstOffset, size);
-        // for (long i = 0; i < size; i++) dst.putByte(dstOffset + i, src.getByte(srcOffset + i));
+        // trace(true, "memCopyPV src = %d, srcOffset = %d, dst = %d, dstOffset = %d, size = %d", src.addr(), srcOffset, dst.addr(), dstOffset, size);
         heap.memcpy(src, srcOffset, ((VolatileMemoryRegion)dst).getBytes(), (int)dstOffset, (int)size); 
     }
 
@@ -112,31 +114,26 @@ public class Util {
     public interface ShortSupplier {short getAsShort();}
 
     public static <T> T synchronizedBlock(AnyPersistent obj, Supplier<T> func) {
-        // System.out.println("Supplier");
         T ans;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
+            // TODO: bug, if body contains a transaction that retries we don't reaquire the obj lock
             obj.lock();
             try {ans = func.get();}
             finally {obj.unlock();}
         }
         else {
-            boolean success = obj.tryLock(transaction);
-            if (success) {
+            if (obj.tryLock(transaction)) {
                 transaction.addLockedObject(obj);
                 ans = func.get();
             }
-            else {
-                if (inTransaction) throw new TransactionRetryException();
-                else throw new RuntimeException("failed to acquire lock (timeout)");
-            }
-        }
+            else throw new TransactionRetryException();
+        }               
         return ans;
     }
 
     public static byte synchronizedBlock(AnyPersistent obj, ByteSupplier func) {
-        // System.out.println("ByteSupplier");
         byte ans;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
@@ -146,21 +143,16 @@ public class Util {
             finally {obj.unlock();}
         }
         else {
-            boolean success = obj.tryLock(transaction);
-            if (success) {
+            if (obj.tryLock(transaction)) {
                 transaction.addLockedObject(obj);
                 ans = func.getAsByte();
             }
-            else {
-                if (inTransaction) throw new TransactionRetryException();
-                else throw new RuntimeException("failed to acquire lock (timeout)");
-            }
-        }
+            else throw new TransactionRetryException();
+        }               
         return ans;
     }
 
     public static short synchronizedBlock(AnyPersistent obj, ShortSupplier func) {
-        // System.out.println("ShortSupplier");
         short ans;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
@@ -170,21 +162,16 @@ public class Util {
             finally {obj.unlock();}
         }
         else {
-            boolean success = obj.tryLock(transaction);
-            if (success) {
+            if (obj.tryLock(transaction)) {
                 transaction.addLockedObject(obj);
                 ans = func.getAsShort();
             }
-            else {
-                if (inTransaction) throw new TransactionRetryException();
-                else throw new RuntimeException("failed to acquire lock (timeout)");
-            }
-        }
+            else throw new TransactionRetryException();
+        }               
         return ans;
     }
 
     public static int synchronizedBlock(AnyPersistent obj, IntSupplier func) {
-        // System.out.println("IntSupplier");
         int ans;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
@@ -194,21 +181,16 @@ public class Util {
             finally {obj.unlock();}
         }
         else {
-            boolean success = obj.tryLock(transaction);
-            if (success) {
+            if (obj.tryLock(transaction)) {
                 transaction.addLockedObject(obj);
                 ans = func.getAsInt();
             }
-            else {
-                if (inTransaction) throw new TransactionRetryException();
-                else throw new RuntimeException("failed to acquire lock (timeout)");
-            }
-        }
+            else throw new TransactionRetryException();
+        }               
         return ans;
     }
 
     public static long synchronizedBlock(AnyPersistent obj, LongSupplier func) {
-        // System.out.println("LongSupplier");
         long ans;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
@@ -218,21 +200,16 @@ public class Util {
             finally {obj.unlock();}
         }
         else {
-            boolean success = obj.tryLock(transaction);
-            if (success) {
+            if (obj.tryLock(transaction)) {
                 transaction.addLockedObject(obj);
                 ans = func.getAsLong();
             }
-            else {
-                if (inTransaction) throw new TransactionRetryException();
-                else throw new RuntimeException("failed to acquire lock (timeout)");
-            }
-        }
+            else throw new TransactionRetryException();
+        }               
         return ans;
     }
 
     public static boolean synchronizedBlock(AnyPersistent obj, BooleanSupplier func) {
-        // System.out.println("BooleanSupplier");
         boolean ans;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
@@ -242,16 +219,12 @@ public class Util {
             finally {obj.unlock();}
         }
         else {
-            boolean success = obj.tryLock(transaction);
-            if (success) {
+            if (obj.tryLock(transaction)) {
                 transaction.addLockedObject(obj);
                 ans = func.getAsBoolean();
             }
-            else {
-                if (inTransaction) throw new TransactionRetryException();
-                else throw new RuntimeException("failed to acquire lock (timeout)");
-            }
-        }
+            else throw new TransactionRetryException();
+        }               
         return ans;
     }
 
@@ -264,15 +237,11 @@ public class Util {
             finally {obj.unlock();}
         }
         else {
-            boolean success = obj.tryLock(transaction);
-            if (success) {
+            if (obj.tryLock(transaction)) {
                 transaction.addLockedObject(obj);
                 func.run();
             }
-            else {
-                if (inTransaction) throw new TransactionRetryException();
-                else throw new RuntimeException("failed to acquire lock (timeout)");
-            }
-        }
+            else throw new TransactionRetryException();
+        }               
     }
 }

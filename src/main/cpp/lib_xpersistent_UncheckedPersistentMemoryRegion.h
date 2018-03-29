@@ -41,13 +41,28 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nati
 JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutLong
   (JNIEnv *env, jobject obj, jlong address, jlong value);
 
-/*
- * Class:     lib_xpersistent_UncheckedPersistentMemoryRegion
- * Method:    getDirectAddress
- * Signature: (JJJ)J
- */
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutDurableByte
+  (JNIEnv *env, jobject obj, jlong address, jbyte value);
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutDurableShort
+  (JNIEnv *env, jobject obj, jlong address, jshort value);
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutDurableInt
+  (JNIEnv *env, jobject obj, jlong address, jint value);
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutDurableLong
+  (JNIEnv *env, jobject obj, jlong address, jlong value);
+
+
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_getDirectAddress
   (JNIEnv *env, jobject obj, jlong region_offset);
+
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativeFlush
+  (JNIEnv *env, jobject obj, jlong address, jlong size);
+
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_addToTransaction
+  (JNIEnv *env, jobject obj, jlong address, jlong size);
 
 #ifdef __cplusplus
 }

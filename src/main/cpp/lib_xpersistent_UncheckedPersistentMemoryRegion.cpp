@@ -61,6 +61,39 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nati
     else throw_persistence_exception(env, "Failed to write long value.");
 }
 
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutDurableByte
+  (JNIEnv *env, jobject obj, jlong address, jbyte value)
+{
+    char *ptr = (char*)address;
+    *ptr = value;
+    pmem_persist(ptr, 1);
+}
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutDurableShort
+  (JNIEnv *env, jobject obj, jlong address, jshort value)
+{
+    int16_t *ptr = (int16_t*)address;
+    *ptr = value;
+    pmem_persist(ptr, 2);
+}
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutDurableInt
+  (JNIEnv *env, jobject obj, jlong address, jint value)
+{
+    int *ptr = (int*)address;
+    *ptr = value;
+    pmem_persist(ptr, 4);
+}
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativePutDurableLong
+  (JNIEnv *env, jobject obj, jlong address, jlong value)
+{
+    long *ptr = (long*)address;
+    *ptr = value;
+    pmem_persist(ptr, 8);
+}
+
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_getDirectAddress
   (JNIEnv *env, jobject obj, jlong region_offset)
 {
@@ -68,3 +101,14 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_get
     return (long)pmemobj_direct(oid);
 }
 
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativeFlush
+  (JNIEnv *env, jobject obj, jlong address, jlong size)
+{
+    pmem_persist((const void*)address, size);
+}
+
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_addToTransaction
+  (JNIEnv *env, jobject obj, jlong address, jlong size)
+{
+    pmemobj_tx_add_range_direct((const void *)address, (size_t)size);
+}

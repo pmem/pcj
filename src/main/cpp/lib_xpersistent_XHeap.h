@@ -92,6 +92,10 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeFromByteArrayMemcpy
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
   (JNIEnv *, jobject, jboolean);
 
+
+JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeCopyBytesToAddress
+  (JNIEnv *env, jobject obj, jbyteArray src_array, jint src_offset, jlong dest_address, jint length);
+
 #ifdef __cplusplus
 }
 #endif

@@ -41,6 +41,8 @@ public class ValueBasedObjectType<T extends AnyPersistent> extends ObjectType<T>
         // System.out.println("created VBOT for " + valueType + ", size = " + getSize() + ", allocSize = " + getAllocationSize());
     }
 
+    public ValueType getValueType() {return valueType;}
+
     @Override public <U extends AnyPersistent> ObjectType<U> extendWith(Class<U> cls, PersistentType... ts) {
         throw new UnsupportedOperationException();
     }

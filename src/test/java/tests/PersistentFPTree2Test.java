@@ -24,6 +24,7 @@ package tests;
 import lib.util.persistent.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -31,6 +32,8 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.Arrays;
+import java.util.concurrent.ConcurrentNavigableMap;
 
 public class PersistentFPTree2Test {
 
@@ -49,7 +52,8 @@ public class PersistentFPTree2Test {
 
 	public static boolean run() {
 		System.out.println("****************PersistentFPTree2 Tests****************");
-		return sisterTypeTest() && singleThreadedTest() && multiThreadedTest(args) && testPersistence(args) && testPersistence2(args) && testIterators();
+		return sisterTypeTest() && singleThreadedTest() && singleThreadedSubMapTest() && multiThreadedTest(args) && testPersistence(args) && testPersistence2(args) && testIterators();
+		//return testPersistence(args) && testPersistence2(args);
 	}
 
 	public static boolean sisterTypeTest() {
@@ -93,22 +97,58 @@ public class PersistentFPTree2Test {
 	public static boolean singleThreadedTest() {
 		int I = 3;
 		int L = 4;
-		int X = 500;
-		int N = X * L;
+		int X = 5;
+		int N = 4 * X * L;
 		PersistentFPTree2<PersistentInteger, PersistentString> fpt = new PersistentFPTree2<>(I, L);
 
 		Set<Integer> s = new HashSet<>();
 		Integer[] rands = new Integer[N];
 		for(int i = 0; i < N; i++) {
-			rands[i] = ThreadLocalRandom.current().nextInt(0, N);
+			rands[i] = i; //ThreadLocalRandom.current().nextInt(0, N);
 			s.add(rands[i]);
 		}
 
 		if(verbose) System.out.println("Generated keys: " + rands.length);
+		assert(fpt.isEmpty() == true);
 
 		for(int num : rands) {
 			fpt.put(new PersistentInteger(num), new PersistentString(Integer.toString(num)));
 		}
+		assert(fpt.isEmpty() == false);
+
+		for(int i = 0; i < N; i++) {
+			int num = rands[i];
+			PersistentInteger n = new PersistentInteger(num);
+			assert(fpt.ceilingKey(n).intValue() == num);
+			assert(fpt.ceilingEntry(n).getValue().equals(new PersistentString(Integer.toString(num))));
+			if(i == 0) {
+				assert(fpt.lowerKey(n) == null);
+				assert(fpt.lowerEntry(n) == null);
+			}
+			else {
+				assert(fpt.lowerKey(n).intValue() == (num-1));
+				assert(fpt.lowerEntry(n).getValue().equals(new PersistentString(Integer.toString(num-1))));
+			}
+
+			assert(fpt.floorKey(n).intValue() == num);
+			assert(fpt.floorEntry(n).getValue().equals(new PersistentString(Integer.toString(num))));
+			if(i == N-1) {
+				assert(fpt.higherKey(n) == null);
+				assert(fpt.higherEntry(n) == null);
+			}
+			else {
+				assert(fpt.higherKey(n).intValue() == (num+1));
+				assert(fpt.higherEntry(n).getValue().equals(new PersistentString(Integer.toString(num+1))));
+			}
+			//System.out.println("higher key: " + num + " --> " + fpt.higherKey(n));
+		}
+		assert(fpt.firstKey().intValue() == 0);
+		assert(fpt.firstEntry().getValue().equals(new PersistentString(Integer.toString(0))));
+		assert(fpt.lastEntry().getValue().equals(new PersistentString(Integer.toString(N-1))));
+		assert(fpt.lastKey().intValue() == N-1);
+
+		//System.out.println(fpt.lastKey().intValue());
+		//fpt.printLeaves();
 
 		boolean getSuccess = true;
 		for(int num : rands ) {
@@ -125,8 +165,23 @@ public class PersistentFPTree2Test {
 		if(verbose) System.out.println("GET SUCCESS: " + getSuccess);
 		else assert(getSuccess == true);
 
+		if(verbose) {
+			System.out.println("VERIFY NEXT " + fpt.verifyNext());
+		} else assert(fpt.verifyNext() == true);
+
+		if(verbose) System.out.println("VERIFY SIZE(" + fpt.size() + ") == N(" + N + ")");
+		else assert(fpt.size() == N); 
+
+		assert(fpt.pollFirstEntry().getValue().equals(new PersistentString(Integer.toString(0))));
+		assert(fpt.pollLastEntry().getValue().equals(new PersistentString(Integer.toString(N-1))));
+		assert(fpt.firstKey().intValue() == 1);
+		assert(fpt.lastKey().intValue() == N-2);
+		assert(fpt.firstEntry().getValue().equals(new PersistentString(Integer.toString(1))));
+		assert(fpt.lastEntry().getValue().equals(new PersistentString(Integer.toString(N-2))));
+
 		boolean rmvSuccess = true;
-		for(int num : s) {
+		for(int i = 1; i < N-1; i++) {
+			int num = rands[i];
 			boolean current = false;
 			PersistentString val = fpt.remove(new PersistentInteger(num));
 			if(val != null) {
@@ -141,12 +196,59 @@ public class PersistentFPTree2Test {
 			if(val != null) System.out.println("2nd try FAIL: removing " + num);
 			rmvSuccess = rmvSuccess && (val == null);
 		}
-
+		assert(fpt.isEmpty() == true);
 		if(verbose) System.out.println("REMOVE SUCCESS: " + rmvSuccess);
 		else assert(rmvSuccess == true);
 		if(verbose) fpt.verifyDelete("Single threaded test |> ");
 		else assert(fpt.verifyDelete() == true); 
 
+		return true;
+	}
+
+	public static boolean singleThreadedSubMapTest() {
+		int I = 3;
+		int L = 4;
+		int X = 20;
+		int N = 4 * X;
+		PersistentFPTree2<PersistentInteger, PersistentString> fpt = new PersistentFPTree2<>(I, L);
+
+		Set<Integer> s = new HashSet<>();
+		Integer[] rands = new Integer[N];
+		for(int i = 0; i < N; i++) {
+			rands[i] = ThreadLocalRandom.current().nextInt(0, N);
+			s.add(rands[i]);
+		}
+
+		for(int num : rands) {
+			fpt.put(new PersistentInteger(num), new PersistentString(Integer.toString(num)));
+		}
+
+		final int SIZE = s.size();
+		Integer[] uniques = s.toArray(new Integer[SIZE]);
+		Arrays.sort(uniques);
+		int lo = SIZE/4;
+		int hi = 3 * SIZE/4;
+
+		PersistentInteger lowK = new PersistentInteger(uniques[lo]);
+		PersistentInteger highK = new PersistentInteger(uniques[hi]);
+		boolean loInc = ThreadLocalRandom.current().nextBoolean();
+		boolean hiInc = ThreadLocalRandom.current().nextBoolean();
+		//fpt.printLeaves();
+		if(verbose) System.out.println("Clear test for Map range: " + (loInc ? "[" : "(") + lowK + "," + highK + (hiInc ? "]" : ")"));
+		ConcurrentNavigableMap<PersistentInteger, PersistentString> subMap = fpt.subMap(lowK, loInc, highK, hiInc);
+		
+		int SZ = (hi - lo + 1) - (!loInc? 1 : 0) - (!hiInc? 1 : 0);
+		assert(SZ == subMap.size());
+		if(verbose) System.out.println(SZ + " size " + subMap.size());
+		subMap.clear();
+		assert(subMap.size() == 0);
+		
+
+		for (int i = lo + 1; i < hi; i++ ) assert(fpt.get(new PersistentInteger(uniques[i])) == null);
+		if(loInc) assert(fpt.get(new PersistentInteger(uniques[lo])) == null);
+		if(hiInc) assert(fpt.get(new PersistentInteger(uniques[hi])) == null);
+		//fpt.printLeaves();
+		fpt.descendingMap();
 		return true;
 	}
 
@@ -299,20 +401,24 @@ public class PersistentFPTree2Test {
 		}
 
 
-		String id = "tests.fptree2_persistance.RC";
+		String id = "tests.fptree2_persistance.RC_EXP";
 		PersistentFPTree2<PersistentInteger, PersistentString> cfptRC = ObjectDirectory.get(id, PersistentFPTree2.class);
-		PersistentLong pl = ObjectDirectory.get("pseed2", PersistentLong.class);
+		PersistentLong pl = ObjectDirectory.get("pseed2_EXP", PersistentLong.class);
+		PersistentInteger mapSize = ObjectDirectory.get("map_size", PersistentInteger.class);
 		if (cfptRC == null && pl == null) {
 			cfptRC = new PersistentFPTree2<PersistentInteger, PersistentString>(I, L);
 			pl = new PersistentLong(ThreadLocalRandom.current().nextLong(N));
 			ObjectDirectory.put(id, cfptRC);
-			ObjectDirectory.put("pseed2", pl);
+			ObjectDirectory.put("pseed2_EXP", pl);
 			if (verbose) System.out.println("Saving to pmem...");
 			Random rnd = new Random(pl.longValue());
 			for(int i = 0; i < N; i++) {
 				int rand = rnd.nextInt(N);
 				cfptRC.put(new PersistentInteger(rand), new PersistentString(Integer.toString(rand)));
 			}
+			
+			mapSize = new PersistentInteger(cfptRC.size());
+			ObjectDirectory.put("map_size", mapSize);
 			//cfptRC.printLeaves();
 		}
 		else {
@@ -325,6 +431,9 @@ public class PersistentFPTree2Test {
 				//System.out.println(rand + "-->" + ps);
 				assert(cfptRC.get(new PersistentInteger(rand)).equals(new PersistentString(Integer.toString(rand))));
 			}
+			//System.out.println(cfptRC.size() + ", " + mapSize.intValue());
+			assert(cfptRC.size() == mapSize.intValue());
+
 		}
 		return true;
 	}
@@ -345,7 +454,7 @@ public class PersistentFPTree2Test {
 			if(verbose) System.out.println("Using default values for I, L, N -> " + I + ", " + L + ", " + N);
 		}
 
-		String id = "tests.fptree2_persistance2.RC";
+		String id = "tests.fptree2_persistance2.RC_EXP";
 		PersistentFPTree2<PersistentInteger, PersistentString> cfptRC = ObjectDirectory.get(id, PersistentFPTree2.class);
 		if (cfptRC == null) {
 			cfptRC = new PersistentFPTree2<PersistentInteger, PersistentString>(I, L);
@@ -353,11 +462,10 @@ public class PersistentFPTree2Test {
 			if (verbose) System.out.println("Saving to pmem...");
 			Random rnd = new Random();
 			for(int i = 0; i < N; i++) {
-				int rand = rnd.nextInt(N);
+				int rand = i; //rnd.nextInt(N);
 				cfptRC.put(new PersistentInteger(rand), new PersistentString(Integer.toString(rand)));
 			}
 			cfptRC.randomlyDeleteLeaves();
-			//cfptRC.printLeaves();
 		}
 		else {
 			if (verbose) System.out.println("Retrieving from pmem...");
@@ -366,6 +474,45 @@ public class PersistentFPTree2Test {
 			for(PersistentInteger k : map.keySet()) {
 				assert(cfptRC.get(k).equals(map.get(k)));
 			}
+		}
+		return true;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static boolean testPersistence2old(String[] args) {
+		if (verbose) System.out.println("PersistentFPTree2: testing persistence across vm runs - test2");
+		int I, L, N;
+		try {
+			I = Integer.parseInt(args[0]);
+			L = Integer.parseInt(args[1]);
+			N = Integer.parseInt(args[2]);
+		}
+		catch(Exception ex) {
+			I = 3;
+			L = 4;
+			N = 1000;
+			if(verbose) System.out.println("Using default values for I, L, N -> " + I + ", " + L + ", " + N);
+		}
+
+		String id = "tests.fptree2_persistance2_WITH_CLEANUP.RC";
+		PersistentFPTree2<PersistentInteger, PersistentString> cfptRC2 = ObjectDirectory.get(id, PersistentFPTree2.class);
+		if (cfptRC2 == null) {
+			cfptRC2 = new PersistentFPTree2<PersistentInteger, PersistentString>(I, L);
+			ObjectDirectory.put(id, cfptRC2);
+			if (verbose) System.out.println("Saving to pmem...");
+			Random rnd = new Random();
+			for(int i = 0; i < N; i++) {
+				int rand = i; //rnd.nextInt(N);
+				cfptRC2.put(new PersistentInteger(rand), new PersistentString(Integer.toString(rand)));
+			}
+		}
+		else {
+			/*if (verbose) System.out.println("Retrieving from pmem...");
+			HashMap<PersistentInteger, PersistentString> map = cfptRC2.getHashMap();
+			//cfptRC.printLeaves();
+			for(PersistentInteger k : map.keySet()) {
+				assert(cfptRC2.get(k).equals(map.get(k)));
+			}*/
 		}
 		return true;
 	}
@@ -391,10 +538,10 @@ public class PersistentFPTree2Test {
 		}
 		fpt.randomlyDeleteLeaves();
 
-		if(verbose) {
+		/*if(verbose) {
 			fpt.printLeaves();
 			for(Map.Entry<PersistentInteger, PersistentString> e : fpt.entrySet()) System.out.print(e.getKey() + ",");
-		}
+		}*/
 
 
 		HashMap<PersistentInteger, PersistentString> hmap = fpt.getHashMap();

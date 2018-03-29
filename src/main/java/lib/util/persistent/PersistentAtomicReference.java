@@ -32,11 +32,12 @@ public final class PersistentAtomicReference<T extends AnyPersistent> extends Pe
 
 	public PersistentAtomicReference() {
 		super(TYPE);
-		set(null);
 	}
+
 	public PersistentAtomicReference(T t) {
-		super(TYPE);
-		set(t);
+		super(TYPE, (PersistentAtomicReference self) -> {
+			self.initObjectField(VALUE, t);
+		});
 	}
 
 	private PersistentAtomicReference(ObjectPointer<PersistentAtomicReference> p) {

@@ -29,7 +29,9 @@ import java.util.concurrent.Future;
 import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.function.Supplier;
+import static lib.util.persistent.ObjectCache.Ref;
 import static lib.util.persistent.Trace.*;
 
 public final class Transaction {
@@ -37,7 +39,8 @@ public final class Transaction {
     private static ExecutorService outerThreadPool;
     private TransactionCore core;
     private ArrayList<AnyPersistent> locked;
-    private ArrayList<AnyPersistent> constructions;
+    protected ArrayList<AnyPersistent> constructions;
+    protected HashMap<Long, Ref> reconstructions;
     private int timeout;
     private int depth;
     private State state;
@@ -59,6 +62,7 @@ public final class Transaction {
         this.core = core;
         this.locked = new ArrayList<>(20);
         this.constructions = new ArrayList<>(20);
+        this.reconstructions = new HashMap<>(20);
         this.timeout = Config.MONITOR_ENTER_TIMEOUT;
         this.depth = 0;
         this.state = Transaction.State.None;
@@ -177,12 +181,20 @@ public final class Transaction {
         run(PersistentMemoryProvider.getDefaultProvider(), () -> {body.run(); return (Void)null;}, onCommit, onAbort, null, null);
     }
 
+    public static void run(Runnable body, Runnable onCommit, Runnable onAbort, AnyPersistent toLock1) {
+        run(PersistentMemoryProvider.getDefaultProvider(), () -> {body.run(); return (Void)null;}, onCommit, onAbort, toLock1, null);
+    }
+
     public static <T> T run(Supplier<T> body) {
         return run(PersistentMemoryProvider.getDefaultProvider(), body, null, null, null, null);
     }
 
     public static <T> T run(Supplier<T> body, AnyPersistent toLock) {
         return run(PersistentMemoryProvider.getDefaultProvider(), body, null, null, toLock, null);
+    }
+
+    public static <T> T run(Supplier<T> body, Runnable onCommit, Runnable onAbort, AnyPersistent toLock) {
+        return run(PersistentMemoryProvider.getDefaultProvider(), body, onCommit, onAbort, toLock, null);
     }
 
     public static void runOuter(Runnable body) {
@@ -207,9 +219,44 @@ public final class Transaction {
         return state == State.Active;
     }
 
-    static void addNewObject(AnyPersistent obj) {
-        getTransaction().constructions.add(obj);
+/*    static <U extends AnyPersistent> Ref<U> addReconstructedObject(U obj) {
         ObjectCache.uncommittedConstruction(obj);
+        Ref<U> ref = new Ref<>(obj);
+        getTransaction().reconstructions.put(obj.getPointer().addr(), ref);
+        return ref;
+    }*/
+
+    static <U extends AnyPersistent> boolean addReconstructedObject(Long address, Ref<U> ref) {
+        boolean ret = false;
+        Transaction tx = getTransaction();
+        if (tx != null && tx.isActive()) {
+            tx.reconstructions.put(address, ref);
+            ObjectCache.uncommittedConstruction(ref.get());
+            ret = true;
+        }
+        return ret;
+    }
+
+    static <U extends AnyPersistent> boolean addNewObject(AnyPersistent obj, Ref<U> ref) {
+        boolean ret = false;
+        Transaction tx = getTransaction();
+        if (tx != null && tx.isActive()) {
+            tx.constructions.add(obj);
+            tx.reconstructions.put(obj.addr(), ref);
+            ObjectCache.uncommittedConstruction(obj);
+            ret = true;
+        }
+        return ret;
+    }
+
+    static Ref getReconstructedObject(Long address) {
+        Transaction tx = getTransaction();
+        return tx == null ? null : tx.reconstructions.get(address);
+    }
+
+    static void removeFromReconstructions(Long address) {
+        Transaction tx = getTransaction();
+        if(tx !=null) tx.reconstructions.remove(address);
     }
 
     void addLockedObject(AnyPersistent obj) {
@@ -263,7 +310,8 @@ public final class Transaction {
         }
     }
 
-    private void commit() {
+    @SuppressWarnings("unchecked")
+    private <U extends AnyPersistent> void commit() {
         if (depth == 1) {
             if (state == Transaction.State.None) {
                 return;
@@ -274,17 +322,23 @@ public final class Transaction {
             }
             core.commit();
             state = Transaction.State.Committed;
-            for (AnyPersistent obj : constructions) {
+            /*for (AnyPersistent obj : constructions) {
                 ObjectCache.committedConstruction(obj);
+                ObjectCache.add(obj);
+            }*/
+            for (Ref<U> ref : reconstructions.values()) {
+                ObjectCache.committedConstruction(ref.get());
+                ObjectCache.add(ref.getAddress(), ref);
             }
             constructions.clear();
+            reconstructions.clear();
             releaseLocks();
         }
         depth--;
         if (depth == 0) {
             clearAbortHandlers();
             if (commitHandlers != null) {
-                Collections.reverse(commitHandlers);
+                if (commitHandlers.size() > 1) Collections.reverse(commitHandlers);
                 Runnable[] handlers = commitHandlers.toArray(new Runnable[0]);
                 commitHandlers.clear();
                 for (Runnable r : handlers) r.run();
@@ -292,7 +346,8 @@ public final class Transaction {
         }
     }
 
-    private void abort(TransactionException e) {
+    @SuppressWarnings("unchecked")
+    private <U extends AnyPersistent> void abort(TransactionException e) {
         if (state != Transaction.State.Active) {
             state = Transaction.State.Aborted;
             releaseLocks();
@@ -302,14 +357,18 @@ public final class Transaction {
             core.abort(e);
             for (AnyPersistent obj : constructions) {
                 // TODO: remove dependency on xpersistent package
-                ((lib.xpersistent.UncheckedPersistentMemoryRegion)obj.getPointer().region()).clear();
+                ((lib.xpersistent.UncheckedPersistentMemoryRegion)obj.region()).clear();
+            }
+            for (Ref<U> ref : reconstructions.values()) {
+                ref.clear();
             }
             constructions.clear();
+            reconstructions.clear();
             state = Transaction.State.Aborted;
             releaseLocks();
             clearCommitHandlers();
             if (abortHandlers != null) {
-                Collections.reverse(abortHandlers);
+                if (abortHandlers.size() > 1) Collections.reverse(abortHandlers);
                 Runnable[] handlers = abortHandlers.toArray(new Runnable[0]);
                 abortHandlers.clear();
                 for (Runnable r : handlers) r.run();

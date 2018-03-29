@@ -34,7 +34,7 @@ import java.util.ArrayDeque;
 
 public class CycleCollector {
 
-    public static final byte BLACK = 0;
+    /*public static final byte BLACK = 0;
     public static final byte PURPLE = 1;
     public static final byte GREY = 2;
     public static final byte WHITE = 3;
@@ -95,7 +95,7 @@ public class CycleCollector {
             PersistentConcurrentHashMapInternal.NodeLL node = iter.next();
             Long l = node.getKey();
             AnyPersistent obj = ObjectCache.get(l, true);
-            type = obj.getPointer().type().getName();
+            type = obj.getType().getName();
             count = markedTypeCount.containsKey(type) ? markedTypeCount.get(type) : 0;
             markedTypeCount.put(type, count + 1);
             if (obj.getColor() == PURPLE) {
@@ -106,7 +106,7 @@ public class CycleCollector {
                 iter.remove();
                 if (obj.getColor() == BLACK && obj.getRefCount() == 0) {
                     System.out.println("address " + l + " object " + obj + " needs to be freed");
-                    type = obj.getPointer().type().getName();
+                    type = obj.getType().getName();
                     count = markedFreedTypeCount.containsKey(type) ? markedFreedTypeCount.get(type) : 0;
                     markedFreedTypeCount.put(type, count + 1);
                     AnyPersistent.free(l);
@@ -122,7 +122,7 @@ public class CycleCollector {
         while (!stack.isEmpty()) {
             Long l = stack.pop();
             AnyPersistent obj = ObjectCache.get(l, true);
-            type = obj.getPointer().type().getName();
+            type = obj.getType().getName();
             count = scannedTypeCount.containsKey(type) ? scannedTypeCount.get(type) : 0;
             scannedTypeCount.put(type, count + 1);
             if (obj.getColor() != GREY) {
@@ -134,11 +134,11 @@ public class CycleCollector {
                     stack.push(childAddr);
                 }
                 obj.setColor(GREY, true);
-                type = obj.getPointer().type().getName();
+                type = obj.getType().getName();
                 count = markedGreyTypeCount.containsKey(type) ? markedGreyTypeCount.get(type) : 0;
                 markedGreyTypeCount.put(type, count + 1);
             } else {
-                type = obj.getPointer().type().getName();
+                type = obj.getType().getName();
                 count = markedAlreadyGreyTypeCount.containsKey(type) ? markedAlreadyGreyTypeCount.get(type) : 0;
                 markedAlreadyGreyTypeCount.put(type, count + 1);
             }
@@ -202,7 +202,7 @@ public class CycleCollector {
             if (!freedCandidates.contains(l)) {
                 AnyPersistent obj = ObjectCache.get(l, true);
                 if (obj.getColor() == WHITE && !candidatesSet.containsKey(l)) {
-                    type = obj.getPointer().type().getName();
+                    type = obj.getType().getName();
                     count = collectedWhiteTypeCount.containsKey(type) ? collectedWhiteTypeCount.get(type) : 0;
                     collectedWhiteTypeCount.put(type, count + 1);
                     obj.setColor(BLACK, true);
@@ -220,7 +220,7 @@ public class CycleCollector {
     }
 
     static void addCandidate(AnyPersistent obj) {
-        long addr = obj.getPointer().addr();
+        long addr = obj.addr();
         Transaction.run(() -> {
             if (obj.getColor() != PURPLE) {
                 if (processing.get() == true) {
@@ -250,5 +250,5 @@ public class CycleCollector {
 
     static synchronized boolean isCandidate(long addr) {
         return candidatesSet.containsKey(addr);
-    }
+    }*/
 }

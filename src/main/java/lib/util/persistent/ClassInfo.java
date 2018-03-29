@@ -49,6 +49,7 @@ public class ClassInfo {
 
     private final MemoryRegion region;
     private String className;
+    private Class<?> cls;
     private Constructor reconstructor;
     private PersistentType type;
 
@@ -131,7 +132,7 @@ public class ClassInfo {
 
     void initReconstructor(String className) {
         try {
-            Class<?> cls = Class.forName(className);
+            this.cls = Class.forName(className);
             Constructor ctor = cls.getDeclaredConstructor(ObjectPointer.class);
             ctor.setAccessible(true);
             this.reconstructor = ctor;
@@ -188,6 +189,8 @@ public class ClassInfo {
         className = new RawString(new UncheckedPersistentMemoryRegion(region.getLong(CLASS_NAME))).toString();
         return className;
     }
+
+    public Class<?> cls() {return cls;}
 
     public long getClassNameAddr() {return region.getLong(CLASS_NAME);}
 

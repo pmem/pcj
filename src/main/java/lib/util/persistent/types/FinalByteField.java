@@ -21,7 +21,7 @@
 
 package lib.util.persistent.types;
 
-public class FinalByteField extends PersistentField {
+public class FinalByteField extends PrimitiveField {
     public FinalByteField() {
       super(Types.BYTE);
    }

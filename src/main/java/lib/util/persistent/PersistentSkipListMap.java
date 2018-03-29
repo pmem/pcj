@@ -126,9 +126,9 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
             super(TYPE, (Node obj) -> {
                 obj.initObjectField(KEY, key);
                 obj.initBooleanField(MARKER, false);
+                obj.initObjectField(VALUE, value);
+                obj.initObjectField(NEXT, next);
             });
-                setObjectField(VALUE, value);
-                setObjectField(NEXT, next);
         }
 
         //Creates new marker node.
@@ -137,16 +137,16 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
             super(TYPE, (Node obj) -> {
                 obj.initObjectField(KEY, null);
                 obj.initBooleanField(MARKER, true);
+                obj.initObjectField(VALUE, obj);
+                obj.initObjectField(NEXT, next);
             });
-                setObjectField(VALUE, this);
-                setObjectField(NEXT, next);
         }
 
         public Node (ObjectPointer<Node> p) { 
                 super(p); 
-            //Transaction.run( ()->{}, ()-> {
+                ObjectCache.adminMode.set(true);
                 hasNullValue = (getObjectField(KEY) != null && getObjectField(VALUE) == null);
-            //});
+                ObjectCache.adminMode.set(false);
         } 
     
         @SuppressWarnings("unchecked")
@@ -475,7 +475,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                         //n.helpDelete(b, f);
                         break;
                     }
-                    if (b.value() == null || n.isMarker()) // b is deleted
+                    if (b.hasNullValue() || n.isMarker()) // b is deleted
                     //if (b.value() == null || v == n)
                         break;
                     if ((c = cpr(cmp, key, n.key())) > 0) {

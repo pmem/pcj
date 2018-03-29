@@ -21,6 +21,7 @@
 
 #include <jni.h>
 #include <libpmemobj.h>
+#include <libpmem.h>
 
 void call_JNI_method(JNIEnv *env, jobject obj, const char* method_name, const char* method_sig);
 void call_JNI_method_with_int(JNIEnv *env, jobject obj, const char* method_name, const char* method_sig, int arg);

@@ -24,6 +24,7 @@ package lib.util.persistent.types;
 import lib.util.persistent.AnyPersistent;
 import lib.util.persistent.ClassInfo;
 import java.lang.reflect.Field;
+// import java.util.concurrent.ConcurrentHashMap;
 
 public class Types {
 
@@ -40,6 +41,7 @@ public class Types {
 
     public static final String TYPE_FIELD_NAME = "TYPE";
     public static final String OLD_TYPE_FIELD_NAME = "type";
+    // public static final ConcurrentHashMap<String, Class<? extends AnyPersistent>> classCache = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
     public static synchronized <T extends AnyPersistent> PersistentType typeForClass(Class<T> cls) {
@@ -57,11 +59,14 @@ public class Types {
         if (!type.isValueBased()) throw new RuntimeException("Class does not refer to a value-based class");
         return (ValueBasedObjectType)type;
     }
-
+ 
     @SuppressWarnings("unchecked")
     public static synchronized <T extends AnyPersistent> ObjectType<T> typeForName(String name) {
         try {
-            Class<T> cls = (Class<T>)Class.forName(name);
+            Class<T> cls = (Class<T>)ClassInfo.getClassInfo(name).cls();
+            if (cls == null) {
+                cls = (Class<T>)Class.forName(name);
+            }
             return objectTypeForClass(cls);
         } 
         catch (ClassNotFoundException e) {throw new RuntimeException("class not found for name " + name);}

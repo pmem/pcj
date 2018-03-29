@@ -21,23 +21,8 @@
 
 package lib.util.persistent.types;
 
-import lib.util.persistent.AnyPersistent;
-
-
-public class ValueField<T extends AnyPersistent> extends FinalValueField<T> {
-
-    public ValueField(Class<T> cls) {
-      super(cls);
-    }
-
-    public ValueField(Class<T> cls, ValueType type) {
-    	super(ObjectType.fromValueType(cls, type));
-    }
-
-    @Override
-    public String toString() {
-       return String.format("ValueField(%s)", getType());
+public class BytesField extends FinalBytesField {
+    public BytesField(long size) {
+        super(size);
     }
 }
-
-

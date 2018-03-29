@@ -87,6 +87,9 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
         return getLong(offset);
     }
 
+
+    // transational
+
     public void putByte(long offset, byte value) {
         checkAddress();
         nativePutByte(directAddress + offset, value);
@@ -111,9 +114,90 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
         putLong(offset, value);
     }
 
-    private native long getDirectAddress(long regionOffset);
+
+    // durable
+
+    public void putDurableByte(long offset, byte value) {
+        checkAddress();
+        nativePutDurableByte(directAddress + offset, value);
+    }
+
+    public void putDurableShort(long offset, short value) {
+        checkAddress();
+        nativePutDurableShort(directAddress + offset, value);
+    }
+
+    public void putDurableInt(long offset, int value) {
+        checkAddress();
+        nativePutDurableInt(directAddress + offset, value);
+    }
+
+    public void putDurableLong(long offset, long value) {
+        checkAddress();
+        nativePutDurableLong(directAddress + offset, value);
+    }
+
+    public void putDurableAddress(long offset, long value) {
+        putDurableLong(offset, value);
+    }
+
+
+    // raw
+
+    public void putRawByte(long offset, byte value) {
+        checkAddress();
+        XHeap.UNSAFE.putByte(directAddress + offset, value);
+    }
+
+    public void putRawShort(long offset, short value) {
+        checkAddress();
+        XHeap.UNSAFE.putShort(directAddress + offset, value);
+    }
+
+    public void putRawInt(long offset, int value) {
+        checkAddress();
+        XHeap.UNSAFE.putInt(directAddress + offset, value);
+    }
+
+    public void putRawLong(long offset, long value) {
+        checkAddress();
+        XHeap.UNSAFE.putLong(directAddress + offset, value);
+    }
+
+    public void putRawAddress(long offset, long value) {
+        putRawLong(offset, value);
+    }
+
+    public void putRawBytes(long offset, byte[] bytes) {
+        checkAddress();
+        long srcOffset = XHeap.UNSAFE.ARRAY_BYTE_BASE_OFFSET + XHeap.UNSAFE.ARRAY_BYTE_INDEX_SCALE * 0;
+        long destAddress = directAddress + offset;
+        XHeap.UNSAFE.copyMemory(bytes, srcOffset, null, destAddress, bytes.length);
+    }
+
+    public void flush(long offset, long size) {
+        // System.out.println("flush(" + offset + ", " + size + ")");
+        checkAddress();
+        nativeFlush(directAddress + offset, size);
+    }
+
+    public void flush(long size) {
+        flush(0, size);
+    }
+
+    // transactional
     private native void nativePutByte(long address, byte value);
     private native void nativePutShort(long address, short value);
     private native void nativePutInt(long address, int value);
     private native void nativePutLong(long address, long value);
+
+    // durable
+    private native void nativePutDurableByte(long address, byte value);
+    private native void nativePutDurableShort(long address, short value);
+    private native void nativePutDurableInt(long address, int value);
+    private native void nativePutDurableLong(long address, long value);
+
+    private native void nativeFlush(long address, long size);
+    native void addToTransaction(long address, long size);
+    private native long getDirectAddress(long regionOffset);
 }

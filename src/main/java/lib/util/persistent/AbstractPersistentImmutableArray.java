@@ -75,10 +75,10 @@ abstract class AbstractPersistentImmutableArray extends AbstractPersistentArray 
     @Override
     @SuppressWarnings("unchecked") <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
         // trace(true, "APIA.getValueObject(%d, %s)", offset, type);
-        MemoryRegion srcRegion = getPointer().region();
+        MemoryRegion srcRegion = region();
         MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
         // trace(true, "APIA.getValueObject, src addr = %d, srcOffset = %d, dst  = %s, size = %d", srcRegion.addr(), offset, dstRegion, type.getSize());
-        Util.memCopy(getPointer().type(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
+        Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
         T obj = null;
         try {
             Constructor ctor = ((ObjectType)type).getReconstructor();

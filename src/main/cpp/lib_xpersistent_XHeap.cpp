@@ -126,6 +126,24 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeFromByteArrayMemcpy
     // }
 }
 
+JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeCopyBytesToAddress
+  (JNIEnv *env, jobject obj, jbyteArray src_array, jint src_offset, jlong dest_address, jint length)
+{
+    // fprintf(stdout, "nativeCopyBytesToAddress\n"); fflush(stdout);
+    jboolean is_copy;
+    jbyte* bytes = env->GetByteArrayElements(src_array, &is_copy);
+
+    // TX_BEGIN(pool) {
+        TX_MEMCPY((void*)dest_address, (void*)(bytes + src_offset), length);
+    // } TX_ONABORT {
+        // throw_persistence_exception(env, "Failed to memcpy");
+    // } TX_FINALLY {
+        // fprintf(stdout, "is_copy = %d\n", is_copy); fflush(stdout);
+        if (is_copy) env->ReleaseByteArrayElements(src_array, bytes, 0);
+    // } TX_END
+}
+
+
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
   (JNIEnv *env, jobject obj, jboolean verbose)
 {

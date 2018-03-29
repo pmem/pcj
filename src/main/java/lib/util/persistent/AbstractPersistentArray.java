@@ -37,9 +37,11 @@ abstract class AbstractPersistentArray extends AnyPersistent {
 
     protected AbstractPersistentArray(ArrayType<? extends AnyPersistent> type, int count, Object data) {
         super(type, heap.allocateRegion(type.getAllocationSize(count)));
-        setInt(ArrayType.LENGTH_OFFSET, count);
+        // setInt(ArrayType.LENGTH_OFFSET, count);
+        setRawInt(ArrayType.LENGTH_OFFSET, count);
         length = count;
         if (data != null) initializeElements(data, type.getElementType());
+        flushRegion();
         if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(type.cls().getName(), type.getAllocationSize(count), Stats.AllocationStats.WRAPPER_PER_INSTANCE + 4, 1); // uncomment for allocation stats
     }
 
@@ -82,7 +84,7 @@ abstract class AbstractPersistentArray extends AnyPersistent {
     }
 
     public PersistentType getElementType() {
-        return ((ArrayType)getPointer().type()).getElementType();
+        return ((ArrayType)getType()).getElementType();
     }
 
     public int length() {
@@ -90,11 +92,11 @@ abstract class AbstractPersistentArray extends AnyPersistent {
     }
 
     long elementOffset(int index) {
-        return ((ArrayType)getPointer().type()).getElementOffset(index);
+        return ((ArrayType)getType()).getElementOffset(index);
     }
 
     long elementOffset(int index, long size) {
-        return ((ArrayType)getPointer().type()).getElementOffset(index, size);
+        return ((ArrayType)getType()).getElementOffset(index, size);
     }
 
     int check(int index) {
@@ -102,13 +104,13 @@ abstract class AbstractPersistentArray extends AnyPersistent {
         return index;
     }
 
-    // only called during construction; thread-safe
+    //only called during construction; thread-safe
     private void initializeElements(Object data, PersistentType t)
     {
         if (t == Types.BYTE) {
             byte[] array = (byte[])data;
-            //for (int i = 0; i < array.length; i++) setByteElement(i, array[i]);
-            heap.memcpy(array, 0, getPointer().region(), elementOffset(0), array.length);
+            // heap.memcpy(array, 0, region(), elementOffset(0), array.length);
+            region().putRawBytes(ArrayType.ELEMENTS_OFFSET, array);
         }
         else if (t == Types.SHORT) {
             short[] array = (short[])data;

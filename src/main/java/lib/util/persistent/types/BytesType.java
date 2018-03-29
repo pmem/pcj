@@ -22,22 +22,44 @@
 package lib.util.persistent.types;
 
 import lib.util.persistent.AnyPersistent;
+import java.util.ArrayList;
+import java.util.HashMap;
 
+public class BytesType extends ValueType { 
+    private static final HashMap<Long, BytesType> instances = new HashMap<>();
+    private long size;
 
-public class ValueField<T extends AnyPersistent> extends FinalValueField<T> {
-
-    public ValueField(Class<T> cls) {
-      super(cls);
+    public static BytesType forSize(long size) {
+        BytesType ans = instances.get(size);
+        if (ans == null) {
+            ans = new BytesType(size);
+            instances.put(size, ans);
+            System.out.println("added " + ans);
+        }
+        return ans;
     }
 
-    public ValueField(Class<T> cls, ValueType type) {
-    	super(ObjectType.fromValueType(cls, type));
+    public BytesType(long size) {
+        super(new ArrayList<>(), new long[0], size);
+        this.size = size;
+    }
+
+    public long getSize() {return getAllocationSize();}
+
+    public long getAllocationSize() {
+        return size;
+    }
+
+    public long getByteCount() {
+        return size;
+    }
+
+    public long getOffset(long index) {
+        return index;
     }
 
     @Override
     public String toString() {
-       return String.format("ValueField(%s)", getType());
+        return "BytesType(" + size + ")";
     }
 }
-
-

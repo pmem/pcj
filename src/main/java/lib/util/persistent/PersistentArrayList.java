@@ -99,7 +99,20 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
     }
 
     public PersistentArrayList(int initialCapacity){
-        super(TYPE);
+        this(TYPE, initialCapacity);
+    }
+
+    public PersistentArrayList() {
+        this(TYPE);
+    }
+
+    protected PersistentArrayList(ObjectType<? extends PersistentArrayList> type) {
+        super(type);
+        setDataArray(defaultCapacityEmptyArray());
+    }
+
+    protected PersistentArrayList(ObjectType<? extends PersistentArrayList> type, int initialCapacity) {
+        super(type);
         if (initialCapacity > 0){
             setDataArray(new PersistentArray(initialCapacity));
         } else if (initialCapacity == 0) {
@@ -109,21 +122,16 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
         }
     }
 
-    public PersistentArrayList() {
-        super(TYPE);
-        setDataArray(defaultCapacityEmptyArray());
-    }
-
-    protected PersistentArrayList(ObjectType<? extends PersistentArrayList> type) {
-        super(type);
-        setDataArray(defaultCapacityEmptyArray());
-    }
-
-    //public PersistentArrayList(Collection<? extends AnyPersistent> c) {
     @SafeVarargs
     @SuppressWarnings("unchecked")
     public PersistentArrayList(T... ts) {
-        super(TYPE);
+        this(TYPE, ts);
+    }
+
+    @SafeVarargs
+    @SuppressWarnings("unchecked")
+    public PersistentArrayList(ObjectType<? extends PersistentArrayList> type, T... ts) {
+        super(type);
         if (ts.length > 0){
             setDataArray(new PersistentArray(ts));
             size(ts.length);

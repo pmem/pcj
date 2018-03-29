@@ -50,36 +50,36 @@ public class ObjectCache {
     private static long counter;                    // only used for ObjectCache stats
     private static final long counterMod = 10000;   // only used for ObjectCache stats
     private static final AnyPersistent cacheLock;
+    static final ThreadLocal<Boolean> adminMode;    // TODO: temp workaround for reconstructor side-effects during heap cleanup
     
     static {
         cache = new ConcurrentHashMap<>();
         queue = new ReferenceQueue<>();
         cacheLock = AnyPersistent.asLock();
         uncommittedConstructions = new ConcurrentSkipListSet<>();
+        adminMode = ThreadLocal.withInitial(() -> false);
         heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
         collector = new Thread(() -> {
             try {
                 while (true) {
-                    Ref<?> qref = (Ref)queue.remove();
-                    // trace(true, qref.getAddress(), "object enqueued");
-                    long address = qref.getAddress();
-                    if (Config.ENABLE_MEMORY_STATS) Stats.current.memory.enqueued++;
-                    if (!qref.isForAdmin()) {
-                        if (uncommittedConstructions.contains(address)) {
-                            remove(address);
-                            continue;
-                        }
-                        Transaction.run(() -> {
-                            deregisterObject(address);
-                            AnyPersistent obj = get(address, true);
-                            Transaction.run(() -> {
-                                obj.deleteReference();
-                            }, obj);
-                            if (Config.REMOVE_FROM_OBJECT_CACHE_ON_ENQUEUE) remove(address);
-                        });
+                    Ref<?> ref = (Ref)queue.remove();
+                    long address = ref.getAddress();
+                    if (address == 0) {
+                        // trace(true, address, "ignoring address");
+                        continue;
                     }
+                    if (uncommittedConstructions.contains(address)) {
+                        // trace(true, address, "ignoring address");
+                        uncommittedConstructions.remove(address);
+                        continue;
+                    }
+                    // trace(true, ref.getAddress(), "object enqueued and processing");
+                    if (Config.ENABLE_MEMORY_STATS) Stats.current.memory.enqueued++;
+                        AnyPersistent obj = get(address, true);
+                        obj.deleteReference(true);
                 }
-            } catch (InterruptedException ie) {
+            } 
+            catch (InterruptedException ie) {
                 ie.printStackTrace();
             }
         });
@@ -97,11 +97,13 @@ public class ObjectCache {
 
         public Ref(T obj, boolean forAdmin) {
             super(obj, queue);
-            this.address = obj.getPointer().addr();
+            this.address = obj.addr();
             this.forAdmin = forAdmin;
+            //trace(true, this.address, "new ref created!");
             if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(Ref.class.getName(), 0, 25, 1);   // uncomment for allocation stats
         }
 
+        public void clear() {address = 0;}
         public long getAddress() {return address;}
         public boolean isForAdmin() {return forAdmin;}
         public void setForAdmin(boolean forAdmin) {this.forAdmin = forAdmin;}
@@ -114,35 +116,38 @@ public class ObjectCache {
 
     @SuppressWarnings("unchecked")
     public static <T extends AnyPersistent> T get(long address, boolean forAdmin) {
-        // trace(address, "ObjectCache.get()");
+        // trace(true, address, "ObjectCache.get(), forAdmin = %s", forAdmin);
         Ref<?> ref = getReference(address, forAdmin);
         return ref == null ? null :(T)ref.get();
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends AnyPersistent> Ref<T> getReference(long address, boolean forAdmin) {
+    static <T extends AnyPersistent> Ref<T> getReference(long address, boolean forAdmin) {
         T obj = null;
         Ref ref = null;
         if (address == 0) return null;
         Address cacheAddress = new Address(address);
         ref = (Ref<T>)cache.get(cacheAddress);
         if (ref == null || (obj = (T)ref.get()) == null) {
-            // trace(address, "MISS: " + (ref == null ? "simple" : "null referent"));
-            if (Config.ENABLE_OBJECT_CACHE_STATS) {if (ref == null) Stats.current.objectCache.simpleMisses++; else Stats.current.objectCache.referentMisses++;}  // uncomment for ObjectCache stats
-            obj = objectForAddress(address, forAdmin);
-            ref = new Ref(obj, forAdmin);
-            cache.put(cacheAddress, ref);
-            if (Config.ENABLE_OBJECT_CACHE_STATS) updateCacheSizeStats();                       // uncomment for ObjectCache stats
+            ref = Transaction.getReconstructedObject(address);
+            if (ref == null || (obj = (T)ref.get()) == null) {
+                // trace(true, address, "MISS: " + (ref == null ? "simple" : "null referent"));
+                if (Config.ENABLE_OBJECT_CACHE_STATS) {if (ref == null) Stats.current.objectCache.simpleMisses++; else Stats.current.objectCache.referentMisses++;}  // uncomment for ObjectCache stats
+                boolean admin = ObjectCache.adminMode.get() || forAdmin;
+                ref = objectForAddress(address, admin);
+                obj = (T)ref.get();
+                if (Config.ENABLE_OBJECT_CACHE_STATS) updateCacheSizeStats();                       // uncomment for ObjectCache stats
+            }
         }
-        else if (ref.isForAdmin() && !forAdmin) {
-                // trace(address, "HIT: forAdmin -> !forAdmin");
+        else if (ref.isForAdmin() && !forAdmin && !adminMode.get()) {
+                // trace(true, address, "HIT: forAdmin -> !forAdmin");
                 ref.setForAdmin(false);
                 obj = (T)ref.get();
-                obj.initForGC();
                 if (Config.ENABLE_OBJECT_CACHE_STATS) Stats.current.objectCache.promotedHits++; // uncomment for ObjectCache stats
         }
         else if (Config.ENABLE_OBJECT_CACHE_STATS) Stats.current.objectCache.simpleHits++;      // uncomment for ObjectCache stats
-        assert(obj != null);
+                // trace(true,address, "simple HIT in OC");
+        // assert(obj != null):address;
         return ref;
     }
 
@@ -158,17 +163,24 @@ public class ObjectCache {
     }
 
     @SuppressWarnings("unchecked")
-    static <T extends AnyPersistent> T objectForAddress(long address, boolean forAdmin) {
-        T obj = Transaction.run(() -> {
-            T ans = null;
+    static <T extends AnyPersistent> Ref<T> objectForAddress(long address, boolean forAdmin) {
+        final Address addr =  new Address(address);
+        return Util.synchronizedBlock(cacheLock, ()->{ 
+        Ref<T> ans = null;
+        if ((ans = (Ref<T>)cache.get(addr)) != null && ans.get() != null) {
+                 // trace(true, address, "OFA HIT: in OC");
+            // assert(ans.get() != null);
+            return ans; 
+        }
+        else {
+            T obj = null;
             try {
                 MemoryRegion region = new UncheckedPersistentMemoryRegion(address);
                 long classInfoAddress = region.getLong(0);
                 ClassInfo ci = ClassInfo.getClassInfo(classInfoAddress);
                 ObjectType<T> type = Types.typeForName(ci.className());
                 Constructor ctor = ci.getReconstructor();
-                ans = (T)ctor.newInstance(new ObjectPointer<T>(type, region));
-                if (!forAdmin) ans.initForGC();
+                obj = (T)ctor.newInstance(new ObjectPointer<T>(type, region));
             }
             catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                 if (e instanceof InvocationTargetException && e.getCause() instanceof TransactionRetryException){
@@ -176,45 +188,45 @@ public class ObjectCache {
                 }
                 else throw new RuntimeException("failed to call reflected constructor: " + e.getCause());
             }
-            if (!forAdmin) Transaction.addNewObject(ans);
-            return ans;
-        }, cacheLock);
-        return obj;
+            ans = new Ref(obj, forAdmin);
+            if (!Transaction.addReconstructedObject(address, ans)) cache.put(new Address(address), ans);
+        }
+        return ans; 
+        });
     }
-
     public static void remove(long address) {
-       // trace(address, "ObjectCache.remove");
+        // trace(true, address, "ObjectCache.remove");
         cache.remove(new Address(address));
     }
 
-    static <T extends AnyPersistent> void add(T obj) {
+    @SuppressWarnings("unchecked")
+    static <T extends AnyPersistent> void add(long address, Ref ref) {
+        // trace(obj.getPointer().addr(), "ObjectCache.add");
+        cache.put(new Address(address), ref);
+    }
+    
+    /*static <T extends AnyPersistent> void add(T obj) {
         // trace(obj.getPointer().addr(), "ObjectCache.add");
         long address = obj.getPointer().addr();
+        //Transaction.addNewObject(obj);
         Ref<T> ref = new Ref<>(obj);
         cache.put(new Address(address), ref);
         if (Config.ENABLE_OBJECT_CACHE_STATS) updateCacheSizeStats();                     // uncomment for ObjectCache stats
-        Transaction.addNewObject(obj);
-    }
+    }*/
 
-    static <T extends AnyPersistent> void registerObject(T obj) {
-        // trace(obj.getPointer().addr(), "register object");
-        assert(!obj.getPointer().type().isValueBased());
-        ((XRoot)(heap.getRoot())).registerObject(obj.getPointer().region().addr());
-    }
-
-    static void deregisterObject(long addr) {
-        // trace(addr, "deregister object");
-        ((XRoot)(heap.getRoot())).deregisterObject(addr);
+    public static void uncommittedConstruction(long addr) {
+        uncommittedConstructions.add(addr);
+        // trace(true, obj.addr(), "added uncommitedConstruction");
     }
 
     public static void uncommittedConstruction(AnyPersistent obj) {
-        uncommittedConstructions.add(obj.getPointer().addr());
-        // trace(true, obj.getPointer().addr(), "added uncommitedConstruction");
+        uncommittedConstructions.add(obj.addr());
+        // trace(true, obj.addr(), "added uncommitedConstruction");
     }
 
     public static void committedConstruction(AnyPersistent obj) {
-        // trace(obj.getPointer().addr(), "committedConstruction called");
-        uncommittedConstructions.remove(obj.getPointer().addr());
+        // trace(obj.addr(), "committedConstruction called");
+        uncommittedConstructions.remove(obj.addr());
     }
 
     static class Address {

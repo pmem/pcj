@@ -51,22 +51,22 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
 
     @Override
     protected byte getByte(long offset) {
-        return Util.synchronizedBlock(this, () -> pointer.region().getByte(offset));
+        return Util.synchronizedBlock(this, () -> region().getByte(offset));
     }
 
     @Override
     protected short getShort(long offset) {
-        return Util.synchronizedBlock(this, () -> pointer.region().getShort(offset));
+        return Util.synchronizedBlock(this, () -> region().getShort(offset));
     }
 
     @Override
     protected int getInt(long offset) {
-        return Util.synchronizedBlock(this, () -> pointer.region().getInt(offset));
+        return Util.synchronizedBlock(this, () -> region().getInt(offset));
     }
 
     @Override
     protected long getLong(long offset) {
-        return Util.synchronizedBlock(this, () -> pointer.region().getLong(offset));
+        return Util.synchronizedBlock(this, () -> region().getLong(offset));
     }
 
     @Override
@@ -89,7 +89,7 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
         }
         else {
             String message = "failed to acquire lock (timeout) in getObject";
-            // trace(true, getPointer().addr(), message + ", inTransaction = %s", inTransaction);
+            // trace(true, addr(), message + ", inTransaction = %s", inTransaction);
             if (inTransaction) throw new TransactionRetryException(message);
             else throw new RuntimeException(message);
         }
@@ -99,10 +99,10 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
     @SuppressWarnings("unchecked") <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
         // trace(true, "APMO.getValueObject(%d, %s)", offset, type);
         MemoryRegion region = Util.synchronizedBlock(this, () -> {
-            MemoryRegion srcRegion = getPointer().region();
+            MemoryRegion srcRegion = region();
             MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
             // trace(true, "getObject (valueBased) type = %s, src addr = %d, srcOffset = %d, dst  = %s, size = %d", type, srcRegion.addr(), offset, dstRegion, type.getSize());
-            Util.memCopy(getPointer().type(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
+            Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
             return dstRegion;
         });
         T obj = null;

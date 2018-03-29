@@ -61,7 +61,7 @@ public class ValueType implements Container {
         types.add(t);
     }
 
-    private ValueType(List<PersistentType> types, long[] offsets, long size) {
+    protected ValueType(List<PersistentType> types, long[] offsets, long size) {
         this.types = types;
         this.offsets = offsets;
         this.size = size;

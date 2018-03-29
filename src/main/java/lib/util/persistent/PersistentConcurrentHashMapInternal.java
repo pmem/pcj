@@ -73,14 +73,13 @@ public class PersistentConcurrentHashMapInternal {
         private MemoryRegion reg;
 
         public NodeLL(int hash, long key, long value, NodeLL next) {
-            Transaction.run(() -> {
-                this.reg = heap.allocateRegion(NODE_SIZE);
-                this.reg.putInt(HASH_OFFSET, hash);
-                this.reg.putLong(KEY_OFFSET, key);
-                this.reg.putLong(VALUE_OFFSET, value);
-                this.reg.putLong(NEXT_OFFSET, next == null ? 0 : next.addr());
-                if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(NodeLL.class.getName(), NODE_SIZE,  16 + 64, 1);  // uncomment for allocation stats
-            });
+            this.reg = heap.allocateRegion(NODE_SIZE);
+            reg.putRawInt(HASH_OFFSET, hash);
+            reg.putRawLong(KEY_OFFSET, key);
+            reg.putRawLong(VALUE_OFFSET, value);
+            reg.putRawLong(NEXT_OFFSET, next == null ? 0 : next.addr());
+            reg.flush(NODE_SIZE);
+            if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(NodeLL.class.getName(), NODE_SIZE,  16 + 64, 1);  // uncomment for allocation stats
         }
 
         protected NodeLL(long addr) {

@@ -78,10 +78,10 @@ public class PersistentImmutableObject extends AbstractPersistentObject {
     @SuppressWarnings("unchecked") 
     <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
         // trace(true, "PIO getValueObject(%d, %s)", offset, type);
-        MemoryRegion srcRegion = getPointer().region();
+        MemoryRegion srcRegion = region();
         MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
         // trace(true, "PIO.getValueObject, src addr = %d, srcOffset = %d, dst  = %s, size = %d", srcRegion.addr(), offset, dstRegion, type.getSize());
-        Util.memCopy(getPointer().type(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
+        Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
         T obj = null;
         try {
             Constructor ctor = ((ObjectType)type).getReconstructor();

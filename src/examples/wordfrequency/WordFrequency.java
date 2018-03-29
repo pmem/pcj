@@ -1,4 +1,4 @@
-/* Copyright (C) 2017  Intel Corporation
+/* Copyright (C) 2018  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,28 +19,34 @@
  * Boston, MA  02110-1301, USA.
  */
 
-package lib.util.persistent.types;
+package examples.wordfrequency;
 
-import lib.util.persistent.AnyPersistent;
-import static lib.util.persistent.Trace.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.Scanner;
+import java.util.TreeMap;
+import java.util.Map;
 
-public class ObjectField<T extends AnyPersistent> extends FinalObjectField<T> { 
-   private Class<T> cls;
+public class WordFrequency {
+	private static Map<String, Integer> counts = new TreeMap<>();
 
-	public ObjectField(ObjectType<T> type) {
-		super(type);
+	public static void main(String[] args) {
+		if (args.length == 0) System.out.println("usage: WordFrequency <list of files to process>");
+		for (int i = 0; i < args.length; i++) {
+			try {
+				Scanner scanner = new Scanner(new File(args[i]));
+				while (scanner.hasNext()) {
+					String word = scanner.next();
+					counts.merge(word, 1, Integer::sum);
+				}
+			}
+			catch (FileNotFoundException fnf) {throw new RuntimeException(fnf.getCause());}
+		}
+
+		// print counts
+		for (Map.Entry<String, Integer> e : counts.entrySet()) {
+			System.out.format("%d %s\n", e.getValue().intValue(), e.getKey());
+		}
 	}
 
-	public ObjectField() {
-		super();
-	}
-
-	public ObjectField(Class<T> cls) {
-      super(cls);
-	}
-
-   public String toString() {
-      return String.format("ObjectField(%s)", getType());
-   }
 }
-

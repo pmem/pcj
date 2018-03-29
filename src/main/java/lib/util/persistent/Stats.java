@@ -156,7 +156,7 @@ public class Stats {
 
     public static class AllocationStats {
         private static final String AS_LOCK_NAME = "AnyPersistent.asLock()";
-        public static final long WRAPPER_PER_INSTANCE = 128;
+        public static final long WRAPPER_PER_INSTANCE = 80;
         private ConcurrentSkipListMap<Key, Record> data;
 
         private static class Key implements Comparable<Key> {

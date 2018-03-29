@@ -61,21 +61,21 @@ public class PersistentObject extends AbstractPersistentObject {
     }
 
     @Override
-    protected byte getByte(long offset) {
-        // return Util.synchronizedBlock(this, () -> pointer.region().getByte(offset));
+    byte getByte(long offset) {
+        // return Util.synchronizedBlock(this, () -> region().getByte(offset));
         byte ans;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             lock();
-            ans = pointer.region().getByte(offset);
+            ans = region().getByte(offset);
             unlock();
         }
         else {
             boolean success = tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(this);
-                return pointer.region().getByte(offset);
+                return region().getByte(offset);
             }
             else {
                 if (inTransaction) throw new TransactionRetryException();
@@ -86,21 +86,21 @@ public class PersistentObject extends AbstractPersistentObject {
     }
 
     @Override
-    protected short getShort(long offset) {
-        // return Util.synchronizedBlock(this, () -> pointer.region().getShort(offset));
+    short getShort(long offset) {
+        // return Util.synchronizedBlock(this, () -> region().getShort(offset));
         short ans;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             lock();
-            ans = pointer.region().getShort(offset);
+            ans = region().getShort(offset);
             unlock();
         }
         else {
             boolean success = tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(this);
-                ans = pointer.region().getShort(offset);
+                ans = region().getShort(offset);
             }
             else {
                 if (inTransaction) throw new TransactionRetryException();
@@ -111,21 +111,21 @@ public class PersistentObject extends AbstractPersistentObject {
     }
 
     @Override
-    protected int getInt(long offset) {
-        // return Util.synchronizedBlock(this, () -> pointer.region().getInt(offset));
+    int getInt(long offset) {
+        // return Util.synchronizedBlock(this, () -> region().getInt(offset));
         int ans;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             lock();
-            ans = pointer.region().getInt(offset);
+            ans = region().getInt(offset);
             unlock();
         }
         else {
             boolean success = tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(this);
-                ans = pointer.region().getInt(offset);
+                ans = region().getInt(offset);
             }
             else {
                 if (inTransaction) throw new TransactionRetryException();
@@ -136,22 +136,22 @@ public class PersistentObject extends AbstractPersistentObject {
     }
 
     @Override
-    protected long getLong(long offset) {
+    long getLong(long offset) {
         // trace(true, "PO.getLong(%d)", offset);
-        // return Util.synchronizedBlock(this, () -> pointer.region().getLong(offset));
+        // return Util.synchronizedBlock(this, () -> region().getLong(offset));
         long ans;
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             lock();
-            ans = pointer.region().getLong(offset);
+            ans = region().getLong(offset);
             unlock();
         }
         else {
             boolean success = tryLock(transaction);
             if (success) {
                 transaction.addLockedObject(this);
-                ans = pointer.region().getLong(offset);
+                ans = region().getLong(offset);
             }
             else {
                 if (inTransaction) throw new TransactionRetryException();
@@ -189,21 +189,21 @@ public class PersistentObject extends AbstractPersistentObject {
         return ans;
     }
 
+    //TODO: optimize 4 parts: acquire lock, allocate volatile, copy P->V, construct box
     @Override
     @SuppressWarnings("unchecked") 
     <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
         // trace(true, "PO.getValueObject(%d, %s)", offset, type);
         MemoryRegion objRegion = Util.synchronizedBlock(this, () -> {
-            MemoryRegion srcRegion = getPointer().region();
+            MemoryRegion srcRegion = region();
             MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
             // trace(true, "getObject (valueBased) type = %s, src addr = %d, srcOffset = %d, dst  = %s, size = %d", type, srcRegion.addr(), offset, dstRegion, type.getSize());
-            Util.memCopy(getPointer().type(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
+            Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
             return dstRegion;
         });
         T obj = null;
         try {
             Constructor ctor = ((ObjectType)type).getReconstructor();
-            // Constructor ctor = ClassInfo.getClassInfo(((ObjectType)type).cls().getName()).getReconstructor();
             ObjectPointer p = new ObjectPointer<T>((ObjectType)type, objRegion);
             obj = (T)ctor.newInstance(p);
         }
@@ -211,14 +211,19 @@ public class PersistentObject extends AbstractPersistentObject {
         return obj;
     }
 
-    public void setByteField(ByteField f, byte value) {setByte(offset(check(f.getIndex(), Types.BYTE)), value);}
-    public void setShortField(ShortField f, short value) {setShort(offset(check(f.getIndex(), Types.SHORT)), value);}
-    public void setIntField(IntField f, int value) {setInt(offset(check(f.getIndex(), Types.INT)), value);}
-    public void setLongField(LongField f, long value) {/*trace(true, "PO.setLongField(%s)", f); */setLong(offset(check(f.getIndex(), Types.LONG)), value);}
-    public void setFloatField(FloatField f, float value) {setInt(offset(check(f.getIndex(), Types.FLOAT)), Float.floatToIntBits(value));}
-    public void setDoubleField(DoubleField f, double value) {setLong(offset(check(f.getIndex(), Types.DOUBLE)), Double.doubleToLongBits(value));}
-    public void setCharField(CharField f, char value) {setInt(offset(check(f.getIndex(), Types.CHAR)), (int)value);}
-    public void setBooleanField(BooleanField f, boolean value) {setByte(offset(check(f.getIndex(), Types.BOOLEAN)), value ? (byte)1 : (byte)0);}
-    public <T extends AnyPersistent> void setObjectField(ObjectField<T> f, T value) {/*trace(true, "PO.setObjectField(%s) : OF", f);*/setObjectField(f.getIndex(), value);}
-    public <T extends AnyPersistent> void setObjectField(ValueField<T> f, T value) {/*trace(true, "PO.setLongField(%s) : VF", f); */setValueObject(offset(f.getIndex()), value);}
+    public void setByteField(ByteField f, byte value) {setByte(offset(f.getIndex()), value);}
+    public void setShortField(ShortField f, short value) {setShort(offset(f.getIndex()), value);}
+    public void setIntField(IntField f, int value) {setInt(offset(f.getIndex()), value);}
+    public void setLongField(LongField f, long value) {setLong(offset(f.getIndex()), value);}
+    public void setFloatField(FloatField f, float value) {setInt(offset(f.getIndex()), Float.floatToIntBits(value));}
+    public void setDoubleField(DoubleField f, double value) {setLong(offset(f.getIndex()), Double.doubleToLongBits(value));}
+    public void setCharField(CharField f, char value) {setInt(offset(f.getIndex()), (int)value);}
+    public void setBooleanField(BooleanField f, boolean value) {setByte(offset(f.getIndex()), value ? (byte)1 : (byte)0);}
+    public <T extends AnyPersistent> void setObjectField(ObjectField<T> f, T value) {setObject(offset(f.getIndex()), value);}
+    
+    public <T extends AnyPersistent> void setObjectField(ValueField<T> f, T value) {
+        // trace(true, "PO.setLongField(%s) : VF", f); 
+        if (f.getType().getSize() != value.getType().getSize()) throw new IllegalArgumentException("value types do not match");
+        setValueObject(offset(f.getIndex()), value);
+    }
 }

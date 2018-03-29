@@ -65,7 +65,6 @@ public class VolatileMemoryRegion implements MemoryRegion {
     }
 
     public long getLong(long offset) {
-        // trace("VMR getLong(%d) -> %d", offset, Bits.getLong(bytes, (int)offset));
         return Bits.getLong(bytes, (int)offset);
     }
 
@@ -80,6 +79,25 @@ public class VolatileMemoryRegion implements MemoryRegion {
     public void putAddress(long offset, long value) {
         putLong(offset, value);
     }
+
+    public void putDurableByte(long offset, byte value) {putByte(offset, value);}
+    public void putDurableShort(long offset, short value) {putShort(offset, value);}
+    public void putDurableInt(long offset, int value) {putInt(offset, value);}
+    public void putDurableLong(long offset, long value) {putLong(offset, value);}
+    public void putDurableAddress(long offset, long value) {putAddress(offset, value);}
+
+    public void putRawByte(long offset, byte value) {putByte(offset, value);}
+    public void putRawShort(long offset, short value) {putShort(offset, value);}
+    public void putRawInt(long offset, int value) {putInt(offset, value);}
+    public void putRawLong(long offset, long value) {putLong(offset, value);}
+    public void putRawAddress(long offset, long value) {putAddress(offset, value);}
+    
+    public void putRawBytes(long offset, byte[] value) {
+        System.arraycopy(value, 0, bytes, (int)offset, value.length);
+    }
+
+    public void flush(long size) {}
+    public void flush(long offset, long size) {}
 
     // from OpenJDK Grep Code
     static class Bits {

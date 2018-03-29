@@ -24,19 +24,23 @@ package lib.util.persistent.types;
 import lib.util.persistent.AnyPersistent;
 
 
-public class ValueField<T extends AnyPersistent> extends FinalValueField<T> {
+public class FinalValueField<T extends AnyPersistent> extends FinalObjectField<T> implements ValueBasedField {
 
-    public ValueField(Class<T> cls) {
-      super(cls);
+    public FinalValueField(Class<T> cls) {
+      super(Types.valueTypeForClass(cls));
     }
 
-    public ValueField(Class<T> cls, ValueType type) {
-    	super(ObjectType.fromValueType(cls, type));
+    public FinalValueField(ObjectType<T> type) {
+    	super(type);
+    }
+
+    public FinalValueField(Class<T> cls, ValueType type) {
+      super(Types.valueTypeForClass(cls));
     }
 
     @Override
     public String toString() {
-       return String.format("ValueField(%s)", getType());
+       return String.format("FinalValueField(%s)", getType());
     }
 }
 
