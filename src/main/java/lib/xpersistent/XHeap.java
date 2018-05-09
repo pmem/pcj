@@ -107,6 +107,20 @@ public class XHeap implements PersistentHeap {
         });
     }
 
+    public MemoryRegion allocateRegionAtomic(long size) {
+        if (!open) open();
+        long addr = nativeAllocateAtomic(size);
+        if (addr == -1) throw new PersistenceException("Failed to allocate region of size " + size + "!");
+        return new UncheckedPersistentMemoryRegion(addr);
+    }
+
+    public MemoryRegion allocateObjectRegion(long size) {
+        if (!open) open();
+        long addr = nativeAllocateObject(size);
+        if (addr == -1) throw new PersistenceException("Failed to allocate object region of size " + size + "!");
+        return new UncheckedPersistentMemoryRegion(addr);
+    }
+
     public void freeRegion(MemoryRegion region) {
         if (!open) open();
         Transaction.run(() -> {
@@ -147,7 +161,7 @@ public class XHeap implements PersistentHeap {
         long srcAddress = XHeap.UNSAFE.ARRAY_BYTE_BASE_OFFSET + XHeap.UNSAFE.ARRAY_BYTE_INDEX_SCALE * startIndex;
         long destAddress = xregion.directAddress + destOffset;
         xregion.addToTransaction(destAddress, length);
-        XHeap.UNSAFE.copyMemory(bytes, srcAddress, null, destAddress, length);         
+        XHeap.UNSAFE.copyMemory(bytes, srcAddress, null, destAddress, length);
         // nativeCopyBytesToAddress(bytes, startIndex, destAddress, length);
     }
 
@@ -167,13 +181,15 @@ public class XHeap implements PersistentHeap {
 
     private void cleanHeap() {
         XRoot rt = (XRoot)(getRoot());
-        rt.cleanVMOffsets();
+        rt.clean();
         //CycleCollector.collect();
     }
 
     private synchronized native void nativeOpenHeap(String path, long size);
     private synchronized native void nativeCloseHeap();
     private native long nativeAllocate(long size);
+    private native long nativeAllocateAtomic(long size);
+    private native long nativeAllocateObject(long size);
     private native int nativeFree(long addr);
     private synchronized native void nativeMemoryRegionMemcpy(long srcRegion, long srcOffset, long destRegion, long destOffset, long length);
     private synchronized native void nativeToByteArrayMemcpy(long srcRegion, long srcOffset, byte[] destArray, int destOffset, int length);

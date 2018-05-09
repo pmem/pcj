@@ -1,5 +1,7 @@
 /* 
  * Copyright (c) 2017 Intel Corporation. 
+ *
+ * Includes code from java.util.concurrent.ConcurrentSkipListMap.java
 */
 
 /*

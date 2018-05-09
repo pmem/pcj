@@ -80,4 +80,8 @@ public final class PersistentInteger extends PersistentImmutableObject implement
     public boolean equatesWith(Integer that) {
         return this.intValue() == that.intValue();
     }
+
+    public static PersistentInteger sum(PersistentInteger x, PersistentInteger y) {
+        return new PersistentInteger(x.intValue() + y.intValue());
+    }
 }

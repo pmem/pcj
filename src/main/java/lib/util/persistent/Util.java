@@ -118,7 +118,6 @@ public class Util {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            // TODO: bug, if body contains a transaction that retries we don't reaquire the obj lock
             obj.lock();
             try {ans = func.get();}
             finally {obj.unlock();}

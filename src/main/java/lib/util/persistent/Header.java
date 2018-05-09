@@ -28,12 +28,11 @@ import lib.util.persistent.types.PersistentType;
 public class Header {
     static final int CLASS_INFO = 0;  // must be first field
     static final int REF_COUNT = 1;
-    // static final int REF_COLOR = 2;
 
     public static final PersistentType[] TYPES = new PersistentType[] {
         Types.LONG,        // CLASS_INFO
-        Types.INT//,         // REF_COUNT
-        // Types.BYTE,        // REF_COLOR
+        Types.INT,         // REF_COUNT
+        Types.INT,         // PADDING
     };
 
     public static final ObjectType<AnyPersistent> TYPE = new ObjectType<>(AnyPersistent.class, TYPES);

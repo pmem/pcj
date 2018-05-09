@@ -50,10 +50,12 @@ public final class PersistentString extends PersistentImmutableObject implements
 
     public PersistentString(ObjectPointer<PersistentString> p) {
         super(p);
+        boolean oldAdminMode = ObjectCache.adminMode.get();
         ObjectCache.adminMode.set(true);
         PersistentImmutableByteArray ba = getObjectField(BYTES);
-        ObjectCache.adminMode.set(false);
-        s = new String(ba.toArray());
+        ObjectCache.adminMode.set(oldAdminMode);
+        if (ba != null) s = new String(ba.toArray());
+        else s = null;
     }
 
     public int length() {

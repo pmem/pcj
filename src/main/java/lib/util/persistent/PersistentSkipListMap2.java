@@ -1,5 +1,7 @@
-/* 
- * Copyright (c) 2017 Intel Corporation.  Persistent memory verison 
+/*
+ * Copyright (c) 2017 Intel Corporation.  Persistent memory version
+ *
+ * Includes code from java.util.concurrent.ConcurrentSkipListMap.java
 */
 
 /*
@@ -95,15 +97,15 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
         private static final ObjectField<PersistentLong> BASE_HEADER = new ObjectField<>();
         public static final ObjectType<Statics> TYPE = ObjectType.fromFields(Statics.class, BASE_HEADER);
 
-        public Statics() { 
-            super(TYPE); 
+        public Statics() {
+            super(TYPE);
             setObjectField(BASE_HEADER, new PersistentLong(8627078645895051609L));
         }
 
         public Statics (ObjectPointer<Statics> p) { super(p); }
 
         public AnyPersistent baseHeader() { return getObjectField(BASE_HEADER); }
-    }   
+    }
 
     public static AnyPersistent baseHeader() { return statics.baseHeader(); }
 
@@ -144,7 +146,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
         head = new HeadIndex<K,V>(headnode(),null, null, 1);
         //rebuild = true;
         rebuild();
-        
+
     }
 
     /**
@@ -273,7 +275,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
             setObjectField(NEXT, new PersistentAtomicReference(next));
         }
 
-        public Node (ObjectPointer<Node> p) { super(p);} 
+        public Node (ObjectPointer<Node> p) { super(p);}
 
         @SuppressWarnings("unchecked")
         K key(){ return (K) getObjectField(KEY); }
@@ -396,7 +398,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
             return node.value() != null && casRight(succ, succ.right);
         }
 
-        // Unsafe mechanics        
+        // Unsafe mechanics
         //private static final sun.misc.Unsafe UNSAFE;
         private static final long rightOffset;
         static {
@@ -653,7 +655,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
                             continue;
                         }
                     }
-        
+
                     if (j == insertionLevel) {
                         if (!q.link(r, t))
                             break; // restart
@@ -664,7 +666,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
                         if (--insertionLevel == 0)
                             break splice;
                     }
-        
+
                     if (--j >= insertionLevel && j < level)
                         t = t.down;
                     q = q.down;
@@ -961,7 +963,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
         super(p);
         this.comparator = null;
         reinitialize();
-    } 
+    }
 
     /**
      * Constructs a new, empty map, sorted according to the specified
@@ -2730,7 +2732,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
             throw createExceptionForObtainingUnsafe(e);
         }
     }*/
-    
+
     //Unsafe mechanics
     //private static final sun.misc.Unsafe UNSAFE;
     private static final long headOffset;

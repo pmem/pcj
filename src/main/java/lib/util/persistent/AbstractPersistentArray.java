@@ -36,7 +36,7 @@ abstract class AbstractPersistentArray extends AnyPersistent {
     private static XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
 
     protected AbstractPersistentArray(ArrayType<? extends AnyPersistent> type, int count, Object data) {
-        super(type, heap.allocateRegion(type.getAllocationSize(count)));
+        super(type, heap.allocateObjectRegion(type.getAllocationSize(count)));
         // setInt(ArrayType.LENGTH_OFFSET, count);
         setRawInt(ArrayType.LENGTH_OFFSET, count);
         length = count;
@@ -63,9 +63,9 @@ abstract class AbstractPersistentArray extends AnyPersistent {
     public double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(check(index))));}
     public char getCharElement(int index) {return (char)getInt(elementOffset(check(index)));}
     public boolean getBooleanElement(int index) {return getByte(elementOffset(check(index))) == (byte)0 ? false : true;}
-    
+
     AnyPersistent getObjectElement(int index) {
-        // trace(true, "APA.getObjectElement(%d)", index); 
+        // trace(true, "APA.getObjectElement(%d)", index);
         return getObject(elementOffset(check(index)));
     }
 
@@ -79,7 +79,7 @@ abstract class AbstractPersistentArray extends AnyPersistent {
     private void setBooleanElement(int index, boolean value) {setByte(elementOffset(check(index)), value ? (byte)1 : (byte)0);}
 
     void setObjectElement(int index, AnyPersistent value) {
-        // trace(true, "APA.setObjectElement(%d)", index); 
+        // trace(true, "APA.setObjectElement(%d)", index);
         setObject(elementOffset(check(index)), value);
     }
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2017  Intel Corporation
+/* Copyright (C) 2017-2018  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef lib_xpersistent_XRoot_OBJECT_DIRECTORY_OFFSET
+#define lib_xpersistent_XRoot_OBJECT_DIRECTORY_OFFSET 0L
+#undef lib_xpersistent_XRoot_CLASS_INFO_OFFSET
+#define lib_xpersistent_XRoot_CLASS_INFO_OFFSET 8L
+#undef lib_xpersistent_XRoot_ROOT_SIZE
+#define lib_xpersistent_XRoot_ROOT_SIZE 16LL
 /*
  * Class:     lib_xpersistent_XRoot
  * Method:    nativeRootExists
@@ -54,75 +60,11 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeCreateRoot
 
 /*
  * Class:     lib_xpersistent_XRoot
- * Method:    nativeAllocateHashmap
- * Signature: ()J
+ * Method:    nativeRetrieveAddrs
+ * Signature: ()V
  */
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeAllocateHashmap
-  (JNIEnv *, jclass);
-
-/*
- * Class:     lib_xpersistent_XRoot
- * Method:    nativeHashmapPut
- * Signature: (JJJ)J
- */
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeHashmapPut
-  (JNIEnv *, jobject, jlong, jlong, jlong);
-
-/*
- * Class:     lib_xpersistent_XRoot
- * Method:    nativeHashmapGet
- * Signature: (JJ)J
- */
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeHashmapGet
-  (JNIEnv *, jobject, jlong, jlong);
-
-/*
- * Class:     lib_xpersistent_XRoot
- * Method:    nativeHashmapRemove
- * Signature: (JJ)J
- */
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeHashmapRemove
-  (JNIEnv *, jobject, jlong, jlong);
-
-/*
- * Class:     lib_xpersistent_XRoot
- * Method:    nativeHashmapDebug
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeHashmapDebug
-  (JNIEnv *, jobject, jlong);
-
-/*
- * Class:     lib_xpersistent_XRoot
- * Method:    nativeHashmapClear
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeHashmapClear
-  (JNIEnv *, jobject, jlong);
-
-/*
- * Class:     lib_xpersistent_XRoot
- * Method:    nativePrintAllObjects
- * Signature: (JJ)V
- */
-JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativePrintAllObjects
-  (JNIEnv *, jobject, jlong, jlong);
-
-/*
- * Class:     lib_xpersistent_XRoot
- * Method:    nativeCleanVMOffsets
- * Signature: (JJ)V
- */
-JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeCleanVMOffsets
-  (JNIEnv *, jobject, jlong, jlong);
-
-/*
- * Class:     lib_xpersistent_XRoot
- * Method:    nativeImportCandidates
- * Signature: (JLjava/util/HashSet;)V
- */
-JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeImportCandidates
-  (JNIEnv *, jobject, jlong, jobject);
+JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeRetrieveAddrs
+  (JNIEnv *, jobject);
 
 #ifdef __cplusplus
 }

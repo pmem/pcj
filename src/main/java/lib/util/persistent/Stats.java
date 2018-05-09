@@ -307,7 +307,7 @@ public class Stats {
         if (!enabled()) return;
         System.out.println("          Lock Stats");
         System.out.println(  "-------------------------------");         
-        System.out.println("aquired        :" + format(stats.locks.acquired));
+        System.out.println("acquired        :" + format(stats.locks.acquired));
         System.out.println("timeouts       :" + format(stats.locks.timeouts));
         System.out.println();
     }

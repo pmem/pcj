@@ -1,5 +1,7 @@
-/* 
- * Copyright (c) 2017 Intel Corporation.  Persistent memory verison 
+/*
+ * Copyright (c) 2017 Intel Corporation.  Persistent memory version
+ *
+ * Includes code from java.util.concurrent.ConcurrentSkipListMap.java
 */
 
 /*
@@ -78,33 +80,8 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     final Comparator<? super K> comparator;
     Comparator<? super K> sister_comparator;
 
-    private static Statics statics;
     private static final FinalObjectField<PersistentAtomicReference> HEAD = new FinalObjectField<>(PersistentAtomicReference.class);
-    private static final FinalObjectField<AnyPersistent> BASE_HEADER = new FinalObjectField<>();
-    public static final ObjectType<PersistentSkipListMap> TYPE = ObjectType.fromFields(PersistentSkipListMap.class, HEAD, BASE_HEADER);
-
-    static {
-        statics = ObjectDirectory.get("PersistentSkipListMap_statics", Statics.class);
-        if (statics == null)
-            ObjectDirectory.put("PersistentSkipListMap_statics", statics = new Statics());
-    }
-
-    public static final class Statics extends PersistentObject {
-        private static final FinalObjectField<PersistentLong> BASE_HEADER = new FinalObjectField<>();
-        public static final ObjectType<Statics> TYPE = ObjectType.fromFields(Statics.class, BASE_HEADER);
-
-        public Statics() { 
-            super(TYPE, (PersistentObject obj) -> { 
-            obj.initObjectField(BASE_HEADER, new PersistentLong(8627078645895051609L));
-            });
-        }
-
-        public Statics (ObjectPointer<Statics> p) { super(p); }
-
-        public AnyPersistent baseHeader() { return getObjectField(BASE_HEADER); }
-    }   
-
-    public static AnyPersistent baseHeader() { return statics.baseHeader(); }
+    public static final ObjectType<PersistentSkipListMap> TYPE = ObjectType.fromFields(PersistentSkipListMap.class, HEAD);
 
     @SuppressWarnings("unchecked")
     public HeadIndex<K,V> head() { return (HeadIndex<K,V>)getObjectField(HEAD).get(); }
@@ -118,7 +95,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         cachedEntrySet = null;
         values = null;
         descendingMap = null;
-        head(new HeadIndex<K,V>(new Node<K,V>(null, baseHeader(), null),null, null, 1));
+        head(new HeadIndex<K,V>(new Node<K,V>(),null, null, 1));
     }
 
     @SuppressWarnings("unchecked")
@@ -133,8 +110,12 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         private static final FinalObjectField<AnyPersistent> KEY = new FinalObjectField<>();
         private static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
         private static final ObjectField<Node> NEXT = new ObjectField<>(Node.class);
-        private static final FinalBooleanField MARKER = new FinalBooleanField();
-        private static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, KEY, VALUE, NEXT, MARKER);
+        private static final FinalByteField FLAG = new FinalByteField();
+        private static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, KEY, VALUE, NEXT, FLAG);
+
+        private static final byte REG = (byte)0;
+        private static final byte MARKER = (byte)1;
+        private static final byte BASE = (byte)2;
         private boolean hasNullValue = false;
 
 
@@ -143,7 +124,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         Node (K key, AnyPersistent value, Node<K,V> next) {
             super(TYPE, (Node obj) -> {
                 obj.initObjectField(KEY, key);
-                obj.initBooleanField(MARKER, false);
+                obj.initByteField(FLAG, REG);
                 obj.initObjectField(VALUE, value);
                 obj.initObjectField(NEXT, next);
             });
@@ -154,19 +135,28 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         Node (Node<K,V> next) {
             super(TYPE, (Node obj) -> {
                 obj.initObjectField(KEY, null);
-                obj.initBooleanField(MARKER, true);
+                obj.initByteField(FLAG, MARKER);
                 obj.initObjectField(VALUE, obj);
                 obj.initObjectField(NEXT, next);
             });
         }
 
-        public Node (ObjectPointer<Node> p) { 
-                super(p); 
-                ObjectCache.adminMode.set(true);
-                hasNullValue = (getObjectField(KEY) != null && getObjectField(VALUE) == null);
-                ObjectCache.adminMode.set(false);
-        } 
-    
+        //Creates new baseHeader node.
+        @SuppressWarnings("unchecked")
+        Node () {
+            super(TYPE, (Node obj) -> {
+                obj.initObjectField(KEY, null);
+                obj.initByteField(FLAG, BASE);
+                obj.initObjectField(VALUE, new PersistentByte(BASE));
+                obj.initObjectField(NEXT, null);
+            });
+        }
+
+        public Node (ObjectPointer<Node> p) {
+                super(p);
+                hasNullValue = true;
+        }
+
         @SuppressWarnings("unchecked")
         K key(){ return (K) getObjectField(KEY); }
 
@@ -181,7 +171,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         @SuppressWarnings("unchecked")
         private boolean compareAndSetNext(AnyPersistent expect, Node<K,V> update) {
         return Util.synchronizedBlock(this, () -> {
-		    if(next() != expect) return false; 
+		    if(next() != expect) return false;
 		    setObjectField(NEXT, update);
 		    return true;
         });
@@ -190,7 +180,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         @SuppressWarnings("unchecked")
         private boolean compareAndSetValue(AnyPersistent expect, AnyPersistent update) {
         return Util.synchronizedBlock(this, () -> {
-		    if(value() != expect) return false; 
+		    if(value() != expect) return false;
 		    setObjectField(VALUE, update);
 		    return true;
         });
@@ -217,16 +207,16 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         }
 
         boolean hasNullValue() {
+            if (hasNullValue) hasNullValue = (getObjectField(VALUE) == null);
             return hasNullValue;
         }
 
         boolean isMarker() {
-            //return value() == this;
-            return getBooleanField(MARKER);
+            return getByteField(FLAG) == MARKER;
         }
 
         boolean isBaseHeader() {
-            return value() == baseHeader();
+            return getByteField(FLAG) == BASE;
         }
 
         boolean appendMarker(Node<K,V> f) {
@@ -249,7 +239,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
 
         V getValidValue() {
             AnyPersistent v = value();
-            if (v == this || v == baseHeader())
+            if (v == this || isBaseHeader())
                 return null;
             @SuppressWarnings("unchecked") V vv = (V)v;
             return vv;
@@ -257,7 +247,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
 
         AbstractMap.SimpleImmutableEntry<K,V> createSnapshot() {
             AnyPersistent v = value();
-            if (v == null || v == this || v == baseHeader())
+            if (v == null || v == this || isBaseHeader())
                 return null;
             @SuppressWarnings("unchecked") V vv = (V)v;
             return new AbstractMap.SimpleImmutableEntry<K,V>(key(), vv);
@@ -266,10 +256,10 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     }
 
     /* ---------------- Indexing -------------- */
-    public static class Index<K extends AnyPersistent, V extends AnyPersistent> extends PersistentImmutableObject {
+    public static class Index<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject {
         private static final FinalObjectField<Node> NODE = new FinalObjectField<>(Node.class);
         private static final FinalObjectField<Index> DOWN = new FinalObjectField<>(Index.class);
-        private static final FinalObjectField<PersistentAtomicReference> RIGHT = new FinalObjectField<>(PersistentAtomicReference.class);
+        private static final ObjectField<Index> RIGHT = new ObjectField<>(Index.class);
         public static final ObjectType<Index> TYPE = ObjectType.fromFields(Index.class, NODE, DOWN, RIGHT);
 
         @SuppressWarnings("unchecked")
@@ -290,23 +280,27 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
             super(type, (Index obj) -> {
                 obj.initObjectField(NODE, node);
                 obj.initObjectField(DOWN, down);
-                obj.initObjectField(RIGHT, new PersistentAtomicReference(right));
+                obj.initObjectField(RIGHT, right);
 				if (initializer != null) initializer.accept((T)obj);
             });
-        }	
+        }
 
         @SuppressWarnings("unchecked")
         Node<K,V> node() { return (Node<K,V>) getObjectField(NODE); }
         @SuppressWarnings("unchecked")
         Index <K,V> down() { return (Index<K,V>)getObjectField(DOWN); }
         @SuppressWarnings("unchecked")
-        Index<K,V> right() { return (Index<K,V>)getObjectField(RIGHT).get(); }
+        Index<K,V> right() { return (Index<K,V>)getObjectField(RIGHT); }
         @SuppressWarnings("unchecked")
-        void right(Index<K,V> right) { getObjectField(RIGHT).set(right); }
+        void right(Index<K,V> right) { setObjectField(RIGHT,right); }
 
         @SuppressWarnings("unchecked")
         final boolean casRight(Index<K,V> cmp, Index<K,V> val) {
-            return getObjectField(RIGHT).compareAndSet(cmp, val);
+            return Util.synchronizedBlock(this, ()-> {
+                if (right() != cmp) return false;
+                setObjectField(RIGHT, val);
+                return true;
+            });
         }
 
         final boolean indexesDeletedNode() {
@@ -330,7 +324,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     public static final class HeadIndex<K extends AnyPersistent,V extends AnyPersistent> extends Index<K,V> {
         private static final IntField LEVEL = new IntField();
         private static final ObjectType TYPE = Index.TYPE.extendWith(HeadIndex.class, LEVEL);
- 
+
         @SuppressWarnings("unchecked")
         HeadIndex(Node<K,V> node, Index<K,V> down, Index<K,V> right, int level) {
             //super(TYPE, node, down, right);
@@ -338,7 +332,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                 obj.initIntField(LEVEL, level);
             });
         }
-    
+
         public HeadIndex(ObjectPointer<HeadIndex> p) { super(p); }
 
         public int level() { return getIntField(LEVEL); }
@@ -411,12 +405,12 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         return null;
     }
 
-    @SuppressWarnings("unchecked") 
+    @SuppressWarnings("unchecked")
     private V doGet(Object key) {
         if (key == null)
             throw new NullPointerException();
         Comparator<? super K> cmp = comparator;
-        if (!(key instanceof AnyPersistent)) { 
+        if (!(key instanceof AnyPersistent)) {
             if (sister_comparator == null) {
                 sister_comparator = (Object x, Object y) -> {
                     return (((ComparableWith)y).compareWith(x) * -1); //flip back
@@ -527,7 +521,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
 
         //int rnd = ThreadLocalRandom.current().nextSecondarySeed();
         int rnd = new Random().nextInt();
-        if ((rnd & 0x80000001) == 0) { // test highest and lowest bits
+        if ((rnd & 0x80008001) == 0) { // test highest and lowest bits
             int level = 1, max;
             while (((rnd >>>= 1) & 1) != 0)
                 ++level;
@@ -582,7 +576,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                             continue;
                         }
                     }
-        
+
                     if (j == insertionLevel) {
                         if (!q.link(r, t))
                             break; // restart
@@ -595,7 +589,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
                     if (--insertionLevel == 0)
                         break splice;
                     }
-        
+
                     if (--j >= insertionLevel && j < level)
                         t = t.down();
                     q = q.down();
@@ -900,7 +894,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     public PersistentSkipListMap(ObjectPointer<? extends PersistentSkipListMap> p) {
         super(p);
         this.comparator = null;
-    } 
+    }
 
     /**
      * Constructs a new, empty map, sorted according to the specified
@@ -1001,7 +995,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
             Map.Entry<? extends K, ? extends V> e = it.next();
             int rnd = ThreadLocalRandom.current().nextInt();
             int j = 0;
-            if ((rnd & 0x80000001) == 0) {
+            if ((rnd & 0x80008001) == 0) {
                 do {
                     ++j;
                 } while (((rnd >>>= 1) & 1) != 0);
@@ -1675,7 +1669,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         }
         @SuppressWarnings("unchecked")
         public Iterator<Map.Entry<K1,V1>> iterator() {
-            if (m instanceof PersistentSkipListMap) 
+            if (m instanceof PersistentSkipListMap)
                 return ((PersistentSkipListMap<K1,V1>)m).entryIterator();
             else
                 return ((SubMap<K1,V1>)m).entryIterator();
@@ -1745,7 +1739,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         public Iterator<Map.Entry<K1,V1>> iterator() {
             return ((PersistentSkipListMap<K1,V1>)m).cachedEntryIterator();
         }
-        
+
         public boolean contains(Object o) {
             if (!(o instanceof Map.Entry))
                 return false;

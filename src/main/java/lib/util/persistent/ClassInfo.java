@@ -75,19 +75,21 @@ public class ClassInfo {
 
     public static boolean isInitialized() {return initialized;}
 
-    public static synchronized ClassInfo getClassInfo(String className) {
+    public static ClassInfo getClassInfo(String className) {
         // System.out.println("getClassInfo(" + className + ")");
         ClassInfo ci = classInfo.get(className);
         if (ci == null) {
-            Transaction.runOuter(() -> {
-                ClassInfo nci = new ClassInfo(className);
-                if (lastClassInfo.get() != null) {
-                    lastClassInfo.get().setNextClassInfoAddr(nci.getRegion().addr());
-                }
-                classInfo.put(className, nci);
-                reverseClassInfo.put(nci.getRegion().addr(), nci);
-                lastClassInfo.set(nci);
-            }); 
+            synchronized(ClassInfo.class) {
+                Transaction.runOuter(() -> {
+                    ClassInfo nci = new ClassInfo(className);
+                    if (lastClassInfo.get() != null) {
+                        lastClassInfo.get().setNextClassInfoAddr(nci.getRegion().addr());
+                    }
+                    classInfo.put(className, nci);
+                    reverseClassInfo.put(nci.getRegion().addr(), nci);
+                    lastClassInfo.set(nci);
+                }); 
+            }
         }
         return ci == null ? classInfo.get(className) : ci;
     }

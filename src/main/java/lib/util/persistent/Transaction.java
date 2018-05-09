@@ -85,10 +85,14 @@ public final class Transaction {
     }
 
     static <T> T run(PersistentMemoryProvider provider, Supplier<T> body, Runnable onCommit, Runnable onAbort, AnyPersistent toLock1, AnyPersistent toLock2) {
+        return run(null, provider, body, onCommit, onAbort, toLock1, toLock2);
+    }
+        
+    static <T> T run(Transaction tx, PersistentMemoryProvider provider, Supplier<T> body, Runnable onCommit, Runnable onAbort, AnyPersistent toLock1, AnyPersistent toLock2) {
         if (Config.ENABLE_TRANSACTION_STATS) Stats.current.transactions.runCalls++;
         T ans = null;
         boolean success = false;
-        Transaction transaction = getTransaction();
+        Transaction transaction = tx != null ? tx : getTransaction();
         if (transaction == null) {
                 transaction = new Transaction(provider.newTransaction());
                 setTransaction(transaction);
@@ -169,6 +173,10 @@ public final class Transaction {
         run(PersistentMemoryProvider.getDefaultProvider(), () -> {body.run(); return (Void)null;}, null, null, toLock, null);
     }
 
+    static void run(Transaction transaction, Runnable body, AnyPersistent toLock) {
+        run(transaction, PersistentMemoryProvider.getDefaultProvider(), () -> {body.run(); return (Void)null;}, null, null, toLock, null);
+    }
+
     public static void run(Runnable body, AnyPersistent toLock1, AnyPersistent toLock2) {
         run(PersistentMemoryProvider.getDefaultProvider(), () -> {body.run(); return (Void)null;}, null, null, toLock1, toLock2);
     }
@@ -215,8 +223,17 @@ public final class Transaction {
         return state;
     }
 
+    public static Transaction getActiveTransaction() {
+        Transaction tx = getTransaction();
+        return tx != null && tx.isActive() ? tx : null;
+    }
+
     public boolean isActive() {
         return state == State.Active;
+    }
+
+    public static boolean isTransactionActive() {
+        return getActiveTransaction() != null;
     }
 
 /*    static <U extends AnyPersistent> Ref<U> addReconstructedObject(U obj) {
@@ -263,7 +280,7 @@ public final class Transaction {
         locked.add(obj);
     }
 
-    private void aquireLock(boolean block, AnyPersistent obj) {
+    private void acquireLock(boolean block, AnyPersistent obj) {
         if (!block) {
             if (!obj.tryLock(this)) throw new TransactionRetryException("failed to get transaction locks");
         }
@@ -302,8 +319,8 @@ public final class Transaction {
     private void clearAbortHandlers() {if (abortHandlers != null) abortHandlers.clear();}
 
     private void start(boolean block, AnyPersistent toLock1, AnyPersistent toLock2) {
-        if (toLock1 != null) aquireLock(block, toLock1);
-        if (toLock2 != null) aquireLock(block, toLock2);
+        if (toLock1 != null) acquireLock(block, toLock1);
+        if (toLock2 != null) acquireLock(block, toLock2);
         if (depth == 1 && state == Transaction.State.None) {
             state = Transaction.State.Active;
             core.start();

@@ -30,7 +30,7 @@ import static lib.util.persistent.Trace.*;
 public class PersistentImmutableObject extends AbstractPersistentObject {
 
     PersistentImmutableObject(ObjectType<? extends PersistentImmutableObject> type) {
-        this(type, type.isValueBased() ? new VolatileMemoryRegion(type.getAllocationSize()) : heap.allocateRegion(type.getAllocationSize()));
+        this(type, type.isValueBased() ? new VolatileMemoryRegion(type.getAllocationSize()) : heap.allocateObjectRegion(type.getAllocationSize()));
     }
 
     <T extends PersistentImmutableObject> PersistentImmutableObject(ObjectType<T> type, MemoryRegion region) {
@@ -75,7 +75,7 @@ public class PersistentImmutableObject extends AbstractPersistentObject {
     }
 
     @Override
-    @SuppressWarnings("unchecked") 
+    @SuppressWarnings("unchecked")
     <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
         // trace(true, "PIO getValueObject(%d, %s)", offset, type);
         MemoryRegion srcRegion = region();

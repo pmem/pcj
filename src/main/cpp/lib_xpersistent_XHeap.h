@@ -1,4 +1,4 @@
-/* Copyright (C) 2017  Intel Corporation
+/* Copyright (C) 2017-2018  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,7 +31,7 @@ extern "C" {
 /*
  * Class:     lib_xpersistent_XHeap
  * Method:    nativeOpenHeap
- * Signature: ()V
+ * Signature: (Ljava/lang/String;J)V
  */
 JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeOpenHeap
   (JNIEnv *, jobject, jstring, jlong);
@@ -50,6 +50,22 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeCloseHeap
  * Signature: (J)J
  */
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeAllocate
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     lib_xpersistent_XHeap
+ * Method:    nativeAllocateAtomic
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeAllocateAtomic
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     lib_xpersistent_XHeap
+ * Method:    nativeAllocateObject
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeAllocateObject
   (JNIEnv *, jobject, jlong);
 
 /*
@@ -92,9 +108,13 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeFromByteArrayMemcpy
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
   (JNIEnv *, jobject, jboolean);
 
-
+/*
+ * Class:     lib_xpersistent_XHeap
+ * Method:    nativeCopyBytesToAddress
+ * Signature: ([BIJI)V
+ */
 JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeCopyBytesToAddress
-  (JNIEnv *env, jobject obj, jbyteArray src_array, jint src_offset, jlong dest_address, jint length);
+  (JNIEnv *, jobject, jbyteArray, jint, jlong, jint);
 
 #ifdef __cplusplus
 }

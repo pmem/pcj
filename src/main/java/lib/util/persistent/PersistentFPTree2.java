@@ -1,5 +1,7 @@
 /* 
  * Copyright (c) 2017 Intel Corporation. 
+ *
+ * Includes code from java.util.concurrent.ConcurrentSkipListMap.java
 */
 
 /*
@@ -123,7 +125,11 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 	private void initialize() {
 		PersistentLeaf<K,V> headLeaf = new PersistentLeaf<>(MAX_LEAF_KEYS + 1);
 		headLeafNode = new LeafNode<K,V>(headLeaf);
-		root = headLeafNode;
+		//root = headLeafNode;
+        root = new InternalNode<K,V>();
+        headLeafNode.parent = (InternalNode<K, V>)root;
+        ((InternalNode<K, V>)root).children.set(0, headLeafNode);
+
 		setObjectField(HEAD_LEAF, headLeaf);
 		// setObjectField(LEAF_ARRAY, new PersistentArrayList<PersistentLeaf<K,V>>(500000));
 	}
@@ -215,7 +221,10 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		if(firstLeaf == null) {
 			PersistentLeaf<K, V> headLeaf = new PersistentLeaf<>(MAX_LEAF_KEYS + 1);
 			setObjectField(HEAD_LEAF, headLeaf);
-			root = headLeafNode = new LeafNode<K, V>(headLeaf);
+			headLeafNode = new LeafNode<K, V>(headLeaf);
+            root = new InternalNode<K,V>();
+            headLeafNode.parent = (InternalNode<K, V>)root;
+            ((InternalNode<K, V>)root).children.set(0, headLeafNode);
 			return;
 		}
 
@@ -223,7 +232,12 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		setObjectField(HEAD_LEAF, firstLeaf);
 		final PersistentLeaf<K, V> secondLeaf = firstLeaf.getNextNonEmpty();
 		firstLeaf.setNext(secondLeaf);
-		if(secondLeaf == null) root = headLeafNode = new LeafNode<K, V>(firstLeaf, reconstruct);
+		if(secondLeaf == null) {
+            headLeafNode = new LeafNode<K, V>(firstLeaf, reconstruct);
+            root = new InternalNode<K,V>();
+            headLeafNode.parent = (InternalNode<K, V>)root;
+            ((InternalNode<K, V>)root).children.set(0, headLeafNode);
+        }
 		else {
 			root = new InternalNode<K, V>();
 			final LeafNode<K, V> firstLeafNode = new LeafNode<K, V>(firstLeaf, reconstruct);
@@ -981,12 +995,14 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		Node<K,V> parent, child;
 		long stampParent, stampChild;
 		long stampRoot = rootLock.writeLock();
+        final boolean innerTX = Transaction.isTransactionActive();
 		try {
 			parent = root;
 			stampParent = parent.writeLock();
 			if (parent.needToSplit) {
 				InternalNode<K,V> newRoot = new InternalNode<K,V>();
-				splitChildAndUpdateParent(newRoot, parent);
+				//splitChildAndUpdateParent(newRoot, parent);
+				splitInternalNodeAndUpdateParent(newRoot, (InternalNode<K,V>)parent);
 				root = newRoot;
 				parent.unlock(stampParent);
 				parent = newRoot;
@@ -997,8 +1013,10 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		}
 
 		try {
-			while (!parent.isLeaf) {
+            //while(!parent.isLeaf && !(child = ((InternalNode<K,V>) parent).getChild(key)).isLeaf) {
+            while (!parent.isLeaf) {
 				child = ((InternalNode<K,V>) parent).getChild(key);
+                if (innerTX && child.isLeaf) break;
 				stampChild = child.writeLock();
 				try {
 					if (child.needToSplit) {
@@ -1015,13 +1033,54 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 					stampParent = stampChild;
 				}
 			}
-			return putInLeaf((LeafNode<K,V>) parent, key, value, putOnlyIfAbsent);
+            if (innerTX){
+                Box<LeafNode<K,V>> otherLeaf = new Box<>();
+                Box<Node<K,V>> Leaf = new Box<>();
+                Box<V> ret = new Box<V>();
+                final InternalNode<K,V> tparent = (InternalNode<K,V>)parent;
+                final long stampedParent = stampParent;
+                Transaction.run(()->{
+                    Node<K,V> leaf = tparent.getChild(key);
+                    Leaf.set(leaf);
+                    long stampedChild = leaf.writeLock();
+                        if(leaf.needToSplit) {
+                            Node<K, V> newChild = splitChildAndUpdateParent(tparent, leaf, key);
+                            //Node<K, V> newChild = splitLeafNodeAndUpdateParent(tparent, (LeafNode<K,V>)leaf, key);
+                            if(newChild != leaf) {
+                                otherLeaf.set((LeafNode<K,V>)leaf);
+                                // dont unclock until after TX
+                                // leaf.unlock(stampedChild); 
+                                leaf = newChild;
+                                Leaf.set(leaf);
+                                stampedChild = leaf.writeLock();
+                            } else {
+                                otherLeaf.set(((LeafNode<K,V>)leaf).next);
+                                //paranoid locking no one should be able to see this node
+                                otherLeaf.get().writeLock(); 
+                            }
+                        }
+                    V v = putInLeaf((LeafNode<K, V>) leaf, key, value, putOnlyIfAbsent, stampedChild, true);
+                    ret.set(v);
+                },()->{
+                    tparent.unlock(stampedParent);
+                    if(otherLeaf.get() != null) otherLeaf.get().tryUnlockWrite();
+                },()->{
+                    LeafNode<K,V> leaf = (LeafNode<K,V>)Leaf.get();
+                    tparent.unlock(stampedParent);
+                    if(otherLeaf.get() != null) otherLeaf.get().tryUnlockWrite();
+                    if(leaf != null) leaf.tryUnlockWrite();
+                });
+                return ret.get();
+                }
+            else {
+                return putInLeaf((LeafNode<K, V>) parent, key, value, putOnlyIfAbsent, stampParent, false);
+            }
 		} finally {
-			parent.unlock(stampParent);
+		//	if (!innerTX) parent.unlock(stampParent);
 		}
 	}
 
-	private V putInLeaf(LeafNode<K,V> leafNode, K key, V value, boolean putOnlyIfAbsent) {
+	private V putInLeaf(LeafNode<K,V> leafNode, K key, V value, boolean putOnlyIfAbsent, long stampLock, boolean inner) {
 		final int hash = generateHash(key);
 		// scan for empty/matching slots
 		int lastEmptySlot = -1;
@@ -1038,8 +1097,14 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 							leafNode.leaf.getSlot(slotToPut).setValue(value);
 							if (leafNode.keycount == 0)
 								leafNode.leaf.setIsEmpty(false);
-						});
-					}
+						}, ()->{
+                            leafNode.unlock(stampLock);
+                        }, ()-> {
+                           if (inner) leafNode.unlock(stampLock);
+                        });
+					} else {
+                        leafNode.unlock(stampLock);
+                    }
 					return oldValue;
 				}
 			}
@@ -1047,13 +1112,18 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 
 		final int slot = lastEmptySlot;
 		if (slot >= 0) {
+            final int oldCount = leafNode.keycount;
 			Transaction.run(() -> {
 				leafNode.leaf.setSlot(slot, new PersistentLeafSlot<K,V>(hash, key, value));
 				if (leafNode.keycount == 0) leafNode.leaf.setIsEmpty(false);
-			});
+            }, () -> {
 			leafNode.hashes.set(slot, hash);
 			leafNode.keys.set(slot, key);
 			if ((++leafNode.keycount) == MAX_LEAF_KEYS + 1) leafNode.needToSplit = true;
+                leafNode.unlock(stampLock);
+            }, ()-> {
+                if (inner) leafNode.unlock(stampLock);
+			});
 		} else {
 			throw new IllegalStateException("Leaf full while trying to insert key: " + key);
 		}
@@ -1069,7 +1139,8 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 			stampParent = parent.writeLock();
 			if (parent.needToSplit) {
 				InternalNode<K,V> newRoot = new InternalNode<K,V>();
-				splitChildAndUpdateParent(newRoot, parent);
+				//splitChildAndUpdateParent(newRoot, parent);
+				splitInternalNodeAndUpdateParent(newRoot, (InternalNode<K,V>)parent);
 				root = newRoot;
 				parent.unlock(stampParent);
 				parent = newRoot;
@@ -1128,25 +1199,21 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 	}
 
 	private Node<K,V> splitChildAndUpdateParent(InternalNode<K,V> parent, Node<K,V> child, K key) {
-		splitChildAndUpdateParent(parent, child);
-		return parent.getChild(key);
-	}
-
-	private void splitChildAndUpdateParent(InternalNode<K,V> parent, Node<K,V> child) {
 		if (child.isLeaf)
-			splitLeafNodeAndUpdateParent(parent, (LeafNode<K,V>) child);
+			return splitLeafNodeAndUpdateParent(parent, (LeafNode<K,V>) child, key);
 		else
 			splitInternalNodeAndUpdateParent(parent, (InternalNode<K,V>) child);
+		    return parent.getChild(key);
 	}
 
-	private Node<K,V> splitLeafNodeAndUpdateParent(InternalNode<K,V> parent, LeafNode<K,V> leafNode) {
-		return splitLeafNodeAndUpdateParent(parent, leafNode, getSplitKey(leafNode));
+	private Node<K,V> splitLeafNodeAndUpdateParent(InternalNode<K,V> parent, LeafNode<K,V> leafNode, K key) {
+		return splitLeafNodeAndUpdateParent(parent, leafNode, key, getSplitKey(leafNode));
 	}
 
-	private LeafNode<K,V> splitLeafNodeAndUpdateParent(InternalNode<K,V> parent, LeafNode<K,V> leafNode, K splitKey) {
+	private LeafNode<K,V> splitLeafNodeAndUpdateParent(InternalNode<K,V> parent, LeafNode<K,V> leafNode, K key, K splitKey) {
 		PersistentLeaf<K,V> newLeaf = new PersistentLeaf<>(MAX_LEAF_KEYS + 1);
 		LeafNode<K,V> newLeafNode = new LeafNode<>(newLeaf);
-
+          
 		Transaction.run(() -> {
 			for (int slot = 0; slot <= MAX_LEAF_KEYS; slot++) {
 				if (compareKeys(splitKey, leafNode.keys.get(slot)) < 0) {
@@ -1159,7 +1226,24 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 			newLeafNode.leaf.setIsEmpty(false);
 			leafNode.leaf.setIsEmpty(false);
 			// leafArray().add(newLeaf);
-		});
+		}, ()->{
+
+		updateParent(parent, leafNode, newLeafNode, splitKey);
+            
+        }, ()->{ 
+		    for (int slot = 0; slot <= MAX_LEAF_KEYS; slot++) {
+			    if (newLeafNode.hashes.get(slot) != 0) {
+                    leafNode.hashes.set(slot, newLeafNode.hashes.get(slot)); 
+                    leafNode.keys.set(slot, newLeafNode.keys.get(slot)); 
+				    leafNode.keycount++;
+			    }
+		    }
+            if(leafNode.next == newLeafNode){
+                leafNode.next = newLeafNode.next;
+		        if(newLeafNode.next != null) newLeafNode.next.prev = leafNode;
+            }
+		    leafNode.needToSplit = true;
+        });
 
 		for (int slot = 0; slot <= MAX_LEAF_KEYS; slot++) {
 			if (compareKeys(splitKey, leafNode.keys.get(slot)) < 0) {
@@ -1176,10 +1260,9 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		newLeafNode.next = leafNode.next;
 		leafNode.next = newLeafNode;
 		if(newLeafNode.next != null) newLeafNode.next.prev = newLeafNode;
-
-		updateParent(parent, leafNode, newLeafNode, splitKey);
 		newLeafNode.needToSplit = leafNode.needToSplit = false;
-		return newLeafNode;
+
+		return (compareKeys(key, splitKey) <=0) ? leafNode : newLeafNode;
 	}
 
 	private void buildNewRootNode(InternalNode<K,V> root, Node<K,V> leftChild, Node<K,V> rightChild, K splitKey) {
@@ -1191,8 +1274,14 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 	}
 
 	private void updateParent(InternalNode<K,V> parent, Node<K,V> child, Node<K,V> newChild, K splitKey) {
-		if (parent.keycount == 0)
-			buildNewRootNode(parent, child, newChild, splitKey);
+		if (parent.keycount == 0) {
+			//buildNewRootNode(parent, child, newChild, splitKey);
+		    parent.keys.set(0, splitKey);
+		    parent.keycount = 1;
+		    child.parent = newChild.parent = parent;
+		    parent.children.set(0, child);
+		    parent.children.set(1, newChild);
+        }
 		else {
 			final int keycount = parent.keycount;
 			int idx = 0;
@@ -1545,6 +1634,10 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		public void unlock(long stamp) {
 			nodeLock.unlock(stamp);
 		}
+
+        public void tryUnlockWrite() {
+            nodeLock.tryUnlockWrite();
+        }
 
 		public LeafNode<K,V> getNextNonEmpty() {
 			LeafNode<K,V> leafNode = this;
@@ -1951,8 +2044,8 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 			if (m instanceof PersistentFPTree2)
 				return ((PersistentFPTree2<E, AnyPersistent>) m).keyIterator();
 			else
-			//	throw new UnsupportedOperationException(); // return
-			 return ((PersistentFPTree2.SubMap<E,AnyPersistent>)m).keyIterator();
+		    // throw new UnsupportedOperationException(); // return
+			    return ((PersistentFPTree2.SubMap<E,AnyPersistent>)m).keyIterator();
 		}
 
 		public boolean equals(Object o) {
@@ -2074,7 +2167,8 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 			if (m instanceof PersistentFPTree2)
 				return ((PersistentFPTree2<K1, V1>) m).entryIterator();
 			else
-				 return ((SubMap<K1,V1>)m).entryIterator();
+				return ((SubMap<K1,V1>)m).entryIterator();
+				//throw new UnsupportedOperationException();
 		}
 
 		public boolean contains(Object o) {
@@ -2311,12 +2405,12 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		
 		private K lowestKey() {
 			if (lo == null) return m.firstKey();
-			else return loInclusive ? m.ceilingKey(lo) : m.higherKey(lo);
+			else return loInclusive ? m.ceilingKey(lo) : m.higherKey(lo); //else return m.ceilingKey(lo);
 		}
 		
 		private K highestKey() {
 			if (hi == null) return m.lastKey();
-			else return hiInclusive ? m.floorKey(hi) : m.lowerKey(hi);
+			else return hiInclusive ? m.floorKey(hi) : m.lowerKey(hi); //else return m.floorKey(hi);
 		}
 		
 		private Map.Entry<K,V> lowestEntry() {

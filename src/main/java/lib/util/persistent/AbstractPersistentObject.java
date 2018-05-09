@@ -126,8 +126,10 @@ abstract class AbstractPersistentObject extends AnyPersistent {
         /*trace(true, "APO.initObjectField(%s) : FOF", f); */
         if (value != null) {
             checkUninitializedField(f); 
-            setRegionLong(offset(f.getIndex()), value.addr());
-            value.addReference();
+            Transaction.run(() -> {
+                setLong(offset(f.getIndex()), value.addr());
+                value.addReference();
+            }, this);
         }
     }
 

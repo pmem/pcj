@@ -61,6 +61,24 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeAllocate
     else return -1;
 }
 
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeAllocateAtomic
+  (JNIEnv *env, jobject obj, jlong size)
+{
+    TOID(char) bytes = TOID_NULL(char);
+    POBJ_ZALLOC(pool, &bytes, char, size);
+    if (TOID_IS_NULL(bytes)) return -1;
+    else return bytes.oid.off;
+}
+
+JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeAllocateObject
+  (JNIEnv *env, jobject obj, jlong size)
+{
+    TOID(object) bytes = TOID_NULL(object);
+    POBJ_ZALLOC(pool, &bytes, object, size);
+    if (TOID_IS_NULL(bytes)) return -1;
+    else return bytes.oid.off;
+}
+
 JNIEXPORT jint JNICALL Java_lib_xpersistent_XHeap_nativeFree
   (JNIEnv *env, jobject obj, jlong region_offset)
 {
@@ -147,7 +165,7 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeCopyBytesToAddress
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeDebugPool
   (JNIEnv *env, jobject obj, jboolean verbose)
 {
-    TOID(char) mr_toid;
+    TOID(object) mr_toid;
     uint64_t mr_count = 0;
 
     POBJ_FOREACH_TYPE(pool, mr_toid) {

@@ -1,5 +1,5 @@
-/* 
- * Copyright (c) 2017 Intel Corporation.  Persistent memory verison 
+/*
+ * Copyright (c) 2017 Intel Corporation.  Persistent memory version
 */
 
 /*
@@ -461,7 +461,7 @@ public final class PersistentUUID extends PersistentImmutableObject implements C
     }
 
     public int equivalentHash() {
-        return hashCode(); 
+        return hashCode();
     }
 
     public boolean equatesWith(UUID that) {

@@ -42,7 +42,7 @@ import java.util.function.Consumer;
 public class PersistentObject extends AbstractPersistentObject {
     private static final String LOCK_FAIL_MESSAGE = "failed to acquire lock (timeout) in getObject";
 
-    public PersistentObject(ObjectType<? extends PersistentObject> type) {
+    protected PersistentObject(ObjectType<? extends PersistentObject> type) {
         super(type);
     }
 
@@ -56,7 +56,7 @@ public class PersistentObject extends AbstractPersistentObject {
         // trace(region.addr(), "created object of type %s", type.getName());
     }
 
-    public PersistentObject(ObjectPointer<? extends AnyPersistent> p) {
+    protected PersistentObject(ObjectPointer<? extends AnyPersistent> p) {
         super(p);
     }
 
@@ -68,8 +68,8 @@ public class PersistentObject extends AbstractPersistentObject {
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             lock();
-            ans = region().getByte(offset);
-            unlock();
+            try {ans = getRegionByte(offset);}
+            finally {unlock();}
         }
         else {
             boolean success = tryLock(transaction);
@@ -93,8 +93,8 @@ public class PersistentObject extends AbstractPersistentObject {
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             lock();
-            ans = region().getShort(offset);
-            unlock();
+            try {ans = getRegionShort(offset);}
+            finally {unlock();}
         }
         else {
             boolean success = tryLock(transaction);
@@ -118,8 +118,8 @@ public class PersistentObject extends AbstractPersistentObject {
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             lock();
-            ans = region().getInt(offset);
-            unlock();
+            try {ans = getRegionInt(offset);}
+            finally {unlock();}
         }
         else {
             boolean success = tryLock(transaction);
@@ -144,19 +144,15 @@ public class PersistentObject extends AbstractPersistentObject {
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
             lock();
-            ans = region().getLong(offset);
-            unlock();
+            try {ans = getRegionLong(offset);}
+            finally {unlock();}
+        }
+        else if (tryLock(transaction)) {
+            transaction.addLockedObject(this);
+            ans = getRegionLong(offset);
         }
         else {
-            boolean success = tryLock(transaction);
-            if (success) {
-                transaction.addLockedObject(this);
-                ans = region().getLong(offset);
-            }
-            else {
-                if (inTransaction) throw new TransactionRetryException();
-                else throw new RuntimeException("failed to acquire lock (timeout)");
-            }
+            throw new TransactionRetryException();
         }
         return ans;
     }
@@ -169,19 +165,18 @@ public class PersistentObject extends AbstractPersistentObject {
         Transaction transaction = Transaction.getTransaction();
         boolean inTransaction = transaction != null && transaction.isActive();
         if (!inTransaction) {
-            if (tryLock(5000)) {
-                try {
-                    long objAddr = getRegionLong(offset);
-                    if (objAddr != 0) ans = (T)ObjectCache.get(objAddr);
-                }
-                finally {unlock();}
+            lock();
+            try {
+                // TODO: ObjectCache.get() can acquire locks, need to analyze for deadlock 
+                long objAddr = region.getLong(offset);
+                if (objAddr != 0) ans = (T)ObjectCache.get(objAddr);
             }
-            else throw new RuntimeException(LOCK_FAIL_MESSAGE);
+            finally {unlock();}
         }
         else {
             if (tryLock(transaction)) {
                 transaction.addLockedObject(this);
-                long objAddr = getRegionLong(offset);
+                long objAddr = region.getLong(offset);
                 if (objAddr != 0) ans = (T)ObjectCache.get(objAddr);
             }
             else throw new TransactionRetryException(LOCK_FAIL_MESSAGE);

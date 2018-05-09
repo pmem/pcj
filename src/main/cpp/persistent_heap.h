@@ -28,10 +28,6 @@
 #include <stdio.h>
 #include <jni.h>
 
-struct root_struct {
-    TOID(char) root_memory_region;
-};
-
 extern PMEMobjpool* pool;
 extern TOID(struct root_struct) root;
 extern JavaVM *jvm;

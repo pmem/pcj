@@ -99,7 +99,9 @@ public class ObjectType<T extends AnyPersistent> implements Named, Container {
     }
 
     public static <U extends AnyPersistent> ObjectType<U> withFields(Class<U> cls, PersistentField... fs) {
-        return Header.TYPE.extendWith(cls, fs);
+        // System.out.println("\n*** layout fields for class " + cls);
+        PersistentField[] ordered = fs.length > 1 ? layoutFields(fs) : fs;
+        return Header.TYPE.extendWith(cls, ordered);
     }
 
     public static <U extends AnyPersistent> ObjectType<U> withValueFields(Class<U> cls, ValueBasedField... fs) {
@@ -148,6 +150,30 @@ public class ObjectType<T extends AnyPersistent> implements Named, Container {
         return baseType.extendWith(thisClass, fs);
     }
 
+    // sort fields in descending order by size in bytes; value fields go at end regardless of size
+    private static PersistentField[] layoutFields(PersistentField[] ts) {
+        java.util.Comparator<PersistentField> comp = (PersistentField f, PersistentField g) -> {
+            boolean fIsValue = f instanceof ValueField;
+            boolean gIsValue = g instanceof ValueField;
+            long fSize = f.getType().getSize();
+            long gSize = g.getType().getSize();
+            int ans = 0;
+            if (fIsValue) {
+                if (gIsValue) ans = 0;
+                else ans = 1;  // values go at the end
+            }
+            else if (gIsValue) {
+                if (fIsValue) ans = 0;
+                else ans = -1;  // values go at the end
+            }
+            else ans = fSize > gSize ? -1 : fSize < gSize ? 1 : 0;
+            return ans;
+        };
+        PersistentField[] ordered = Arrays.copyOf(ts, ts.length);
+        Arrays.sort(ordered, comp);
+        // System.out.format("ordered fields = %s\n", Arrays.toString(ordered));
+        return ts;
+    }
 
     public long getAllocationSize() {
         return size;

@@ -1,5 +1,5 @@
-/* 
- * Copyright (c) 2017 Intel Corporation.  Persistent memory verison 
+/*
+ * Copyright (c) 2017 Intel Corporation.  Persistent memory version
 */
 
 /*

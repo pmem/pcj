@@ -96,36 +96,26 @@ public abstract class AnyPersistent {
     }
 
     public AnyPersistent(ObjectType<? extends AnyPersistent> type) {
-        // would like to group the allocation transaction and initialization transaction
-        // can't just put one here because this constructor call must be first line
-        // Transaction.run(() -> {
-            this(type, type.isValueBased() ? new VolatileMemoryRegion(type.getAllocationSize()) : heap.allocateRegion(type.getAllocationSize()));
-            // trace(true, "AnyPersistent ctor from %s, allocationSize = %d", type, type.getAllocationSize());
-        // });
+            this(type, type.isValueBased() ? new VolatileMemoryRegion(type.getAllocationSize())
+                                           : heap.allocateObjectRegion(type.getAllocationSize()));
     }
 
     @SuppressWarnings("unchecked")
     <T extends AnyPersistent> AnyPersistent(ObjectType<T> type, MemoryRegion region) {
         // trace(true, region.addr(), "creating object of type %s", type.getName());
-        this.lock = new ReentrantLock(true);
         if (Config.ENABLE_MEMORY_STATS) Stats.current.memory.constructions++;
+        this.lock = new ReentrantLock(true);
         this.type = type;
         this.region = region;
         if (!type.isValueBased()) {
             initHeader(ClassInfo.getClassInfo(type.getName()));
-            registerAllocation(this);
-            //  ObjectCache.add(this);
-            // if (((XHeap)heap).getDebugMode() == true) {
-            //     ((XRoot)(heap.getRoot())).addToAllObjects(region.addr());
-            // }
-
             Ref<T> ref = new Ref<>((T)this);
             if(!Transaction.addNewObject(this, ref)) ObjectCache.add(region.addr(), ref);
         }
     }
 
     protected AnyPersistent(ObjectPointer<? extends AnyPersistent> p) {
-        //trace(true, p.region().addr(), "recreating object of type %s", p.type().getName());
+        // trace(true, p.region().addr(), "recreating object of type %s", p.type().getName());
         lock = new ReentrantLock(true);
         if (Config.ENABLE_MEMORY_STATS) Stats.current.memory.reconstructions++;
         // this.pointer = p;
@@ -137,17 +127,6 @@ public abstract class AnyPersistent {
             this.type = null;
             this.region = null;
         }
-    }
-
-    static <T extends AnyPersistent> void registerAllocation(T obj) {
-        // trace(true, obj.addr(), "register allocation");
-        // assert(!obj.getType().isValueBased());
-        ((XRoot)(heap.getRoot())).registerObject(obj.addr());
-    }
-
-    static void deregisterAllocation(long addr) {
-        // trace(true, addr, "deregister allocation");
-        ((XRoot)(heap.getRoot())).deregisterObject(addr);
     }
 
     boolean isValueBased() {return type.isValueBased();}
@@ -231,55 +210,71 @@ public abstract class AnyPersistent {
     }
 
     void setByte(long offset, byte value) {
-        if (!isValueBased()) {
-            Transaction.run(() -> {
+        Transaction tx = Transaction.getActiveTransaction();
+        if (tx != null) {
+            Transaction.run(tx, () -> {
                 region.putByte(offset, value);
             }, this);
         }
         else {
-            Util.synchronizedBlock(this, () -> {
-                region.putByte(offset, value);
-            });
+            lock();
+            try {
+                if (isValueBased()) region.putByte(offset, value);
+                else region.putDurableByte(offset, value);
+            }
+            finally {unlock();}
         }
     }
 
     void setShort(long offset, short value) {
-        if (!isValueBased()) {
-            Transaction.run(() -> {
+        Transaction tx = Transaction.getActiveTransaction();
+        if (tx != null) {
+            Transaction.run(tx, () -> {
                 region.putShort(offset, value);
             }, this);
         }
         else {
-            Util.synchronizedBlock(this, () -> {
-                region.putShort(offset, value);
-            });
+            lock();
+            try {
+                if (isValueBased()) region.putShort(offset, value);
+                else region.putDurableShort(offset, value);
+            }
+            finally {unlock();}
         }
     }
 
     void setInt(long offset, int value) {
-        if (!isValueBased()) {
-            Transaction.run(() -> {
+        Transaction tx = Transaction.getActiveTransaction();
+        if (tx != null) {
+            Transaction.run(tx, () -> {
                 region.putInt(offset, value);
             }, this);
         }
         else {
-            Util.synchronizedBlock(this, () -> {
-                region.putInt(offset, value);
-            });
+            lock();
+            try {
+                if (isValueBased()) region.putInt(offset, value);
+                else region.putDurableInt(offset, value);
+            }
+            finally {unlock();}
         }
     }
 
     void setLong(long offset, long value) {
         // trace(true, "AP.setLong(%d, %d)", offset, value);
-        if (!isValueBased()) {
-            Transaction.run(() -> {
+        Transaction tx = Transaction.getActiveTransaction();
+        if (tx != null) {
+            Transaction.run(tx, () -> {
                 region.putLong(offset, value);
             }, this);
         }
         else {
-            Util.synchronizedBlock(this, () -> {
-                region.putLong(offset, value);
-            });
+            lock();
+            try {
+                if (isValueBased()) region.putLong(offset, value);
+                else region.putDurableLong(offset, value);
+            }
+            finally {unlock();}
         }
     }
 
@@ -290,7 +285,7 @@ public abstract class AnyPersistent {
             Transaction.run(() -> {
                 if (value != null) value.addReference();
                 if (old != null) old.deleteReference(false);
-                setLong(offset, value == null ? 0 : value.addr());
+                region.putLong(offset, value == null ? 0 : value.addr());
             }, value, old);
         }, this);
     }
@@ -428,8 +423,7 @@ public abstract class AnyPersistent {
         Transaction.run(() -> {
             int oldCount = region.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
             region.putInt(Header.TYPE.getOffset(Header.REF_COUNT), oldCount + 1);
-            if (oldCount == 0) deregisterAllocation(region.addr());
-             // trace(true, addr(), "incRefCount(), type = %s, old = %d, new = %d", type, oldCount, getRefCount());
+            //  trace(true, addr(), "incRefCount(), type = %s, old = %d, new = %d", type, oldCount, getRefCount());
         }, this);
     }
 
@@ -456,11 +450,12 @@ public abstract class AnyPersistent {
     }
 
     void addReference() {
-        Transaction.run(() -> {
+        // Transaction.run(() -> {
             incRefCount();
             //setColor(CycleCollector.BLACK);
-        }, this);
+        // }, this);
     }
+
     //TODO: analyze serialization / isolation of this
     //synchronized void deleteReference(boolean live) {
 /*    public void deleteReference(boolean live) {
@@ -491,7 +486,6 @@ public abstract class AnyPersistent {
                             addrsToDelete.push(childAddr);
                         } else {
                             //CycleCollector.addCandidate(childAddr);
-                            if (crc == 0) registerAllocation(child); 
                         }
                     }, child);
                     childRef.clear();
@@ -499,11 +493,9 @@ public abstract class AnyPersistent {
                 Transaction.removeFromReconstructions(addrToDelete);
                 ref.clear();
                 free(addrToDelete);
-                deregisterAllocation(addrToDelete);
-    
+
             }
         } else {
-            if (count == 0) registerAllocation(this);
             //CycleCollector.addCandidate(addr());
         }
     }*/
@@ -541,20 +533,17 @@ public abstract class AnyPersistent {
                                 addrsToDelete.push(childAddr);
                             } else {
                                 //CycleCollector.addCandidate(childAddr);
-                                if (crc == 0) registerAllocation(child); 
                             }
                         }, child);
                     }
                     Transaction.removeFromReconstructions(addrToDelete);
                     free(addrToDelete);
-                    if (!isCleanup) deregisterAllocation(addrToDelete);
-    
+
                 }
             } else {
-                if (count == 0) registerAllocation(this);
                 //CycleCollector.addCandidate(addr());
             }
-            Transaction.getTransaction().reconstructions.clear();
+            if(live) Transaction.getTransaction().reconstructions.clear();
         });
     }
 

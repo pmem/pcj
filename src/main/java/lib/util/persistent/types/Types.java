@@ -24,7 +24,6 @@ package lib.util.persistent.types;
 import lib.util.persistent.AnyPersistent;
 import lib.util.persistent.ClassInfo;
 import java.lang.reflect.Field;
-// import java.util.concurrent.ConcurrentHashMap;
 
 public class Types {
 
@@ -41,7 +40,6 @@ public class Types {
 
     public static final String TYPE_FIELD_NAME = "TYPE";
     public static final String OLD_TYPE_FIELD_NAME = "type";
-    // public static final ConcurrentHashMap<String, Class<? extends AnyPersistent>> classCache = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
     public static synchronized <T extends AnyPersistent> PersistentType typeForClass(Class<T> cls) {

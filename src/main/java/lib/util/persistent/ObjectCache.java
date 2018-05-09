@@ -138,11 +138,15 @@ public class ObjectCache {
                 obj = (T)ref.get();
                 if (Config.ENABLE_OBJECT_CACHE_STATS) updateCacheSizeStats();                       // uncomment for ObjectCache stats
             }
+            else if (ref.isForAdmin() && !forAdmin && !adminMode.get()) {
+                // trace(true, address, "HIT: forAdmin -> !forAdmin");
+                ref.setForAdmin(false);
+            }
         }
         else if (ref.isForAdmin() && !forAdmin && !adminMode.get()) {
                 // trace(true, address, "HIT: forAdmin -> !forAdmin");
                 ref.setForAdmin(false);
-                obj = (T)ref.get();
+                //obj = (T)ref.get();
                 if (Config.ENABLE_OBJECT_CACHE_STATS) Stats.current.objectCache.promotedHits++; // uncomment for ObjectCache stats
         }
         else if (Config.ENABLE_OBJECT_CACHE_STATS) Stats.current.objectCache.simpleHits++;      // uncomment for ObjectCache stats
@@ -189,7 +193,7 @@ public class ObjectCache {
                 else throw new RuntimeException("failed to call reflected constructor: " + e.getCause());
             }
             ans = new Ref(obj, forAdmin);
-            if (!Transaction.addReconstructedObject(address, ans)) cache.put(new Address(address), ans);
+            if (!Transaction.addReconstructedObject(address, ans)) cache.put(addr, ans);
         }
         return ans; 
         });
