@@ -172,7 +172,7 @@ public class ObjectType<T extends AnyPersistent> implements Named, Container {
         PersistentField[] ordered = Arrays.copyOf(ts, ts.length);
         Arrays.sort(ordered, comp);
         // System.out.format("ordered fields = %s\n", Arrays.toString(ordered));
-        return ts;
+        return ordered;
     }
 
     public long getAllocationSize() {

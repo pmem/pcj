@@ -193,7 +193,7 @@ public class XHeap implements PersistentHeap {
     private native int nativeFree(long addr);
     private synchronized native void nativeMemoryRegionMemcpy(long srcRegion, long srcOffset, long destRegion, long destOffset, long length);
     private synchronized native void nativeToByteArrayMemcpy(long srcRegion, long srcOffset, byte[] destArray, int destOffset, int length);
-    private synchronized native void nativeFromByteArrayMemcpy(byte[] srcArray, int srcOffset, long destRegion, long destOffset, int length);
+    private native void nativeFromByteArrayMemcpy(byte[] srcArray, int srcOffset, long destRegion, long destOffset, int length);
     private synchronized native long nativeDebugPool(boolean verbose);
 
     private native void nativeCopyBytesToAddress(byte[] srcArray, int srcOffset, long address, int length);
