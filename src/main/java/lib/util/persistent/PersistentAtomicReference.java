@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.*;
 public final class PersistentAtomicReference<T extends AnyPersistent> extends PersistentObject {
 
 	private static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
-	private static final ObjectType<PersistentAtomicReference> TYPE = ObjectType.fromFields(PersistentAtomicReference.class, VALUE);
+	private static final ObjectType<PersistentAtomicReference> TYPE = ObjectType.withFields(PersistentAtomicReference.class, VALUE);
 
 	public PersistentAtomicReference() {
 		super(TYPE);

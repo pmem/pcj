@@ -31,36 +31,32 @@ public class VolatileMemoryRegion implements MemoryRegion {
     }
 
     public long addr() {return -1;}
-    public void checkAccess(int mode) throws IllegalAccessException {}
-    public void checkAlive() {}
-    public void checkBounds(long offset) throws IndexOutOfBoundsException {}
+    public long size() {return size;}
 
     public byte[] getBytes() {return bytes;}
     public byte getByte(long offset) {return bytes[(int)offset];}
     public short getShort(long offset) {return BitUtil.getShort(bytes, (int)offset);}
     public int getInt(long offset) {return BitUtil.getInt(bytes, (int)offset);}
     public long getLong(long offset) {return BitUtil.getLong(bytes, (int)offset);}
-    public long getAddress(long offset) {return getLong(offset);}
 
     public void putByte(long offset, byte value) {bytes[(int)offset] = value;}
     public void putShort(long offset, short value) {BitUtil.putShort(bytes, (int)offset, value);}
     public void putInt(long offset, int value) {BitUtil.putInt(bytes, (int)offset, value);}
     public void putLong(long offset, long value) {BitUtil.putLong(bytes, (int)offset, value);}
-    public void putAddress(long offset, long value) {putLong(offset, value);}
 
     public void putDurableByte(long offset, byte value) {putByte(offset, value);}
     public void putDurableShort(long offset, short value) {putShort(offset, value);}
     public void putDurableInt(long offset, int value) {putInt(offset, value);}
     public void putDurableLong(long offset, long value) {putLong(offset, value);}
-    public void putDurableAddress(long offset, long value) {putAddress(offset, value);}
 
     public void putRawBytes(long offset, byte[] value) {System.arraycopy(value, 0, bytes, (int)offset, value.length);}
     public void putRawByte(long offset, byte value) {putByte(offset, value);}
     public void putRawShort(long offset, short value) {putShort(offset, value);}
     public void putRawInt(long offset, int value) {putInt(offset, value);}
     public void putRawLong(long offset, long value) {putLong(offset, value);}
-    public void putRawAddress(long offset, long value) {putAddress(offset, value);}
 
     public void flush(long size) {}
     public void flush(long offset, long size) {}
+
+    public String toString() {return "VolatileMemoryRegion(size = " + size + ")";}
 }

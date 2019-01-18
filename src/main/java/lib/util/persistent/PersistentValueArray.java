@@ -23,6 +23,7 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import lib.util.persistent.types.ObjectType;
 import java.lang.reflect.Array;
 import java.util.Arrays;
@@ -30,12 +31,12 @@ import lib.xpersistent.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
 
 public class PersistentValueArray<T extends AnyPersistent> extends PersistentArray<T> {
-    private static ArrayType<PersistentValueArray> TYPE = new ArrayType<PersistentValueArray>(PersistentValueArray.class, Types.OBJECT);
+    private static ArrayType<PersistentValueArray> TYPE = new ReferenceArrayType<PersistentValueArray>(PersistentValueArray.class, Types.VALUE);
 
     @SuppressWarnings("unchecked")
     public PersistentValueArray(Class<T> elementClass, int size) {
         // super(elementClass, size);
-        super(new ArrayType<PersistentValueArray>(PersistentValueArray.class, Types.typeForClass(elementClass)), size);
+        super(new ReferenceArrayType<PersistentValueArray>(PersistentValueArray.class, Types.typeForClass(elementClass)), size);
         TYPE = (ArrayType<PersistentValueArray>)this.getType();
     }
 
@@ -45,6 +46,10 @@ public class PersistentValueArray<T extends AnyPersistent> extends PersistentArr
         for (int i = 0; i < ts.length; i++) setObjectElement(i, ts[i]);
     }
 
+    protected PersistentValueArray(ArrayType<? extends PersistentValueArray> type, int size) {
+        super(type, size);
+    }
+
     protected PersistentValueArray(ObjectPointer<? extends PersistentValueArray<T>> pointer) {
         super(pointer);
     }
@@ -52,12 +57,12 @@ public class PersistentValueArray<T extends AnyPersistent> extends PersistentArr
     @Override
     void setObjectElement(int index, AnyPersistent value) {
         // System.out.format("setObjectElement(%d, %s), offset = %d\n", index, value, elementOffset(index));
-        setValueObject(elementOffset(check(index)), value);
+        setValueObject(elementOffset(checkIndex(index)), value);
     }
 
     @Override
     AnyPersistent getObjectElement(int index) {
-        return getValueObject(elementOffset(check(index)), getElementType());
+        return getValueObject(elementOffset(checkIndex(index)), getElementType());
     }
 
 }

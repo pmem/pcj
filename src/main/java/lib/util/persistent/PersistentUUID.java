@@ -92,7 +92,7 @@ public final class PersistentUUID extends PersistentImmutableObject implements C
     */
     private static final LongField LEAST_SIG_BITS = new LongField();
 
-    private static final ObjectType<PersistentUUID> TYPE = ObjectType.fromFields(PersistentUUID.class, MOST_SIG_BITS, LEAST_SIG_BITS);
+    private static final ObjectType<PersistentUUID> TYPE = ObjectType.withFields(PersistentUUID.class, MOST_SIG_BITS, LEAST_SIG_BITS);
 
     public PersistentUUID() {
         super(TYPE);

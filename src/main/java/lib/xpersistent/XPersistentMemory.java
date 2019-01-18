@@ -43,7 +43,7 @@ public class XPersistentMemory extends PersistentMemoryProvider {
     @Override
     public synchronized PersistentHeap getHeap() {
         if (this.heap == null) {
-            this.heap = new XHeap(this);
+            this.heap = new XHeap();
         }
         return heap;
     }

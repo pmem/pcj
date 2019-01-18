@@ -81,7 +81,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 
 	private static final IntField P_MAX_LEAF_KEYS = new IntField();
 	private static final IntField P_MAX_INTERNAL_KEYS = new IntField();
-	private static final ObjectType<PersistentFPTree2> TYPE = ObjectType.fromFields(PersistentFPTree2.class, HEAD_LEAF, LEAF_ARRAY, P_MAX_LEAF_KEYS, P_MAX_INTERNAL_KEYS);
+	private static final ObjectType<PersistentFPTree2> TYPE = ObjectType.withFields(PersistentFPTree2.class, HEAD_LEAF, LEAF_ARRAY, P_MAX_LEAF_KEYS, P_MAX_INTERNAL_KEYS);
 
 	private final int MAX_INTERNAL_KEYS;
 	private final int MID_INTERNAL_KEYS;
@@ -1690,7 +1690,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		private static final ObjectField<PersistentArray> SLOTS_ARRAY = new ObjectField<>(PersistentArray.class);
 		private static final ObjectField<PersistentLeaf> NEXT = new ObjectField<>(PersistentLeaf.class);
 		private static final ObjectField<PersistentBoolean> IS_EMPTY = new ObjectField<>(PersistentBoolean.class);
-		private static final ObjectType<PersistentLeaf> TYPE = ObjectType.fromFields(PersistentLeaf.class, SLOTS_ARRAY,
+		private static final ObjectType<PersistentLeaf> TYPE = ObjectType.withFields(PersistentLeaf.class, SLOTS_ARRAY,
 				NEXT, IS_EMPTY);
 
 		/*
@@ -1779,7 +1779,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		private static final FinalIntField HASH = new FinalIntField();
 		private static final FinalObjectField<AnyPersistent> KEY = new FinalObjectField<>();
 		private static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
-		private static final ObjectType<PersistentLeafSlot> TYPE = ObjectType.fromFields(PersistentLeafSlot.class, HASH,
+		private static final ObjectType<PersistentLeafSlot> TYPE = ObjectType.withFields(PersistentLeafSlot.class, HASH,
 				KEY, VALUE);
 
 		public PersistentLeafSlot(int hash, K key, V value) {
@@ -1794,7 +1794,7 @@ public class PersistentFPTree2<K extends AnyPersistent, V extends AnyPersistent>
 		 * final ObjectField<AnyPersistent> KEY = new ObjectField<>(); private
 		 * static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
 		 * private static final ObjectType<PersistentLeafSlot> TYPE =
-		 * ObjectType.fromFields(PersistentLeafSlot.class, HASH, KEY, VALUE);
+		 * ObjectType.withFields(PersistentLeafSlot.class, HASH, KEY, VALUE);
 		 * 
 		 * public PersistentLeafSlot(int hash, K key, V value) { super(TYPE);
 		 * setIntField(HASH, hash); setObjectField(KEY, key);

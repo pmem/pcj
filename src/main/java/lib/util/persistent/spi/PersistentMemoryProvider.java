@@ -34,11 +34,13 @@ public abstract class PersistentMemoryProvider {
     private static PersistentMemoryProvider defaultProvider;
 
     static {
+        // TODO: read providers from a file
         providers = new ConcurrentHashMap<>();
         registerDefaultProvider(new XPersistentMemory());
+        // registerDefaultProvider(new examples.misc.DiskPersistentMemory());
     }
 
-    static void registerDefaultProvider(PersistentMemoryProvider provider) {
+    static synchronized void registerDefaultProvider(PersistentMemoryProvider provider) {
         registerProvider(provider);
         defaultProvider = provider;
     }
@@ -47,7 +49,7 @@ public abstract class PersistentMemoryProvider {
         providers.put(provider.getName(), provider);
     }
 
-    public static PersistentMemoryProvider getDefaultProvider() {
+    public synchronized static PersistentMemoryProvider getDefaultProvider() {
         return defaultProvider;
     }
 

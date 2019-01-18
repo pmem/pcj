@@ -34,7 +34,7 @@ import lib.util.persistent.types.ValueField;
 
 public final class Bytes extends PersistentObject {
     public Bytes(long size) {
-        super(ObjectType.fromValueType(Bytes.class, BytesType.forSize(size)));
+        super(BytesType.forSize(size));
     }
 
     private Bytes(ObjectPointer<Bytes> p) {super(p);}
@@ -71,7 +71,7 @@ public final class Bytes extends PersistentObject {
     }
 
     public long size() {
-        return getType().getSize();
+        return getType().size();
     }
 
     public String toString() {return String.format("Bytes(size = %d)", size());}

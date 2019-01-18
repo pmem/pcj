@@ -35,6 +35,7 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
     public UncheckedPersistentMemoryRegion(long addr) {
         this.addr = addr;
         this.directAddress = getDirectAddress(addr);
+        // System.out.println("directAddress = " + directAddress);
     }
 
     // TODO: should not be public
@@ -53,10 +54,6 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
         this.addr = addr;
         this.directAddress = getDirectAddress(addr);
     }
-
-    public void checkAccess(int mode) throws IllegalAccessException {}
-    public void checkAlive() {}
-    public void checkBounds(long offset) throws IndexOutOfBoundsException {}
 
     private void checkAddress() {
         if (directAddress != 0) return;
@@ -83,8 +80,13 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
 		return XHeap.UNSAFE.getLong(directAddress + offset);
     }
 
-    public long getAddress(long offset) {
-        return getLong(offset);
+    public byte[] getBytes(long offset, int length) {
+        checkAddress();
+        byte[] bytes = new byte[length];
+        long srcAddress = directAddress + offset;
+        long destOffset = XHeap.UNSAFE.ARRAY_BYTE_BASE_OFFSET;// + XHeap.UNSAFE.ARRAY_BYTE_INDEX_SCALE * 0;
+        XHeap.UNSAFE.copyMemory(null, srcAddress, bytes, destOffset, length);
+        return bytes;
     }
 
 
@@ -110,10 +112,6 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
         nativePutLong(directAddress + offset, value);
     }
 
-    public void putAddress(long offset, long value) {
-        putLong(offset, value);
-    }
-
 
     // durable
 
@@ -135,10 +133,6 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
     public void putDurableLong(long offset, long value) {
         checkAddress();
         nativePutDurableLong(directAddress + offset, value);
-    }
-
-    public void putDurableAddress(long offset, long value) {
-        putDurableLong(offset, value);
     }
 
 
@@ -164,10 +158,6 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
         XHeap.UNSAFE.putLong(directAddress + offset, value);
     }
 
-    public void putRawAddress(long offset, long value) {
-        putRawLong(offset, value);
-    }
-
     public void putRawBytes(long offset, byte[] bytes) {
         checkAddress();
         long srcOffset = XHeap.UNSAFE.ARRAY_BYTE_BASE_OFFSET + XHeap.UNSAFE.ARRAY_BYTE_INDEX_SCALE * 0;
@@ -176,7 +166,6 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
     }
 
     public void flush(long offset, long size) {
-        // System.out.println("flush(" + offset + ", " + size + ")");
         checkAddress();
         nativeFlush(directAddress + offset, size);
     }
@@ -184,6 +173,8 @@ public class UncheckedPersistentMemoryRegion implements MemoryRegion {
     public void flush(long size) {
         flush(0, size);
     }
+
+    public String toString() {return "UncheckedPersistentMemoryRegion(" + addr + ")";}
 
     // transactional
     private native void nativePutByte(long address, byte value);

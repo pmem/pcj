@@ -24,9 +24,10 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 
 public final class PersistentByteArray extends AbstractPersistentMutableArray {
-    private static final ArrayType<PersistentByteArray> TYPE = new ArrayType<>(PersistentByteArray.class, Types.BYTE);
+    private static final ArrayType<PersistentByteArray> TYPE = new ReferenceArrayType<>(PersistentByteArray.class, Types.BYTE);
 
     public PersistentByteArray(int size) {
         super(TYPE, size);

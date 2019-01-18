@@ -24,13 +24,14 @@ package lib.util.persistent;
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import lib.util.persistent.front.PersistentClass;
 
 @PersistentClass
 public final class PersistentString extends PersistentImmutableObject implements Comparable<PersistentString>, ComparableWith<String>, EquatesWith<String> {
     private static final FinalIntField LENGTH = new FinalIntField();
     private static final FinalObjectField<PersistentImmutableByteArray> BYTES = new FinalObjectField<>(PersistentImmutableByteArray.class);
-    private static final ObjectType<PersistentString> TYPE = ObjectType.fromFields(PersistentString.class, LENGTH, BYTES);
+    private static final ObjectType<PersistentString> TYPE = ObjectType.withFields(PersistentString.class, LENGTH, BYTES);
     private final String s;
 
     public static PersistentString make(String s) {

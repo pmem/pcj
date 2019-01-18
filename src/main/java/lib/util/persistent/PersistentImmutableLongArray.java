@@ -24,9 +24,10 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 
 public final class PersistentImmutableLongArray extends AbstractPersistentImmutableArray {
-    private static final ArrayType<PersistentImmutableLongArray> TYPE = new ArrayType<>(PersistentImmutableLongArray.class, Types.LONG);
+    private static final ArrayType<PersistentImmutableLongArray> TYPE = new ReferenceArrayType<>(PersistentImmutableLongArray.class, Types.LONG);
 
     public PersistentImmutableLongArray(long[] array) {
         super(TYPE, array.length, array);

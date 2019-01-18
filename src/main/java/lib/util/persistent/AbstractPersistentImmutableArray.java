@@ -22,6 +22,7 @@
 package lib.util.persistent;
 
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
@@ -76,16 +77,10 @@ abstract class AbstractPersistentImmutableArray extends AbstractPersistentArray 
     @SuppressWarnings("unchecked") <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
         // trace(true, "APIA.getValueObject(%d, %s)", offset, type);
         MemoryRegion srcRegion = region();
-        MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
-        // trace(true, "APIA.getValueObject, src addr = %d, srcOffset = %d, dst  = %s, size = %d", srcRegion.addr(), offset, dstRegion, type.getSize());
-        Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
-        T obj = null;
-        try {
-            Constructor ctor = ((ObjectType)type).getReconstructor();
-            ObjectPointer p = new ObjectPointer<T>((ObjectType)type, dstRegion);
-            obj = (T)ctor.newInstance(p);
-        }
-        catch (Exception e) {e.printStackTrace();}
-        return obj;
+        MemoryRegion dstRegion = new VolatileMemoryRegion(type.size());
+        // trace(true, "APIA.getValueObject, src addr = %d, srcOffset = %d, dst  = %s, size = %d", srcRegion.addr(), offset, dstRegion, type.size());
+        Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.size());
+        ObjectPointer p = new ObjectPointer<T>((ObjectType)type, dstRegion);
+        return AnyPersistent.reconstruct(new ObjectPointer<T>((ObjectType)type, dstRegion));
     }
 }

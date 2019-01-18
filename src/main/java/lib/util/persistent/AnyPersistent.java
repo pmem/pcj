@@ -24,9 +24,11 @@ package lib.util.persistent;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
+import lib.util.persistent.types.IndirectValueObjectType;
 import lib.util.persistent.types.ValueType;
-import lib.util.persistent.types.ValueBasedObjectType;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import lib.util.persistent.types.CarriedType;
 import lib.util.persistent.types.ByteField;
 import lib.util.persistent.types.ShortField;
@@ -96,29 +98,29 @@ public abstract class AnyPersistent {
     }
 
     public AnyPersistent(ObjectType<? extends AnyPersistent> type) {
-            this(type, type.isValueBased() ? new VolatileMemoryRegion(type.getAllocationSize())
-                                           : heap.allocateObjectRegion(type.getAllocationSize()));
+            this(type, type.kind() == ObjectType.Kind.DirectValue ? new VolatileMemoryRegion(type.allocationSize())
+                                           : type.kind() == ObjectType.Kind.IndirectValue ? new VolatileMemoryRegion(type.allocationSize())
+                                           : heap.allocateObjectRegion(type.allocationSize()));
     }
 
     @SuppressWarnings("unchecked")
     <T extends AnyPersistent> AnyPersistent(ObjectType<T> type, MemoryRegion region) {
-        // trace(true, region.addr(), "creating object of type %s", type.getName());
+        // trace(true, region.addr(), "creating object of type %s, region = %s", type.name(), region);
         if (Config.ENABLE_MEMORY_STATS) Stats.current.memory.constructions++;
         this.lock = new ReentrantLock(true);
         this.type = type;
         this.region = region;
-        if (!type.isValueBased()) {
-            initHeader(ClassInfo.getClassInfo(type.getName()));
+        if (!type.valueBased()) {
+            initHeader(ClassInfo.getClassInfo(type.name()));
             Ref<T> ref = new Ref<>((T)this);
             if(!Transaction.addNewObject(this, ref)) ObjectCache.add(region.addr(), ref);
         }
     }
 
     protected AnyPersistent(ObjectPointer<? extends AnyPersistent> p) {
-        // trace(true, p.region().addr(), "recreating object of type %s", p.type().getName());
+        // trace(true, p.region().addr(), "recreating object of type %s", p.type().name());
         lock = new ReentrantLock(true);
         if (Config.ENABLE_MEMORY_STATS) Stats.current.memory.reconstructions++;
-        // this.pointer = p;
         if (p != null) {
             this.type = p.type();
             this.region = p.region();
@@ -129,34 +131,43 @@ public abstract class AnyPersistent {
         }
     }
 
-    boolean isValueBased() {return type.isValueBased();}
+    @SuppressWarnings("unchecked")
+    static <T extends AnyPersistent> T reconstruct(ObjectPointer<T> p) {
+        // special case for reconstructing an indirect value
+        T obj = null;
+        try {
+            Constructor ctor = ((ObjectType)p.type()).getReconstructor();
+            obj = (T)ctor.newInstance(p);
+            obj.onReconstruction();
+        }
+        catch (Exception e) {
+            Throwable cause = e.getCause();
+            if (e instanceof InvocationTargetException && cause instanceof TransactionRetryException) {
+                throw (TransactionRetryException)e;
+            }
+            else throw new RuntimeException(cause);
+        }
+        return obj;
+    }
+
+    boolean isValueBased() {return type.valueBased();}
 
     // only called by Root during bootstrap of Object directory PersistentHashMap
     @SuppressWarnings("unchecked")
     public static <T extends AnyPersistent> T fromPointer(ObjectPointer<T> p) {
-        // trace(p.addr(), "creating object from pointer of type %s", p.type().getName());
-        T obj = null;
-        try {
-            obj = (T)p.type().getReconstructor().newInstance(p);
-        }
-        catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-            throw new RuntimeException(e.getCause());
-        }
+        // trace(p.addr(), "creating object from pointer of type %s", p.type().name());
+        T obj = reconstruct(p);
         ObjectCache.uncommittedConstruction(obj);
         return obj;
     }
 
     static void free(long addr) {
         // trace(true, addr, "free called");
-        //if (!Config.REMOVE_FROM_OBJECT_CACHE_ON_ENQUEUE) ObjectCache.remove(addr);
         ObjectCache.remove(addr);
         MemoryRegion reg = new UncheckedPersistentMemoryRegion(addr);
         Transaction.run(() -> {
             // trace(true, addr, "freeing object region %d ", reg.addr());
             heap.freeRegion(reg);
-            if (heap instanceof XHeap && ((XHeap)heap).getDebugMode() == true) {
-                ((XRoot)(heap.getRoot())).removeFromAllObjects(addr);
-            }
             //CycleCollector.removeFromCandidates(addr);
         });
     }
@@ -167,7 +178,7 @@ public abstract class AnyPersistent {
         return new ObjectPointer(type, region);
     }
 
-    ObjectType getType() {
+    public ObjectType getType() {
         return type;
     }
 
@@ -177,23 +188,24 @@ public abstract class AnyPersistent {
 
     long addr() {return region.addr();}
 
+    void onReconstruction() {}
+    void onSet() {}
+    void onGet() {}
+    void onFree(long offset) {}
+
     byte getRegionByte(long offset) {
-        // trace(true, "AP.getRegionByte(%d)", offset);
         return region.getByte(offset);
     }
 
     short getRegionShort(long offset) {
-        // trace(true, "AP.getRegionShort(%d)", offset);
         return region.getShort(offset);
     }
 
     int getRegionInt(long offset) {
-        // trace(true, "AP.getRegionInt(%d)", offset);
         return region.getInt(offset);
     }
 
     long getRegionLong(long offset) {
-        // trace(true, "AP.getRegionLong(%d)", offset);
         return region.getLong(offset);
     }
 
@@ -206,7 +218,7 @@ public abstract class AnyPersistent {
 
     @SuppressWarnings("unchecked")
     protected <T extends AnyPersistent> T getObject(long offset) {
-        return getObject(offset, Types.OBJECT);
+        return getObject(offset, Types.GENERIC_REFERENCE);
     }
 
     void setByte(long offset, byte value) {
@@ -281,7 +293,7 @@ public abstract class AnyPersistent {
     void setObject(long offset, AnyPersistent value) {
         Transaction.run(() -> {
             AnyPersistent old = ObjectCache.get(getLong(offset), true);
-            //trace(true, "AP.setObject(%d, value = %d, old = %d)", offset, value == null ? -1 : value.addr(), old == null ? -1 : old.addr());
+            // trace(true, "AP.setObject(%d, value = %d, old = %d)", offset, value == null ? -1 : value.addr(), old == null ? -1 : old.addr());
             Transaction.run(() -> {
                 if (value != null) value.addReference();
                 if (old != null) old.deleteReference(false);
@@ -290,25 +302,50 @@ public abstract class AnyPersistent {
         }, this);
     }
 
-    void setValueObject(long offset, AnyPersistent  value) {
-        // trace(true, "AP.setValueObject(%d)", offset);
-        if (value == null) return;  // should be exception?
-        if (!isValueBased()) {
-            Transaction.run(() -> {
-                MemoryRegion dstRegion = region();
-                MemoryRegion srcRegion = value.region();
-                // trace(true, "AnyPersistent setValueObject src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + offset, value.getType().getSize());
-                Util.memCopy(value.getType(), type, srcRegion, 0, dstRegion, offset, value.getType().getSize());
-            }, this);
+    @SuppressWarnings("unchecked")
+    void setValueObject(long offset, AnyPersistent value) {
+        if (value == null) return;  // TODO: should be exception
+        // trace(true, "AP.setValueObject(%d), hostType = %s, value's type = %s", offset, getType().cls(), value.getType().cls());
+        value.onSet();
+        ObjectType hostType = getType();
+        ObjectType valueType = value.getType();
+        ObjectType.Kind hostKind = hostType.kind();
+        ObjectType.Kind valueKind = valueType.kind();
+        MemoryRegion srcRegion = value.region(); 
+        long srcSize = valueType.size(); 
+        MemoryRegion dstRegion = null;
+        switch (hostKind) {
+            case Reference: dstRegion = valueKind == ObjectType.Kind.IndirectValue ? heap.allocateRegion(srcSize) : region(); break;
+            case DirectValue: dstRegion = valueKind == ObjectType.Kind.IndirectValue ? new VolatileMemoryRegion(srcSize) : region(); break;
+            case IndirectValue: dstRegion = valueKind == ObjectType.Kind.IndirectValue ? new VolatileMemoryRegion(srcSize) : region(); break;
         }
-        else {
-            Util.synchronizedBlock(this, () -> {
-                MemoryRegion dstRegion = region();
-                MemoryRegion srcRegion = value.region();
-                // trace(true, "AnyPersistent setValueObject src addr = %d, dst addr = %d, size = %d", srcRegion.addr(), dstRegion.addr() + offset, value.getType().getSize());
-                Util.memCopy(value.getType(), getType(), srcRegion, 0, dstRegion, offset, value.getType().getSize());
-            });
+        long dstOffset = offset; 
+        Util.memCopy(valueType, hostType, srcRegion, 0, dstRegion, dstOffset, srcSize);
+        
+        // after-copy work
+        if (valueKind == ObjectType.Kind.IndirectValue) {
+            switch (hostKind) {
+                case Reference : 
+                    region().putRawLong(offset, dstRegion.addr());
+                    long classInfoAddress = ClassInfo.getClassInfo(valueType.name()).getRegion().addr();
+                    dstRegion.putRawLong(IndirectValueObjectType.CLASS_INFO_OFFSET, classInfoAddress);
+                    break;
+                case DirectValue : /* don't know how to store IV in DV yet*/
+                    throw new RuntimeException("NYI");
+                case IndirectValue :  /*don't know how to nest IVs yet*/
+                    throw new RuntimeException("NYI");
+                default : throw new RuntimeException("Unsupported Kind: " + hostKind);
+            }
         }
+        // TODO:
+        // write nested indirect values
+        // List<PersistentType> valueFieldTypes = valueType.fieldTypes();
+        // for (PersistentType t : valueFieldTypes) {
+        //     if (t instanceof ObjectType && ((ObjectType)t).kind() == ObjectType.Kind.IndirectValue) {
+        //         // System.out.println("read field of type " + t + " and write here");
+        //         // read indirect field and write to this object
+        //     }
+        // } 
     }
 
     void setRegionByte(long offset, byte value) {
@@ -359,7 +396,7 @@ public abstract class AnyPersistent {
     }
 
     protected List<PersistentType> types() {
-        return ((ObjectType<?>)type).getTypes();
+        return ((ObjectType<?>)type).fieldTypes();
     }
 
     protected int fieldCount() {
@@ -367,47 +404,11 @@ public abstract class AnyPersistent {
     }
 
     protected long offset(int index) {
-        return ((ObjectType<?>)type).getOffset(index);
-    }
-
-    @SuppressWarnings("unchecked")
-    private void initializeField(long offset, PersistentType t) {
-        // System.out.format("type = %s, initializeField(%d. %s)\n", type, offset, t);
-        if (t == Types.BYTE) setByte(offset, (byte)0);
-        else if (t == Types.SHORT) setShort(offset, (short)0);
-        else if (t == Types.INT) setInt(offset, 0);
-        else if (t == Types.LONG) {setLong(offset, 0L);}
-        else if (t == Types.FLOAT) setInt(offset, Float.floatToIntBits(0f));
-        else if (t == Types.DOUBLE) setLong(offset,  Double.doubleToLongBits(0d));
-        else if (t == Types.CHAR) setInt(offset, 0);
-        else if (t == Types.BOOLEAN) setByte(offset, (byte)0);
-        else if (t instanceof ValueBasedObjectType) {
-            // System.out.println("initalizing " + t);
-            ValueBasedObjectType vt = (ValueBasedObjectType)t;
-            List<PersistentType> ts = vt.getTypes();
-            for (int i = 0; i < ts.size(); i++) initializeField(vt.getOffset(i), ts.get(i));
-        }
-        else if (t instanceof ObjectType) setObject(offset, null);
-    }
-
-    // we can turn this off after debug since only Field-based getters and setters are public
-    // and those provide static type safety and internally assigned indexes
-    protected int check(int index, PersistentType testType) {
-        // boolean result = true;
-        // if (index < 0 || index >= fieldCount()) throw new IndexOutOfBoundsException("No such field index: " + index);
-        // PersistentType t = types().get(index);
-        // if (t instanceof ObjectType && testType instanceof ObjectType) {
-        //     ObjectType<?> fieldType = (ObjectType)t;
-        //     ObjectType<?> test = (ObjectType) testType;
-        //     if (!test.cls().isAssignableFrom(fieldType.cls())) result = false;
-        //     else if (t != testType) result = false;
-        //     if (!result) throw new RuntimeException("Type mismatch in " + getType().cls() + " at index " + index + ": expected " + testType + ", found " + types().get(index));
-        // }
-        return index;
+        return ((ObjectType<?>)type).offset(index);
     }
 
     private void initHeader(ClassInfo classInfo) {
-        setRegionLong(Header.TYPE.getOffset(Header.CLASS_INFO), classInfo.getRegion().addr());
+        setRegionLong(Header.TYPE.offset(Header.CLASS_INFO), classInfo.getRegion().addr());
     }
 
     static String typeNameFromRegion(MemoryRegion region) {
@@ -416,37 +417,36 @@ public abstract class AnyPersistent {
     }
 
     synchronized int getRefCount() {
-        return region().getInt(Header.TYPE.getOffset(Header.REF_COUNT));
+        return region().getInt(Header.TYPE.offset(Header.REF_COUNT));
     }
 
     void incRefCount() {
         Transaction.run(() -> {
-            int oldCount = region.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
-            region.putInt(Header.TYPE.getOffset(Header.REF_COUNT), oldCount + 1);
+            int oldCount = region.getInt(Header.TYPE.offset(Header.REF_COUNT));
+            region.putInt(Header.TYPE.offset(Header.REF_COUNT), oldCount + 1);
             //  trace(true, addr(), "incRefCount(), type = %s, old = %d, new = %d", type, oldCount, getRefCount());
         }, this);
     }
 
     int decRefCount() {
         return Transaction.run(() -> {
-            int oldCount = region.getInt(Header.TYPE.getOffset(Header.REF_COUNT));
+            int oldCount = region.getInt(Header.TYPE.offset(Header.REF_COUNT));
             int newCount = oldCount - 1;
             // trace(true, addr(), "decRefCount, type = %s, old = %d, new = %d", type, oldCount, newCount);
             if (newCount < 0) {
-               // trace(true, addr(), "decRef below 0");
                new RuntimeException().printStackTrace(); System.exit(-1);
             }
-            region.putInt(Header.TYPE.getOffset(Header.REF_COUNT), newCount);
+            region.putInt(Header.TYPE.offset(Header.REF_COUNT), newCount);
             return newCount;
         }, this);
     }
 
     void flushRegion() {
-        region.flush(0, type.getAllocationSize());
+        region.flush(0, type.allocationSize());
     }
 
     void flushHeader() {
-        region.flush(0, Header.TYPE.getAllocationSize());
+        region.flush(0, Header.TYPE.allocationSize());
     }
 
     void addReference() {
@@ -457,57 +457,9 @@ public abstract class AnyPersistent {
     }
 
     //TODO: analyze serialization / isolation of this
-    //synchronized void deleteReference(boolean live) {
-/*    public void deleteReference(boolean live) {
-        // assert(!type.isValueBased());
-        // trace(true, addr(), "deleteReference(%s)", live);
-        Deque<Long> addrsToDelete = new ArrayDeque<>();
-        ObjectCache.Ref ref;
-        long address = addr();
-        // Transaction.run(() -> {
-        int count = getRefCount();
-        if (live) ObjectCache.remove(address);
-        else count = count == 0 ? 0 : decRefCount();
-        if (count == 0 && (ref = ObjectCache.getReference(address, true)).isForAdmin()) {
-            addrsToDelete.push(addr());
-            while (!addrsToDelete.isEmpty()) {
-                long addrToDelete = addrsToDelete.pop();
-                Iterator<Long> childAddresses = getChildAddressIterator(addrToDelete);
-                ArrayList<ObjectCache.Ref<AnyPersistent>> children = new ArrayList<>();
-                while (childAddresses.hasNext()) {
-                    children.add(ObjectCache.getReference(childAddresses.next(), true));
-                }
-                for (ObjectCache.Ref<AnyPersistent> childRef : children) {
-                    AnyPersistent child = childRef.get();
-                    Transaction.run(() -> {
-                        long childAddr = child.addr();
-                        int crc = child.getRefCount() == 0 ? 0 : child.decRefCount();
-                        if (crc == 0 && childRef.isForAdmin()) {
-                            addrsToDelete.push(childAddr);
-                        } else {
-                            //CycleCollector.addCandidate(childAddr);
-                        }
-                    }, child);
-                    childRef.clear();
-                }
-                Transaction.removeFromReconstructions(addrToDelete);
-                ref.clear();
-                free(addrToDelete);
-
-            }
-        } else {
-            //CycleCollector.addCandidate(addr());
-        }
-    }*/
-
-
-    //TODO: analyze serialization / isolation of this
-    //synchronized void deleteReference(boolean live) {
     public void deleteReference(boolean live) {
-        // assert(!type.isValueBased());
-        // trace(true, addr(), "deleteReference(%s)", live);
+        // trace(true, addr(), "deleteReference(%s), type = %s ", live, getType());
         long address = addr();
-        // Transaction.run(() -> {
         Transaction.run(() -> {
             int count = getRefCount();
             boolean isCleanup = !live && count == 0;
@@ -522,7 +474,8 @@ public abstract class AnyPersistent {
                     Iterator<Long> childAddresses = getChildAddressIterator(addrToDelete);
                     ArrayList<ObjectCache.Ref<AnyPersistent>> children = new ArrayList<>();
                     while (childAddresses.hasNext()) {
-                        children.add(ObjectCache.getReference(childAddresses.next(), true));
+                        long childAddress = childAddresses.next();
+                        children.add(ObjectCache.getReference(childAddress, true));
                     }
                     for (ObjectCache.Ref<AnyPersistent> childRef : children) {
                         AnyPersistent child = childRef.get();
@@ -548,10 +501,9 @@ public abstract class AnyPersistent {
     }
 
     //TODO: make non-public, currently called from XRoot
-    public static void deleteResidualReferences(long address, int count) {
+    public static void deleteResidualReferences(long address) {
         // trace(true, address, "deleteResidualReferences: %d", count);
         AnyPersistent obj = ObjectCache.get(address, true);
-         //assert(!obj.getType().isValueBased());
         obj.deleteReference(false);
     }
 
@@ -560,40 +512,56 @@ public abstract class AnyPersistent {
         return ClassInfo.getClassInfo(classInfoAddr).className();
     }
 
+    @SuppressWarnings("unchecked")
     static Iterator<Long> getChildAddressIterator(long address) {
         // trace(true, address, "getChildAddressIterator");
-        MemoryRegion reg = ObjectCache.get(address, true).region();
-        String typeName = classNameForRegion(reg);
-        ObjectType<?> type = Types.typeForName(typeName);
+        MemoryRegion parentRegion = ObjectCache.get(address, true).region();
+        String typeName = classNameForRegion(parentRegion);
+        ObjectType<?> parentType = Types.typeForName(typeName);
         ArrayList<Long> childAddresses = new ArrayList<>();
-        if (type instanceof ArrayType) {
-            ArrayType<?> arrType = (ArrayType)type;
-            Class<?> arrClass = arrType.cls();
-            if (arrClass == lib.util.persistent.PersistentValueArray.class ||
-                arrClass == lib.util.persistent.PersistentValueArray.class) {
-                return childAddresses.iterator();
-            }
-            PersistentType et = arrType.getElementType();
-            if (et == Types.OBJECT || (et instanceof ObjectType && !((ObjectType)et).isValueBased())) {
-                int length = reg.getInt(ArrayType.LENGTH_OFFSET);
-                for (int i = 0; i < length; i++) {
-                    long childAddr = reg.getLong(arrType.getElementOffset(i));
-                    if (childAddr != 0) {
-                        childAddresses.add(childAddr);
+        if (parentType instanceof ArrayType && parentType.kind() == ObjectType.Kind.Reference) {
+            ArrayType<?> arrType = (ArrayType)parentType;
+            PersistentType et = arrType.elementType();
+            if (et instanceof ObjectType) {
+                ObjectType<AnyPersistent> eot = (ObjectType)et;
+                int length = parentRegion.getInt(ReferenceArrayType.LENGTH_OFFSET);
+                if (eot.valueBased()) {
+                    if (PersistentByteVector.class.isAssignableFrom(eot.cls())) {
+                        for (int i = 0; i < length; i++) {
+                            long childAddr = parentRegion.getLong(arrType.elementOffset(i));
+                            long childOffset = parentRegion.addr() + parentType.offset(i);
+                            AnyPersistent obj = reconstruct(new ObjectPointer<AnyPersistent>(eot, new UncheckedPersistentMemoryRegion(childAddr)));
+                            obj.onFree(childOffset);
+                        }
+                    }
+                }
+                else {
+                    for (int i = 0; i < length; i++) {
+                        long childAddr = parentRegion.getLong(arrType.elementOffset(i));
+                        if (childAddr != 0) childAddresses.add(childAddr);
                     }
                 }
             }
         }
-        else if (type instanceof ObjectType) {
-            if (!((ObjectType)type).isValueBased()) {
-                for (int i = Header.TYPE.fieldCount(); i < type.fieldCount(); i++) {
-                    List<PersistentType> types = type.getTypes();
-                    PersistentType ctype = types.get(i);
-                    if (ctype instanceof ObjectType && !((ObjectType)ctype).isValueBased() || types.get(i) == Types.OBJECT) {
-                        long childAddr = reg.getLong(type.getOffset(i));
-                        if (childAddr != 0) {
-                            childAddresses.add(childAddr);
+        else if (parentType instanceof ObjectType) {
+            for (int i = Header.TYPE.fieldCount(); i < parentType.fieldCount(); i++) {
+                List<PersistentType> types = parentType.fieldTypes();
+                PersistentType ctype = types.get(i);
+                if (ctype instanceof ObjectType) {
+                    long childAddr = parentRegion.getLong(parentType.offset(i));
+                    ObjectType ot = (ObjectType)ctype;
+                    if (ot.valueBased()) {
+                        if (PersistentByteVector.class.isAssignableFrom(ot.cls())) {
+                            AnyPersistent obj = reconstruct(new ObjectPointer<AnyPersistent>(ot, new UncheckedPersistentMemoryRegion(childAddr)));
+                            long childOffset = parentRegion.addr() + parentType.offset(i);
+                            obj.onFree(childOffset);
                         }
+                        else if (ot.kind() == ObjectType.Kind.IndirectValue) {
+                            // System.out.println("free child indirect value");
+                        }
+                    }
+                    else if (childAddr != 0) {
+                        childAddresses.add(childAddr);
                     }
                 }
             }
@@ -612,12 +580,12 @@ public abstract class AnyPersistent {
     //     if (CycleCollector.isProcessing() && !cc) {
     //         CycleCollector.stashObjColorChange(addr(), color);
     //     } else {
-    //         region.putByte(Header.TYPE.getOffset(Header.REF_COLOR), color);
+    //         region.putByte(Header.TYPE.offset(Header.REF_COLOR), color);
     //     }
     // }
 
     // byte getColor() {
-    //     return region.getByte(Header.TYPE.getOffset(Header.REF_COLOR));
+    //     return region.getByte(Header.TYPE.offset(Header.REF_COLOR));
     // }
 
     boolean tryLock(Transaction transaction) {

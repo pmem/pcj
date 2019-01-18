@@ -35,11 +35,13 @@ public class Types {
     public static final CarriedType DOUBLE = new CarriedType(LONG);
     public static final CarriedType CHAR = new CarriedType(INT);
     public static final CarriedType BOOLEAN = new CarriedType(BYTE);
-    public static final CarriedType OBJECT = new CarriedType(LONG);
     public static final CarriedType VALUE = new CarriedType(LONG);
+    public static final CarriedType REFERENCE = new CarriedType(LONG);
+    public static final CarriedType POINTER = new CarriedType(LONG);
+    public static final ObjectType<AnyPersistent> GENERIC_REFERENCE = ObjectType.GENERIC_REFERENCE;
+    public static final ObjectType<AnyPersistent> GENERIC_OBJECT = ObjectType.GENERIC_OBJECT;
 
     public static final String TYPE_FIELD_NAME = "TYPE";
-    public static final String OLD_TYPE_FIELD_NAME = "type";
 
     @SuppressWarnings("unchecked")
     public static synchronized <T extends AnyPersistent> PersistentType typeForClass(Class<T> cls) {
@@ -49,13 +51,6 @@ public class Types {
     @SuppressWarnings("unchecked")
     public static <T extends AnyPersistent> ObjectType<T> objectTypeForClass(Class<T> cls) {
         return (ObjectType<T>)typeForClass(cls);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static synchronized <T extends AnyPersistent> ValueBasedObjectType<T> valueTypeForClass(Class<T> cls) {
-        ObjectType type = objectTypeForClass(cls);
-        if (!type.isValueBased()) throw new RuntimeException("Class does not refer to a value-based class");
-        return (ValueBasedObjectType)type;
     }
  
     @SuppressWarnings("unchecked")

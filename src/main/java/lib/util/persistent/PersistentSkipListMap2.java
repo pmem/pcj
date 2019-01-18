@@ -44,6 +44,7 @@ package lib.util.persistent;
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -85,7 +86,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
     private static final ObjectField<AnyPersistent> BASE_HEADER = new ObjectField<>();
     private static final ObjectField<PersistentArrayList> META_LIST = new ObjectField<>(PersistentArrayList.class);
     private static final IntField LEVEL = new IntField();
-    public static final ObjectType<PersistentSkipListMap2> TYPE = ObjectType.fromFields(PersistentSkipListMap2.class, HEADNODE, BASE_HEADER, LEVEL, META_LIST);
+    public static final ObjectType<PersistentSkipListMap2> TYPE = ObjectType.withFields(PersistentSkipListMap2.class, HEADNODE, BASE_HEADER, LEVEL, META_LIST);
 
     static {
         statics = ObjectDirectory.get("PersistentSkipListMap2_statics", Statics.class);
@@ -95,7 +96,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
 
     public static final class Statics extends PersistentObject {
         private static final ObjectField<PersistentLong> BASE_HEADER = new ObjectField<>();
-        public static final ObjectType<Statics> TYPE = ObjectType.fromFields(Statics.class, BASE_HEADER);
+        public static final ObjectType<Statics> TYPE = ObjectType.withFields(Statics.class, BASE_HEADER);
 
         public Statics() {
             super(TYPE);
@@ -254,7 +255,7 @@ public class PersistentSkipListMap2<K extends AnyPersistent, V extends AnyPersis
         private static final ObjectField<AnyPersistent> KEY = new ObjectField<>();
         private static final ObjectField<PersistentAtomicReference> VALUE = new ObjectField<>(PersistentAtomicReference.class);
         private static final ObjectField<PersistentAtomicReference> NEXT = new ObjectField<>(PersistentAtomicReference.class);
-        private static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, KEY, VALUE, NEXT);
+        private static final ObjectType<Node> TYPE = ObjectType.withFields(Node.class, KEY, VALUE, NEXT);
 
 
         //Creates regular node

@@ -28,7 +28,7 @@ import lib.util.persistent.types.Types;
 
 public final class PersistentFloat extends PersistentImmutableObject implements Comparable<PersistentFloat> { 
     private static final FloatField FLOAT = new FloatField();
-    private static final ObjectType<PersistentFloat> TYPE = ObjectType.fromFields(PersistentFloat.class, FLOAT);
+    private static final ObjectType<PersistentFloat> TYPE = ObjectType.withFields(PersistentFloat.class, FLOAT);
 
     public PersistentFloat(float x) {
         super(TYPE, (PersistentFloat self) -> {

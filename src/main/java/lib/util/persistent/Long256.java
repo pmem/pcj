@@ -28,12 +28,11 @@ import lib.util.persistent.front.PersistentClass;
 
 @PersistentClass
 public final class Long256 extends PersistentObject {
-    private static final LongField X0 = new LongField();
-    private static final LongField X1 = new LongField();
-    private static final LongField X2 = new LongField();
-    private static final LongField X3 = new LongField();
-    private static final ValueType VT = ValueType.fromFields(X0, X1, X2, X3);
-    private static final ObjectType<Long256> TYPE = ObjectType.fromValueType(Long256.class, VT);
+    public static final LongField X0 = new LongField();
+    public static final LongField X1 = new LongField();
+    public static final LongField X2 = new LongField();
+    public static final LongField X3 = new LongField();
+    public static final ObjectType<Long256> TYPE = ObjectType.withValueFields(Long256.class, X0, X1, X2, X3);
 
     public Long256(long x0, long x1, long x2, long x3) {
         super(TYPE);

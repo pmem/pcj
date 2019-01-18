@@ -28,7 +28,7 @@ public class Cell extends PersistentObject {
     private static final ObjectField<PersistentString> COLNAME = new ObjectField<>(PersistentString.class);
     private static final ObjectField<PersistentString> VAL = new ObjectField<>(PersistentString.class);
     private static final LongField TIMESTAMP = new LongField();
-    public static final ObjectType<Cell> TYPE = ObjectType.fromFields(Cell.class, COLNAME, VAL, TIMESTAMP);
+    public static final ObjectType<Cell> TYPE = ObjectType.withFields(Cell.class, COLNAME, VAL, TIMESTAMP);
 
     public Cell(PersistentString colName, String val, long ts) {
         super(TYPE);

@@ -22,10 +22,12 @@
 package lib.util.persistent.types;
 
 import lib.util.persistent.AnyPersistent;
+import lib.util.persistent.Bytes;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class BytesType extends ValueType { 
+// public class BytesType extends ValueType { 
+public class BytesType extends DirectValueObjectType<Bytes> { 
     private static final HashMap<Long, BytesType> instances = new HashMap<>();
     private long size;
 
@@ -40,13 +42,14 @@ public class BytesType extends ValueType {
     }
 
     public BytesType(long size) {
-        super(new ArrayList<>(), new long[0], size);
+        // super(new ArrayList<>(), new long[0], size);
+        super(Bytes.class, new ArrayList<>(), new long[0], size);
         this.size = size;
     }
 
-    public long getSize() {return getAllocationSize();}
+    public long size() {return allocationSize();}
 
-    public long getAllocationSize() {
+    public long allocationSize() {
         return size;
     }
 
@@ -54,12 +57,12 @@ public class BytesType extends ValueType {
         return size;
     }
 
-    public long getOffset(long index) {
+    public long offset(long index) {
         return index;
     }
 
     @Override
     public String toString() {
-        return "BytesType(" + size + ")";
+        return "BytesType(" + size() + ")";
     }
 }

@@ -43,7 +43,7 @@ PMEMobjpool* get_or_create_pool(const char* path, size_t size)
     }
 
     if (pool == NULL) {
-        printf("Encountered error opening pool! Please check if %s exists and accessible.\n", path);
+        printf("Encountered error opening pool. Please check if %s exists and accessible.\n", path);
         exit(-1);
     }
 
@@ -54,7 +54,7 @@ PMEMobjpool* get_or_create_pool(const char* path, size_t size)
         TX_FREE(arr);
         TX_MEMSET(pmemobj_direct(arr.oid), 0, 1);
     } TX_ONABORT {
-        printf("Encountered error opening pool!\n");
+        printf("Encountered error opening pool.\n");
         fflush(stdout);
         exit(-1);
     } TX_END
@@ -78,7 +78,7 @@ void create_root(uint64_t root_size)
         TX_ADD_FIELD(root, root_memory_region);
         D_RW(root)->root_memory_region = TX_ZALLOC(char, root_size);
     } TX_ONABORT {
-        printf("Failed to create root object!\n");
+        printf("Failed to create root object.\n");
         exit(-1);
     } TX_END
 }

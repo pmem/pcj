@@ -28,7 +28,7 @@ import lib.util.persistent.types.Types;
 
 public final class PersistentDouble extends PersistentImmutableObject implements Comparable<PersistentDouble> { 
     private static final DoubleField DOUBLE = new DoubleField();
-    private static final ObjectType<PersistentDouble> TYPE = ObjectType.fromFields(PersistentDouble.class, DOUBLE);
+    private static final ObjectType<PersistentDouble> TYPE = ObjectType.withFields(PersistentDouble.class, DOUBLE);
 
     public PersistentDouble(double x) {
         super(TYPE, (PersistentDouble self) -> {

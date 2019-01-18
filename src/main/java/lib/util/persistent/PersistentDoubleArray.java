@@ -24,9 +24,10 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 
 public final class PersistentDoubleArray extends AbstractPersistentMutableArray {
-    private static final ArrayType<PersistentDoubleArray> TYPE = new ArrayType<>(PersistentDoubleArray.class, Types.DOUBLE);
+    private static final ArrayType<PersistentDoubleArray> TYPE = new ReferenceArrayType<>(PersistentDoubleArray.class, Types.DOUBLE);
 
     public PersistentDoubleArray(int size) {
         super(TYPE, size);

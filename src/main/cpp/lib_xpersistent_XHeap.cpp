@@ -48,15 +48,7 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XHeap_nativeAllocate
   (JNIEnv *env, jobject obj, jlong size)
 {
     TOID(char) bytes = TOID_NULL(char);
-
-    //TX_BEGIN(pool) {
-        bytes = TX_ZALLOC(char, size);
-    /*} TX_ONABORT {
-        throw_persistence_exception(env, "Failed to allocate MemoryRegion! ");
-    } TX_END*/
-
-    // printf("error is %d\n", pmemobj_tx_errno());
-    // fflush(stdout);
+    bytes = TX_ZALLOC(char, size);
     if (pmemobj_tx_errno() == 0) return bytes.oid.off;
     else return -1;
 }
@@ -86,11 +78,7 @@ JNIEXPORT jint JNICALL Java_lib_xpersistent_XHeap_nativeFree
     TOID(char) bytes;
     TOID_ASSIGN(bytes, oid);
 
-    //TX_BEGIN(pool) {
-        TX_FREE(bytes);
-    /*} TX_ONABORT {
-        throw_persistence_exception(env, "Failed to free! ");
-    } TX_END*/
+    TX_FREE(bytes);
     return pmemobj_tx_errno() == 0 ? 0 : -1;
 }
 
@@ -151,14 +139,8 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_XHeap_nativeCopyBytesToAddress
     jboolean is_copy;
     jbyte* bytes = env->GetByteArrayElements(src_array, &is_copy);
 
-    // TX_BEGIN(pool) {
-        TX_MEMCPY((void*)dest_address, (void*)(bytes + src_offset), length);
-    // } TX_ONABORT {
-        // throw_persistence_exception(env, "Failed to memcpy");
-    // } TX_FINALLY {
-        // fprintf(stdout, "is_copy = %d\n", is_copy); fflush(stdout);
-        if (is_copy) env->ReleaseByteArrayElements(src_array, bytes, 0);
-    // } TX_END
+    TX_MEMCPY((void*)dest_address, (void*)(bytes + src_offset), length);
+    if (is_copy) env->ReleaseByteArrayElements(src_array, bytes, 0);
 }
 
 

@@ -28,7 +28,7 @@ import lib.util.persistent.types.Types;
 
 public final class PersistentInteger extends PersistentImmutableObject implements Comparable<PersistentInteger>, ComparableWith<Integer>, EquatesWith<Integer> {
     private static final IntField INT = new IntField();
-    private static final ObjectType<PersistentInteger> TYPE = ObjectType.fromFields(PersistentInteger.class, INT);
+    private static final ObjectType<PersistentInteger> TYPE = ObjectType.withFields(PersistentInteger.class, INT);
 
     public PersistentInteger(int x) {
         super(TYPE, (PersistentInteger self) -> {

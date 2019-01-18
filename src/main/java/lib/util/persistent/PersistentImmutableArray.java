@@ -23,21 +23,22 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import lib.util.persistent.types.ObjectType;
 import static lib.util.persistent.Trace.*;
 
 public class PersistentImmutableArray<T extends AnyPersistent> extends AbstractPersistentImmutableArray {
-    private static final ArrayType<PersistentImmutableArray> TYPE = new ArrayType<>(PersistentImmutableArray.class, Types.OBJECT);
+    private static final ArrayType<PersistentImmutableArray> TYPE = new ReferenceArrayType<>(PersistentImmutableArray.class, Types.GENERIC_REFERENCE);
 
     public static <A extends PersistentImmutableArray, T extends PersistentObject> ArrayType<A> typeForClasses(Class<A> arrayClass, Class<T> elementClass) {
-        return new ArrayType<>(arrayClass, Types.typeForClass(elementClass));
+        return new ReferenceArrayType<>(arrayClass, Types.typeForClass(elementClass));
     }
 
     @SuppressWarnings("unchecked")
     public static <T extends AnyPersistent> PersistentImmutableArray<T> forElementClass(Class<T> elementClass, T... ts) {
         PersistentImmutableArray<T> ans = null;
         ObjectType ot = Types.objectTypeForClass(elementClass);
-        if (ot.isValueBased()) {
+        if (ot.valueBased()) {
             ans = new PersistentImmutableValueArray<T>(elementClass, ts);
         }
         else { 
@@ -48,7 +49,7 @@ public class PersistentImmutableArray<T extends AnyPersistent> extends AbstractP
 
     @SafeVarargs
     public PersistentImmutableArray(Class<? extends AnyPersistent> elementClass, T... ts) {
-        super(new ArrayType<PersistentArray>(PersistentArray.class, Types.typeForClass(elementClass)), ts.length, ts);
+        super(new ReferenceArrayType<PersistentArray>(PersistentArray.class, Types.typeForClass(elementClass)), ts.length, ts);
     }
 
     @SafeVarargs

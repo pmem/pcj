@@ -23,9 +23,4 @@
 #include <libpmemobj.h>
 #include <libpmem.h>
 
-void call_JNI_method(JNIEnv *env, jobject obj, const char* method_name, const char* method_sig);
-void call_JNI_method_with_int(JNIEnv *env, jobject obj, const char* method_name, const char* method_sig, int arg);
-void call_JNI_method_with_string(JNIEnv *env, jobject obj, const char* method_name, const char* method_sig, const char* arg);
-void call_JNI_static_method_with_string(JNIEnv *env, jclass klass, const char* method_name, const char* method_sig, const char* arg);
-jmethodID find_JNI_method(JNIEnv *env, jobject obj, const char* method_name, const char* method_sig);
 void throw_persistence_exception(JNIEnv *env, const char* arg);

@@ -25,6 +25,6 @@ import lib.util.persistent.Bytes;
 
 public class FinalBytesField extends ValueField<Bytes> {
     public FinalBytesField(long size) {
-        super(Bytes.class, new BytesType(size));
+        super(BytesType.forSize(size));
     }
 }

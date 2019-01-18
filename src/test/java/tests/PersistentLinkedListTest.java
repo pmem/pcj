@@ -48,7 +48,7 @@ public class PersistentLinkedListTest {
    	  String id = threadSafeId("tests.persistent_linked_list");
    	  PersistentLinkedList<PersistentInteger> list = ObjectDirectory.get(id, PersistentLinkedList.class);
         if (list == null) {
-            list = new PersistentLinkedList<PersistentInteger>();
+            list = new PersistentLinkedList<>();
             ObjectDirectory.put(id, list);
         }
         return list;
@@ -138,7 +138,7 @@ public class PersistentLinkedListTest {
         String id = "tests.linked_list_persistance";
         PersistentLinkedList<PersistentInteger> list = ObjectDirectory.get(id, PersistentLinkedList.class);
         if (list == null) {
-            list = new PersistentLinkedList<PersistentInteger>();
+            list = new PersistentLinkedList<>();
             ObjectDirectory.put(id, list);
             if (verbose) System.out.println("Saving to pmem");
             for(int i = 0; i < 5; i++) list.add(new PersistentInteger(i));

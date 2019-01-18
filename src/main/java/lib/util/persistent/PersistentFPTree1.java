@@ -75,7 +75,7 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 	private static final ObjectField<PersistentLeaf> HEAD_LEAF = new ObjectField<>(PersistentLeaf.class);
 	private static final IntField P_MAX_LEAF_KEYS = new IntField();
 	private static final IntField P_MAX_INTERNAL_KEYS = new IntField();
-	private static final ObjectType<PersistentFPTree1> TYPE = ObjectType.fromFields(PersistentFPTree1.class, HEAD_LEAF, P_MAX_LEAF_KEYS, P_MAX_INTERNAL_KEYS);
+	private static final ObjectType<PersistentFPTree1> TYPE = ObjectType.withFields(PersistentFPTree1.class, HEAD_LEAF, P_MAX_LEAF_KEYS, P_MAX_INTERNAL_KEYS);
 
 	private final int MAX_INTERNAL_KEYS;
 	private final int MID_INTERNAL_KEYS;
@@ -906,7 +906,7 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 		private static final ObjectField<PersistentArray> SLOTS_ARRAY = new ObjectField<>(PersistentArray.class);
 		private static final ObjectField<PersistentLeaf> NEXT = new ObjectField<>(PersistentLeaf.class);
 		private static final ObjectField<PersistentBoolean> IS_EMPTY = new ObjectField<>(PersistentBoolean.class);
-		private static final ObjectType<PersistentLeaf> TYPE = ObjectType.fromFields(PersistentLeaf.class, SLOTS_ARRAY, NEXT, IS_EMPTY);
+		private static final ObjectType<PersistentLeaf> TYPE = ObjectType.withFields(PersistentLeaf.class, SLOTS_ARRAY, NEXT, IS_EMPTY);
 
 		public PersistentLeaf(int size) {
 			super(TYPE);
@@ -986,7 +986,7 @@ public class PersistentFPTree1<K extends AnyPersistent, V extends AnyPersistent>
 		private static final IntField HASH = new IntField();
 		private static final ObjectField<AnyPersistent> KEY = new ObjectField<>();
 		private static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
-		private static final ObjectType<PersistentLeafSlot> TYPE = ObjectType.fromFields(PersistentLeafSlot.class, HASH, KEY, VALUE);
+		private static final ObjectType<PersistentLeafSlot> TYPE = ObjectType.withFields(PersistentLeafSlot.class, HASH, KEY, VALUE);
 
 		public PersistentLeafSlot(int hash, K key, V value) {
 			super(TYPE);

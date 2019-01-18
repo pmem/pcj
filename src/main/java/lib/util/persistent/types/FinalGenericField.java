@@ -19,10 +19,16 @@
  * Boston, MA  02110-1301, USA.
  */
 
-package lib.llpl;
+package lib.util.persistent.types;
 
-public class PersistenceException extends RuntimeException {
-	public PersistenceException(String message) {
-		super(message);
-	}
+import lib.util.persistent.AnyPersistent;
+import java.util.concurrent.ConcurrentHashMap;
+import lib.util.persistent.ObjectCache.Address;
+
+public class FinalGenericField<T extends AnyPersistent> extends ObjectField<AnyPersistent> {
+    public FinalGenericField() {
+    	super(Types.GENERIC_OBJECT);
+    }
+
+    public String toString() {return "FinalGenericField(...)";}
 }

@@ -41,14 +41,15 @@ public class PersistentHashMap<K extends AnyPersistent, V extends AnyPersistent>
     private static IntField THRESHOLD = new IntField();
     private static FloatField LOAD_FACTOR = new FloatField();
     private static ObjectField<PersistentArray> TABLE = new ObjectField<>(PersistentArray.class);
-    public static final ObjectType<PersistentHashMap> TYPE = ObjectType.fromFields(PersistentHashMap.class, SIZE, THRESHOLD, LOAD_FACTOR, TABLE);
+    public static final ObjectType<PersistentHashMap> TYPE = ObjectType.withFields(PersistentHashMap.class, SIZE, THRESHOLD, LOAD_FACTOR, TABLE);
+
 
     public static class Node<K extends AnyPersistent, V extends AnyPersistent> extends PersistentObject implements Map.Entry<K, V> {
         private static final IntField HASH = new IntField();
         private static final ObjectField<AnyPersistent> KEY = new ObjectField<>();
         private static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
         private static final ObjectField<Node> NEXT = new ObjectField<>();
-        public static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, HASH, KEY, VALUE, NEXT);
+        public static final ObjectType<Node> TYPE = ObjectType.withFields(Node.class, HASH, KEY, VALUE, NEXT);
 
         public Node(int hash, K key, V value, Node<K, V> next) {
             super(TYPE);

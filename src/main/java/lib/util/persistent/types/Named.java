@@ -25,11 +25,11 @@ import lib.util.persistent.AnyPersistent;
 import lib.util.persistent.PersistentString;
 
 public interface Named {
-    String getName();
+    String name();
 
     default Class<?> cls() {
         try {
-            return Class.forName(getName());
-        } catch (ClassNotFoundException e) {throw new RuntimeException("No class for type " + getName());}
+            return Class.forName(name());
+        } catch (ClassNotFoundException e) {throw new RuntimeException("No class for type " + name());}
     }
 }

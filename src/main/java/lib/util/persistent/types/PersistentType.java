@@ -25,5 +25,5 @@ import lib.util.persistent.AnyPersistent;
 import lib.util.persistent.PersistentString;
 
 public interface PersistentType {
-    long getSize();
+    long size();
 }

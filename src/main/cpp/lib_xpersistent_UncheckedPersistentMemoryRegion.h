@@ -58,10 +58,10 @@ JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nati
 JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_getDirectAddress
   (JNIEnv *env, jobject obj, jlong region_offset);
 
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativeFlush
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativeFlush
   (JNIEnv *env, jobject obj, jlong address, jlong size);
 
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_addToTransaction
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_addToTransaction
   (JNIEnv *env, jobject obj, jlong address, jlong size);
 
 #ifdef __cplusplus

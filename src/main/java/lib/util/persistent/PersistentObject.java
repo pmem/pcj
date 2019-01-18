@@ -34,6 +34,7 @@ import lib.util.persistent.types.CharField;
 import lib.util.persistent.types.BooleanField;
 import lib.util.persistent.types.ObjectField;
 import lib.util.persistent.types.ValueField;
+import lib.util.persistent.types.GenericField;
 import java.lang.reflect.Constructor;
 import static lib.util.persistent.Trace.*;
 import java.util.function.Consumer;
@@ -53,7 +54,7 @@ public class PersistentObject extends AbstractPersistentObject {
 
     <T extends AnyPersistent> PersistentObject(ObjectType<T> type, MemoryRegion region) {
         super(type, region);
-        // trace(region.addr(), "created object of type %s", type.getName());
+        // trace(region.addr(), "created object of type %s", type.name());
     }
 
     protected PersistentObject(ObjectPointer<? extends AnyPersistent> p) {
@@ -187,22 +188,55 @@ public class PersistentObject extends AbstractPersistentObject {
     //TODO: optimize 4 parts: acquire lock, allocate volatile, copy P->V, construct box
     @Override
     @SuppressWarnings("unchecked") 
-    <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
-        // trace(true, "PO.getValueObject(%d, %s)", offset, type);
-        MemoryRegion objRegion = Util.synchronizedBlock(this, () -> {
-            MemoryRegion srcRegion = region();
-            MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
-            // trace(true, "getObject (valueBased) type = %s, src addr = %d, srcOffset = %d, dst  = %s, size = %d", type, srcRegion.addr(), offset, dstRegion, type.getSize());
-            Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
-            return dstRegion;
-        });
+    <T extends AnyPersistent> T getValueObject(long offset, PersistentType pt) {
+        // trace(true, "PO.getValueObject(%d, %s)", offset, pt);
+        ObjectType hostType = getType();
+        ObjectType.Kind hostKind = hostType.kind();
+        ObjectType fieldType = (ObjectType)pt;
+        ObjectType.Kind fieldKind = fieldType.kind();
+        MemoryRegion srcRegion;
+        long srcRegionSize;
+        MemoryRegion dstRegion;
         T obj = null;
-        try {
-            Constructor ctor = ((ObjectType)type).getReconstructor();
-            ObjectPointer p = new ObjectPointer<T>((ObjectType)type, objRegion);
-            obj = (T)ctor.newInstance(p);
+        switch (fieldKind) {
+            case IndirectValue :
+                switch (hostKind) {
+                    case Reference : 
+                        srcRegion = new lib.xpersistent.UncheckedPersistentMemoryRegion(region().getLong(offset));
+                        srcRegionSize = fieldType.allocationSize(); //srcRegion.getInt(0);
+                        dstRegion = new VolatileMemoryRegion(srcRegionSize);
+                        Util.memCopy(hostType, fieldType, srcRegion, offset, dstRegion, 0L, srcRegionSize);
+                        obj = AnyPersistent.reconstruct(new ObjectPointer<T>(fieldType, dstRegion));
+                        break;
+                    case DirectValue : 
+                        throw new RuntimeException("NYI");
+                    case IndirectValue :
+                        throw new RuntimeException("NYI");
+                    default : throw new RuntimeException("Unsupported Kind: " + hostKind);
+                }
+                break;
+            case DirectValue : 
+                switch (hostKind) {
+                    case IndirectValue :
+                        long size = fieldType.allocationSize();
+                        srcRegion = region();
+                        dstRegion = new VolatileMemoryRegion(size);
+                        Util.memCopy(hostType, fieldType, srcRegion, offset, dstRegion, 0, size); 
+                        obj = AnyPersistent.reconstruct(new ObjectPointer<T>(fieldType, dstRegion));
+                        break;
+                    case DirectValue :
+                    case Reference :
+                        srcRegion = region();
+                        dstRegion = new VolatileMemoryRegion(fieldType.size());
+                        Util.memCopy(hostType, fieldType, srcRegion, offset, dstRegion, 0L, fieldType.size());
+                        obj = AnyPersistent.reconstruct(new ObjectPointer<T>(fieldType, dstRegion));
+                        break;
+                    default : throw new RuntimeException("Unsupported Kind: " + hostKind);
+                }
+                break;
+            default : throw new RuntimeException("Unsupported Kind: " + fieldKind);
         }
-        catch (Exception e) {e.printStackTrace();}
+        if (obj != null) obj.onGet();                
         return obj;
     }
 
@@ -214,11 +248,30 @@ public class PersistentObject extends AbstractPersistentObject {
     public void setDoubleField(DoubleField f, double value) {setLong(offset(f.getIndex()), Double.doubleToLongBits(value));}
     public void setCharField(CharField f, char value) {setInt(offset(f.getIndex()), (int)value);}
     public void setBooleanField(BooleanField f, boolean value) {setByte(offset(f.getIndex()), value ? (byte)1 : (byte)0);}
-    public <T extends AnyPersistent> void setObjectField(ObjectField<T> f, T value) {setObject(offset(f.getIndex()), value);}
+    
+    public <T extends AnyPersistent> void setObjectField(ObjectField<T> f, T value) {
+        setObject(offset(f.getIndex()), value);
+    }
     
     public <T extends AnyPersistent> void setObjectField(ValueField<T> f, T value) {
         // trace(true, "PO.setLongField(%s) : VF", f); 
-        if (f.getType().getSize() != value.getType().getSize()) throw new IllegalArgumentException("value types do not match");
+        if (f.getType().size() != value.getType().size()) throw new IllegalArgumentException("value types do not match");
         setValueObject(offset(f.getIndex()), value);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends AnyPersistent> void setObjectField(GenericField<? extends AnyPersistent> f, T value) {
+        if (value == null) return;
+        ObjectType<T> type = value.getType();
+        switch (type.kind()) {
+            case Reference :
+                setObject(offset(f.getIndex()), value);
+                break;
+            case IndirectValue :
+                setValueObject(offset(f.getIndex()), value);
+                break;
+            default : 
+                throw new RuntimeException("setObjectField incompatible type : " + type);
+        }
     }
 }

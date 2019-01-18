@@ -19,8 +19,8 @@
 # Boston, MA  02110-1301, USA.
 
 CC = g++
-JAVAC = javac 
-JAVA = java 
+JAVAC = $(JAVA_HOME)/bin/javac 
+JAVA = $(JAVA_HOME)/bin/java 
 JAVADOC = $(JAVA_HOME)/bin/javadoc
 
 JNI_INCLUDES = $(JAVA_HOME)/include $(JAVA_HOME)/include/linux

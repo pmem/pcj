@@ -44,6 +44,7 @@ package lib.util.persistent;
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -81,7 +82,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
     Comparator<? super K> sister_comparator;
 
     private static final FinalObjectField<PersistentAtomicReference> HEAD = new FinalObjectField<>(PersistentAtomicReference.class);
-    public static final ObjectType<PersistentSkipListMap> TYPE = ObjectType.fromFields(PersistentSkipListMap.class, HEAD);
+    public static final ObjectType<PersistentSkipListMap> TYPE = ObjectType.withFields(PersistentSkipListMap.class, HEAD);
 
     @SuppressWarnings("unchecked")
     public HeadIndex<K,V> head() { return (HeadIndex<K,V>)getObjectField(HEAD).get(); }
@@ -107,11 +108,11 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
 
     @PersistentClass
     public static final class Node<K extends AnyPersistent,V extends AnyPersistent> extends PersistentObject {
-        private static final FinalObjectField<AnyPersistent> KEY = new FinalObjectField<>();
+        private static final FinalObjectField KEY = new FinalObjectField();
         private static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
         private static final ObjectField<Node> NEXT = new ObjectField<>(Node.class);
         private static final FinalByteField FLAG = new FinalByteField();
-        private static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, KEY, VALUE, NEXT, FLAG);
+        private static final ObjectType<Node> TYPE = ObjectType.withFields(Node.class, KEY, VALUE, NEXT, FLAG);
 
         private static final byte REG = (byte)0;
         private static final byte MARKER = (byte)1;
@@ -260,7 +261,7 @@ public class PersistentSkipListMap<K extends AnyPersistent, V extends AnyPersist
         private static final FinalObjectField<Node> NODE = new FinalObjectField<>(Node.class);
         private static final FinalObjectField<Index> DOWN = new FinalObjectField<>(Index.class);
         private static final ObjectField<Index> RIGHT = new ObjectField<>(Index.class);
-        public static final ObjectType<Index> TYPE = ObjectType.fromFields(Index.class, NODE, DOWN, RIGHT);
+        public static final ObjectType<Index> TYPE = ObjectType.withFields(Index.class, NODE, DOWN, RIGHT);
 
         @SuppressWarnings("unchecked")
         Index(Node<K,V> node, Index<K,V> down, Index<K,V> right) {

@@ -33,7 +33,7 @@ public class PersistentTuple5<T1 extends AnyPersistent, T2 extends AnyPersistent
     private static final ObjectField<AnyPersistent> FIELD3 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD4 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD5 = new ObjectField<>(); 
-    public static final ObjectType<PersistentTuple5> TYPE = ObjectType.fromFields(PersistentTuple5.class, FIELD1, FIELD2, FIELD3, FIELD4, FIELD5);
+    public static final ObjectType<PersistentTuple5> TYPE = ObjectType.withFields(PersistentTuple5.class, FIELD1, FIELD2, FIELD3, FIELD4, FIELD5);
 
     public PersistentTuple5() {
         super(TYPE);

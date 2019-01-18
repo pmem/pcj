@@ -1,4 +1,4 @@
-/* Copyright (C) 2017  Intel Corporation
+/* Copyright (C) 2017 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,40 +22,27 @@
 package lib.util.persistent.types;
 
 import lib.util.persistent.AnyPersistent;
-import java.util.ArrayList;
 
-public class ArrayType<T extends AnyPersistent> extends ObjectType<T> { 
-    protected PersistentType elementType;
-    protected long elementSize;
-    public static final long LENGTH_OFFSET = ObjectType.FIELDS_OFFSET;
-    public static final long ELEMENTS_OFFSET = LENGTH_OFFSET + Types.INT.getSize();
+public abstract class ArrayType<T extends AnyPersistent> extends ObjectType<T> { 
+    private final PersistentType elementType;
+    private final long elementSize;
 
-    public ArrayType(Class<T> cls, PersistentType elementType) {
-        super(cls);
+    public ArrayType(Class<T> cls, Kind kind, PersistentType elementType) {
+        super(cls, kind);
         this.elementType = elementType;
-        this.elementSize = elementType.getSize();
+        this.elementSize = elementType.size();
     }
 
-    public PersistentType getElementType() {
-        return elementType;
-    }
+    public abstract long allocationSize();
+    public abstract long allocationSize(int count);
+    public abstract long elementOffset(int index);
+    public abstract long elementOffset(int index, long size);
 
-    public long getAllocationSize(int count) {
-        return ELEMENTS_OFFSET + count * elementSize;
-    }
-
-    public long getElementOffset(int index) {
-        return ELEMENTS_OFFSET + index * elementSize;
-    }
-
-    public long getElementOffset(int index, long size) {
-         return ELEMENTS_OFFSET + index * size;
-    }
+    public PersistentType elementType() {return elementType;}
+    public long elementSize() {return elementSize;}
 
     @Override
     public String toString() {
-        return "ArrayType(" + getName() + ", " + elementType + ")";
-    }
-
-       
+        return "ArrayType(" + name() + ", " + elementType() + ")";
+    }    
 }

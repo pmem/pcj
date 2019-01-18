@@ -34,6 +34,7 @@ import lib.util.persistent.types.CharField;
 import lib.util.persistent.types.BooleanField;
 import lib.util.persistent.types.ObjectField;
 import lib.util.persistent.types.ValueField;
+import lib.util.persistent.types.GenericField;
 import lib.util.persistent.types.FinalByteField;
 import lib.util.persistent.types.FinalShortField;
 import lib.util.persistent.types.FinalIntField;
@@ -45,6 +46,7 @@ import lib.util.persistent.types.FinalBooleanField;
 import lib.util.persistent.types.FinalObjectField;
 import lib.util.persistent.types.FinalValueField;
 import lib.util.persistent.types.PersistentField;
+import lib.xpersistent.UncheckedPersistentMemoryRegion;
 import java.lang.reflect.Constructor;
 import static lib.util.persistent.Trace.*;
 import java.util.function.Consumer;
@@ -56,7 +58,7 @@ abstract class AbstractPersistentObject extends AnyPersistent {
 
     public AbstractPersistentObject(ObjectType<? extends AbstractPersistentObject> type) {
         super(type);
-        if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(type.cls().getName(), type.getAllocationSize(), Stats.AllocationStats.WRAPPER_PER_INSTANCE + 8, 1);  // uncomment for allocation stats
+        if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(type.cls().getName(), type.allocationSize(), Stats.AllocationStats.WRAPPER_PER_INSTANCE + 8, 1);  // uncomment for allocation stats
     }
 
     @SuppressWarnings("unchecked")
@@ -95,6 +97,17 @@ abstract class AbstractPersistentObject extends AnyPersistent {
         return getValueObject(offset(f.getIndex()), f.getType());
     }
 
+    @SuppressWarnings("unchecked") public <T extends AnyPersistent> T getObjectField(GenericField<? extends AnyPersistent> f) {
+        // trace(true, "APO.getObjectField(%s) : GF, index = %d, offset for index = %d", f, f.getIndex(), offset(f.getIndex())); 
+        long fieldAddress = getRegionLong(offset(f.getIndex()));
+        long classInfoAddress = new UncheckedPersistentMemoryRegion(fieldAddress).getLong(0);
+        ClassInfo classInfo = ClassInfo.getClassInfo(classInfoAddress);
+        ObjectType objectType = (ObjectType)classInfo.getType();
+        if (objectType.kind() == ObjectType.Kind.Reference) return (T)getObject(offset(f.getIndex()), objectType);
+        else if (objectType.kind() == ObjectType.Kind.IndirectValue) return (T)getValueObject(offset(f.getIndex()), objectType);
+        else throw new RuntimeException("GenericField with incompatible type: " + objectType); 
+    }
+
     public byte getByteField(FinalByteField f) {return getRegionByte(offset(f.getIndex()));}
     public short getShortField(FinalShortField f) {return getRegionShort(offset(f.getIndex()));}
     public int getIntField(FinalIntField f) {return getRegionInt(offset(f.getIndex()));}
@@ -125,7 +138,7 @@ abstract class AbstractPersistentObject extends AnyPersistent {
     public <T extends AnyPersistent> void initObjectField(FinalObjectField<T> f, T value) {
         /*trace(true, "APO.initObjectField(%s) : FOF", f); */
         if (value != null) {
-            checkUninitializedField(f); 
+            checkUninitializedField(f);
             Transaction.run(() -> {
                 setLong(offset(f.getIndex()), value.addr());
                 value.addReference();
@@ -137,6 +150,7 @@ abstract class AbstractPersistentObject extends AnyPersistent {
         // trace(true, "APO.initObjectField(%s) : FVF", f); 
         if (value != null) {
             checkUninitializedField(f);
+            value.onSet();
             MemoryRegion region = region();
             long offset = offset(f.getIndex());
             byte[] bytes = ((VolatileMemoryRegion)value.region()).getBytes();

@@ -101,13 +101,13 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_get
     return (long)pmemobj_direct(oid);
 }
 
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativeFlush
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_nativeFlush
   (JNIEnv *env, jobject obj, jlong address, jlong size)
 {
     pmem_persist((const void*)address, size);
 }
 
-JNIEXPORT jlong JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_addToTransaction
+JNIEXPORT void JNICALL Java_lib_xpersistent_UncheckedPersistentMemoryRegion_addToTransaction
   (JNIEnv *env, jobject obj, jlong address, jlong size)
 {
     pmemobj_tx_add_range_direct((const void *)address, (size_t)size);

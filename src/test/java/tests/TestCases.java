@@ -378,7 +378,7 @@ public class TestCases {
         // metadata
         private static final DoubleField X = new DoubleField();
         private static final DoubleField Y = new DoubleField();
-        private static final ObjectType<Point> TYPE = ObjectType.fromFields(Point.class, X, Y);
+        private static final ObjectType<Point> TYPE = ObjectType.withFields(Point.class, X, Y);
 
         // constructor
         public Point(double x, double y) {
@@ -403,7 +403,7 @@ public class TestCases {
     public static class Mixed extends PersistentObject {
         private static final StringField S = new StringField();
         private static final IntField X = new IntField();
-        private static final ObjectType<Mixed> TYPE = ObjectType.fromFields(Mixed.class, S, X);
+        private static final ObjectType<Mixed> TYPE = ObjectType.withFields(Mixed.class, S, X);
 
         // constructor
         public Mixed(PersistentString s, int x) {
@@ -478,7 +478,7 @@ public class TestCases {
         private static final ObjectField<Point> P = new ObjectField<>(Point.class);
         private static final StringField S = new StringField();
         private static final IntField X = new IntField();
-        public static final ObjectType<Mixed1> TYPE = ObjectType.fromFields(Mixed1.class, P, S, X);
+        public static final ObjectType<Mixed1> TYPE = ObjectType.withFields(Mixed1.class, P, S, X);
 
         // constructor
         public Mixed1(Point p, PersistentString s, int x) {
@@ -530,7 +530,7 @@ public class TestCases {
     public static class A extends PersistentObject {
         private static final IntField X = new IntField();
         private static final LongField Y = new LongField();
-        public static final ObjectType<A> TYPE = ObjectType.fromFields(A.class, X, Y);
+        public static final ObjectType<A> TYPE = ObjectType.withFields(A.class, X, Y);
 
         public A(int x, long y) {
             this(TYPE, x, y);
@@ -600,7 +600,7 @@ public class TestCases {
     public static class Employee extends PersistentObject {
         private static final StringField NAME = new StringField();
         private static final LongField ID = new LongField();
-        public static final ObjectType<Employee> TYPE = ObjectType.fromFields(Employee.class, NAME, ID);
+        public static final ObjectType<Employee> TYPE = ObjectType.withFields(Employee.class, NAME, ID);
 
         public Employee(PersistentString name, long id) {
             this(TYPE, name, id);
@@ -626,7 +626,7 @@ public class TestCases {
         private static final StringField NAME = new StringField();
         private static final ObjectField<Employee> EMP = new ObjectField<>(Employee.class);
         private static final LongField ID = new LongField();
-        public static final ObjectType<Employee1> TYPE = ObjectType.fromFields(Employee1.class, NAME, EMP, ID);
+        public static final ObjectType<Employee1> TYPE = ObjectType.withFields(Employee1.class, NAME, EMP, ID);
 
         public Employee1(PersistentString name, long id) {
             this(TYPE, name, id);
@@ -678,7 +678,7 @@ public class TestCases {
     @PersistentClass
     public static class T extends PersistentObject {
         private static final StringField NAME = new StringField();
-        public static final ObjectType<T> TYPE = ObjectType.fromFields(T.class, NAME);
+        public static final ObjectType<T> TYPE = ObjectType.withFields(T.class, NAME);
 
         public T(PersistentString name) {
             super(TYPE);
@@ -704,7 +704,7 @@ public class TestCases {
     public static final class InnerStatic extends PersistentObject {
         private static Statics statics;
         private static final IntField F = new IntField();
-        private static final ObjectType<InnerStatic> TYPE = ObjectType.fromFields(InnerStatic.class, F);
+        private static final ObjectType<InnerStatic> TYPE = ObjectType.withFields(InnerStatic.class, F);
 
         static {
             statics = ObjectDirectory.get("InnerStatic_Statics", Statics.class);
@@ -730,7 +730,7 @@ public class TestCases {
         public static final class Statics extends PersistentObject {
             private static final StringField STATIC_NAME = new StringField();
             private static final IntField STATIC_ID = new IntField();
-            public static final ObjectType<Statics> TYPE = ObjectType.fromFields(Statics.class, STATIC_NAME, STATIC_ID);
+            public static final ObjectType<Statics> TYPE = ObjectType.withFields(Statics.class, STATIC_NAME, STATIC_ID);
 
             public Statics() {super(TYPE);}
 
@@ -771,7 +771,7 @@ public class TestCases {
     //     private static final ValueField<Long256> VEC = ValueField.forClass(Long256.class);
     //     private static final ValueField<DecoratedKey> KEY = ValueField.forClass(DecoratedKey.class);
     //     private static final ObjectField<PersistentValueArray> ARR_KEYS = new ObjectField<>(PersistentValueArray.class);
-    //     private static final ObjectType<VTE> TYPE = ObjectType.fromFields(VTE.class, NAME, VEC, KEY, ARR_KEYS);
+    //     private static final ObjectType<VTE> TYPE = ObjectType.withFields(VTE.class, NAME, VEC, KEY, ARR_KEYS);
 
     //     public VTE() {
     //         super(TYPE);
@@ -798,7 +798,7 @@ public class TestCases {
         private static final IntField I = new IntField();
         private static final ObjectField<SelfRef> SR = new ObjectField<>(SelfRef.class);
         private static final StringField S = new StringField();
-        public static final ObjectType<SelfRef> TYPE = ObjectType.fromFields(SelfRef.class, I, SR, S);
+        public static final ObjectType<SelfRef> TYPE = ObjectType.withFields(SelfRef.class, I, SR, S);
 
         public SelfRef(int i, SelfRef sr, PersistentString s) {
             super(TYPE);

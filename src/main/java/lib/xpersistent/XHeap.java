@@ -49,17 +49,11 @@ public class XHeap implements PersistentHeap {
     }
 
     static Unsafe UNSAFE;
-    private final PersistentMemoryProvider provider;
     private Root root;
     private boolean open;
     private boolean debug;
 
     public XHeap() {
-        this(PersistentMemoryProvider.getDefaultProvider());
-    }
-
-    public XHeap(PersistentMemoryProvider provider) {
-        this.provider = provider;
         this.debug = false;
         //open();
     }
@@ -102,7 +96,8 @@ public class XHeap implements PersistentHeap {
         if (!open) open();
         return Transaction.run(() -> {
             long addr = nativeAllocate(size);
-            if (addr == -1) throw new PersistenceException("Failed to allocate region of size " + size + "!");
+            // System.out.println("allocateRegion -> " + addr);
+            if (addr == -1) throw new PersistenceException("Failed to allocate region of size " + size);
             return new UncheckedPersistentMemoryRegion(addr);
         });
     }
@@ -110,35 +105,32 @@ public class XHeap implements PersistentHeap {
     public MemoryRegion allocateRegionAtomic(long size) {
         if (!open) open();
         long addr = nativeAllocateAtomic(size);
-        if (addr == -1) throw new PersistenceException("Failed to allocate region of size " + size + "!");
+        if (addr == -1) throw new PersistenceException("Failed to allocate region of size " + size);
         return new UncheckedPersistentMemoryRegion(addr);
     }
 
     public MemoryRegion allocateObjectRegion(long size) {
         if (!open) open();
         long addr = nativeAllocateObject(size);
-        if (addr == -1) throw new PersistenceException("Failed to allocate object region of size " + size + "!");
+        // System.out.println("allocateObjectRegion -> " + addr);
+        if (addr == -1) throw new PersistenceException("Failed to allocate object region of size " + size);
         return new UncheckedPersistentMemoryRegion(addr);
     }
 
     public void freeRegion(MemoryRegion region) {
         if (!open) open();
         Transaction.run(() -> {
-            if (nativeFree(region.addr()) != 0) throw new PersistenceException("Failed to free region!");
+            if (nativeFree(region.addr()) != 0) throw new PersistenceException("Failed to free region");
         });
     }
 
     public synchronized Root getRoot() {
-        if (this.root == null) {
-            initRoot();
+        if (root == null) {
+            if (!open) open();
+            if (root == null) root = new XRoot(this);
             ObjectDirectory.initialize();
         }
         return root;
-    }
-
-    public synchronized void initRoot() {
-        if (!open) open();
-        if (this.root == null) this.root = new XRoot(this);
     }
 
     public void memcpy(MemoryRegion srcRegion, long srcOffset, MemoryRegion destRegion, long destOffset, long length) {
@@ -162,7 +154,6 @@ public class XHeap implements PersistentHeap {
         long destAddress = xregion.directAddress + destOffset;
         xregion.addToTransaction(destAddress, length);
         XHeap.UNSAFE.copyMemory(bytes, srcAddress, null, destAddress, length);
-        // nativeCopyBytesToAddress(bytes, startIndex, destAddress, length);
     }
 
     public void setDebugMode(boolean debug) {
@@ -175,7 +166,6 @@ public class XHeap implements PersistentHeap {
     }
 
     public long debug(boolean verbose) {
-        ((XRoot)root).printAllObjects();
         return nativeDebugPool(verbose);
     }
 

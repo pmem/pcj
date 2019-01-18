@@ -45,10 +45,10 @@ public class ValueType implements Container {
         long size = 0;
         if (types.size() > 0) {
             offsets[0] = size;
-            size += ((PersistentField)fs[0]).getType().getSize();
+            size += ((PersistentField)fs[0]).getType().size();
             for (int i = 1; i < fs.length; i++) {
                 offsets[i] = size;
-                size += ((PersistentField)fs[i]).getType().getSize();
+                size += ((PersistentField)fs[i]).getType().size();
             }
         }
         ValueType ans = new ValueType(types, offsets, size);
@@ -68,30 +68,30 @@ public class ValueType implements Container {
     }
 
     @Override
-    public List<PersistentType> getTypes() {
+    public List<PersistentType> fieldTypes() {
         return types;
     }
 
     @Override 
-    public long getOffset(int index) {
+    public long offset(int index) {
         return offsets[index];
     }
 
     @Override 
-    public long getSize() {
+    public long size() {
         return size;
     }
 
     @Override 
     public boolean equals(Object obj) {
-        return obj instanceof ValueType && ((ValueType)obj).getTypes().equals(getTypes());
+        return obj instanceof ValueType && ((ValueType)obj).fieldTypes().equals(fieldTypes());
     }
 
     @Override 
     public String toString() {
         StringBuilder buff = new StringBuilder();
         buff.append("ValueType(");
-        for (PersistentType t : getTypes()) {
+        for (PersistentType t : fieldTypes()) {
             buff.append(t).append(" ");
         }
         buff.append(")");

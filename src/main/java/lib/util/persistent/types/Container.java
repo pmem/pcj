@@ -24,9 +24,9 @@ package lib.util.persistent.types;
 import java.util.List;
 
 public interface Container extends Indexed {
-    public List<PersistentType> getTypes();
+    public List<PersistentType> fieldTypes();
 
-    public default PersistentType type(int index) {
-        return getTypes().get(index);
+    public default PersistentType fieldType(int index) {
+        return fieldTypes().get(index);
     }
 }

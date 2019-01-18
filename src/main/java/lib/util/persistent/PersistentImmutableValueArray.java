@@ -23,15 +23,16 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import lib.util.persistent.types.ObjectType;
 
 public class PersistentImmutableValueArray<T extends AnyPersistent> extends PersistentImmutableArray<T> {
-    private static ArrayType<PersistentImmutableValueArray> TYPE = new ArrayType<>(PersistentImmutableValueArray.class, Types.OBJECT);
+    private static ArrayType<PersistentImmutableValueArray> TYPE = new ReferenceArrayType<>(PersistentImmutableValueArray.class, Types.GENERIC_REFERENCE);
 
     @SafeVarargs
     @SuppressWarnings("unchecked")
     public PersistentImmutableValueArray(Class<T> elementClass, T... ts) {
-        super(new ArrayType<PersistentImmutableValueArray>(PersistentImmutableValueArray.class, Types.typeForClass(elementClass)), ts);
+        super(new ReferenceArrayType<PersistentImmutableValueArray>(PersistentImmutableValueArray.class, Types.typeForClass(elementClass)), ts);
         TYPE = (ArrayType<PersistentImmutableValueArray>)this.getType();
     }
 
@@ -42,13 +43,13 @@ public class PersistentImmutableValueArray<T extends AnyPersistent> extends Pers
     @Override
     void setObjectElement(int index, AnyPersistent value) {
         // System.out.format("setObjectElement(%d, %s), offset = %d\n", index, value, elementOffset(index));
-        setValueObject(elementOffset(check(index)), value);
+        setValueObject(elementOffset(checkIndex(index)), value);
     }
 
     @Override
     AnyPersistent getObjectElement(int index) {
         // System.out.format("getObjectElement(%d), offset = %d\n", index, elementOffset(index));
-        return getValueObject(elementOffset(check(index)), getElementType());
+        return getValueObject(elementOffset(checkIndex(index)), getElementType());
     }
 
 }

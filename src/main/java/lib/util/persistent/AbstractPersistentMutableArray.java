@@ -22,6 +22,7 @@
 package lib.util.persistent;
 
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
@@ -35,18 +36,18 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
 
     AbstractPersistentMutableArray(ObjectPointer<? extends AbstractPersistentMutableArray> p) {super(p);}
 
-    void setByteElement(int index, byte value) {setByte(elementOffset(check(index)), value);}
-    void setShortElement(int index, short value) {setShort(elementOffset(check(index)), value);}
-    void setIntElement(int index, int value) {setInt(elementOffset(check(index)), value);}
-    void setLongElement(int index, long value) {/*trace(true, "APMA.setLongElement(%d)", index); */setLong(elementOffset(check(index)), value);}
-    void setFloatElement(int index, float value) {setInt(elementOffset(check(index)), Float.floatToIntBits(value));}
-    void setDoubleElement(int index, double value) {setLong(elementOffset(check(index)), Double.doubleToLongBits(value));}
-    void setCharElement(int index, char value) {setInt(elementOffset(check(index)), (int)value);}
-    void setBooleanElement(int index, boolean value) {setByte(elementOffset(check(index)), value ? (byte)1 : (byte)0);}
+    void setByteElement(int index, byte value) {setByte(elementOffset(checkIndex(index)), value);}
+    void setShortElement(int index, short value) {setShort(elementOffset(checkIndex(index)), value);}
+    void setIntElement(int index, int value) {setInt(elementOffset(checkIndex(index)), value);}
+    void setLongElement(int index, long value) {/*trace(true, "APMA.setLongElement(%d)", index); */setLong(elementOffset(checkIndex(index)), value);}
+    void setFloatElement(int index, float value) {setInt(elementOffset(checkIndex(index)), Float.floatToIntBits(value));}
+    void setDoubleElement(int index, double value) {setLong(elementOffset(checkIndex(index)), Double.doubleToLongBits(value));}
+    void setCharElement(int index, char value) {setInt(elementOffset(checkIndex(index)), (int)value);}
+    void setBooleanElement(int index, boolean value) {setByte(elementOffset(checkIndex(index)), value ? (byte)1 : (byte)0);}
 
     void setObjectElement(int index, AnyPersistent value) {
         // trace(true, "APMA.setObjectElement(%d)", index);
-        setObject(elementOffset(check(index)), value);
+        setObject(elementOffset(checkIndex(index)), value);
     }
 
     @Override
@@ -100,19 +101,12 @@ abstract class AbstractPersistentMutableArray extends AbstractPersistentArray {
         // trace(true, "APMO.getValueObject(%d, %s)", offset, type);
         MemoryRegion region = Util.synchronizedBlock(this, () -> {
             MemoryRegion srcRegion = region();
-            MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
-            // trace(true, "getObject (valueBased) type = %s, src addr = %d, srcOffset = %d, dst  = %s, size = %d", type, srcRegion.addr(), offset, dstRegion, type.getSize());
-            Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
+            MemoryRegion dstRegion = new VolatileMemoryRegion(type.size());
+            // trace(true, "getObject (valueBased) type = %s, src addr = %d, srcOffset = %d, dst  = %s, size = %d", type, srcRegion.addr(), offset, dstRegion, type.size());
+            Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.size());
             return dstRegion;
         });
-        T obj = null;
-        try {
-            Constructor ctor = ((ObjectType)type).getReconstructor();
-            ObjectPointer p = new ObjectPointer<T>((ObjectType)type, region);
-            obj = (T)ctor.newInstance(p);
-        }
-        catch (Exception e) {e.printStackTrace();}
-        return obj;
+        return AnyPersistent.reconstruct(new ObjectPointer<T>((ObjectType)type, region));
     }
 
     @Override

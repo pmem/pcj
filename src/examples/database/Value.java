@@ -28,7 +28,7 @@ import java.util.ArrayList;
 
 public class Value extends PersistentObject {
     private static final ObjectField<PersistentArray> CELLS = new ObjectField<>(PersistentArray.class);
-    public static final ObjectType<Value> TYPE = ObjectType.fromFields(Value.class, CELLS);
+    public static final ObjectType<Value> TYPE = ObjectType.withFields(Value.class, CELLS);
 
     public Value(int size) {
         super(TYPE);

@@ -24,9 +24,10 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 
 public final class PersistentFloatArray extends AbstractPersistentMutableArray {
-    private static final ArrayType<PersistentFloatArray> TYPE = new ArrayType<>(PersistentFloatArray.class, Types.FLOAT);
+    private static final ArrayType<PersistentFloatArray> TYPE = new ReferenceArrayType<>(PersistentFloatArray.class, Types.FLOAT);
 
     public PersistentFloatArray(int size) {
         super(TYPE, size);

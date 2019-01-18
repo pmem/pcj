@@ -48,30 +48,21 @@ JNIEXPORT jlong JNICALL Java_lib_xpersistent_XRoot_nativeCreateRoot
     return D_RO(get_root())->root_memory_region.oid.off;
 }
 
-JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeRetrieveAddrs
+JNIEXPORT void JNICALL Java_lib_xpersistent_XRoot_nativeCleanHeap
   (JNIEnv *env, jobject root)
 {
-    jclass cls = env->GetObjectClass(root);
-    jmethodID mid = env->GetMethodID(cls, "addToAddrs", "(J)V");
-    if (mid == 0) {
-        printf("Failed to get the addToAddrs method on XRoot!\n");
-        fflush(stdout);
-        exit(-1);
-    }
+    jclass cls = env->FindClass("lib/util/persistent/AnyPersistent");
+    jmethodID methodID = env->GetStaticMethodID(cls, "deleteResidualReferences", "(J)V");
 
-    TOID(object) mr;
-    POBJ_FOREACH_TYPE(pool, mr) {
-        uint64_t classInfoAddr = *((uint64_t*)((uint64_t)pmemobj_direct(mr.oid)));
+    TOID(object) region;
+    POBJ_FOREACH_TYPE(pool, region) {
+        uint64_t classInfoAddr = *((uint64_t*)((uint64_t)pmemobj_direct(region.oid)));
         if (classInfoAddr == 0U) {
-            // printf("Ignoring null classinfo addr\n");
-            // fflush(stdout);
-            POBJ_FREE(&mr);
+            POBJ_FREE(&region);  // construction was interrupted between allocation and initialization
         } else {
-            int ref_count = *((int*)((uint64_t)pmemobj_direct(mr.oid) + 8U));
-            // printf("Addr %lu has refcount %d\n", mr.oid.off, ref_count);
-            // fflush(stdout);
+            int ref_count = *((int*)((uint64_t)pmemobj_direct(region.oid) + 8U));
             if (ref_count == 0) {
-                env->CallLongMethod(root, mid, mr.oid.off);
+                env->CallLongMethod(root, methodID, region.oid.off);
             }
         }
     }

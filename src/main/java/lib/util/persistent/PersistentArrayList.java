@@ -32,6 +32,7 @@ package lib.util.persistent;
 import lib.util.persistent.types.*;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.ListIterator;
@@ -50,7 +51,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
 
     private static final IntField SIZE = new IntField();
     private static final ObjectField<PersistentArray> ELEMENTDATA = new ObjectField<>(PersistentArray.class);
-    public static final ObjectType<PersistentArrayList> TYPE = ObjectType.fromFields(PersistentArrayList.class, SIZE, ELEMENTDATA);
+    public static final ObjectType<PersistentArrayList> TYPE = ObjectType.withFields(PersistentArrayList.class, SIZE, ELEMENTDATA);
 
     static {
         statics = ObjectDirectory.get("PersistentArrayList_statics", Statics.class);
@@ -61,7 +62,7 @@ public class PersistentArrayList<T extends AnyPersistent> extends PersistentObje
     public static class Statics extends PersistentImmutableObject {
         private static final ObjectField<PersistentArray> EMPTY_ELEMENTDATA = new ObjectField<>(PersistentArray.class);
         private static final ObjectField<PersistentArray> DEFAULTCAPACITY_EMPTY_ELEMENTDATA = new ObjectField<>(PersistentArray.class);
-        public static final ObjectType<Statics> TYPE = ObjectType.fromFields(Statics.class, EMPTY_ELEMENTDATA, DEFAULTCAPACITY_EMPTY_ELEMENTDATA);
+        public static final ObjectType<Statics> TYPE = ObjectType.withFields(Statics.class, EMPTY_ELEMENTDATA, DEFAULTCAPACITY_EMPTY_ELEMENTDATA);
 
         public Statics() {
             super(TYPE, (Statics obj) -> {

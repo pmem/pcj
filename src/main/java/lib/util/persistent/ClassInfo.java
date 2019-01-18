@@ -71,6 +71,8 @@ public class ClassInfo {
         // trace(true, "ClassInfo reconstructor(%s)", region); 
         this.region = region;
         this.className = className();
+        initReconstructor(className);
+        initType();
     }
 
     public static boolean isInitialized() {return initialized;}
@@ -206,22 +208,7 @@ public class ClassInfo {
 
     private int allocationSize() {return ALLOCATION_SIZE;}
 
-    public String toString() {return "ClassInfo(" + className + ")";}
-
-    static class Address {
-        private final long addr;
-        Address(long addr) { this.addr = addr; }
-
-        @Override
-        public int hashCode() {
-            return Long.hashCode(addr >>> 8);
-        }
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof Address) {
-                return addr == ((Address)obj).addr;
-            }
-            return false;
-        }
+    public String toString() {
+        return String.format("ClassInfo {\n  className = %s\n  cls = %s\n  rctor = %s\n  type = %s\n}", className, cls, reconstructor, type); 
     }
 }

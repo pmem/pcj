@@ -45,7 +45,7 @@ public class PersistentImmutableTuple17<T1 extends AnyPersistent, T2 extends Any
     private static final ObjectField<AnyPersistent> FIELD15 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD16 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD17 = new ObjectField<>();
-    public static final ObjectType<PersistentImmutableTuple17> TYPE = ObjectType.fromFields(PersistentImmutableTuple17.class, FIELD1, FIELD2, FIELD3, FIELD4, FIELD5, FIELD6, FIELD7, FIELD8, FIELD9, FIELD10, FIELD11, FIELD12, FIELD13, FIELD14, FIELD15, FIELD16, FIELD17);
+    public static final ObjectType<PersistentImmutableTuple17> TYPE = ObjectType.withFields(PersistentImmutableTuple17.class, FIELD1, FIELD2, FIELD3, FIELD4, FIELD5, FIELD6, FIELD7, FIELD8, FIELD9, FIELD10, FIELD11, FIELD12, FIELD13, FIELD14, FIELD15, FIELD16, FIELD17);
 
     public PersistentImmutableTuple17(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8, T9 t9, T10 t10, T11 t11, T12 t12, T13 t13, T14 t14, T15 t15, T16 t16, T17 t17) {
         this(TYPE, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17);

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; if not, write to the Free
- * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Software Foundation, Inc., 51 Franklin Street, Fifth P,
  * Boston, MA  02110-1301, USA.
  */
 
@@ -31,7 +31,7 @@ public class FinalObjectField<T extends AnyPersistent> extends PersistentField {
 	}
 
 	public FinalObjectField() {
-		super(Types.OBJECT);
+		super(Types.GENERIC_REFERENCE);
 	}
 
 	public FinalObjectField(Class<T> cls) {
@@ -42,4 +42,6 @@ public class FinalObjectField<T extends AnyPersistent> extends PersistentField {
     protected Class<T> cls() {
        return cls;
     }
+
+    public String toString() {return "FinalObjectField(" + getType() + ")";}
 }

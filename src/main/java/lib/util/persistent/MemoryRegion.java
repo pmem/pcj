@@ -22,38 +22,27 @@
 package lib.util.persistent;
 
 public interface MemoryRegion {
-    int MODE_R  = (1 << 0);
-    int MODE_W  = (1 << 1);
-    int MODE_RW = MODE_R | MODE_W;
-
-    void checkAccess(int mode) throws IllegalAccessException;
-    void checkAlive();
-    void checkBounds(long offset) throws IndexOutOfBoundsException;
     long addr() throws UnsupportedOperationException;
 
     byte getByte(long offset);
     short getShort(long offset);
     int getInt(long offset);
     long getLong(long offset);
-    long getAddress(long offset);
 
     void putByte(long offset, byte value);
     void putShort(long offset, short value);
     void putInt(long offset, int value);
     void putLong(long offset, long value);
-    void putAddress(long offset, long value);
 
     void putDurableByte(long offset, byte value);
     void putDurableShort(long offset, short value);
     void putDurableInt(long offset, int value);
     void putDurableLong(long offset, long value);
-    void putDurableAddress(long offset, long value);
 
     void putRawByte(long offset, byte value);
     void putRawShort(long offset, short value);
     void putRawInt(long offset, int value);
     void putRawLong(long offset, long value);
-    void putRawAddress(long offset, long value);
     void putRawBytes(long offset, byte[] value);
 
     void flush(long size);

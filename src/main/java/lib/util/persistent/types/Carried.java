@@ -24,7 +24,7 @@ package lib.util.persistent.types;
 public interface Carried extends PersistentType {
     public PersistentType getCarrierType();
 
-    public default long getSize() {
-      return getCarrierType().getSize();
+    public default long size() {
+      return getCarrierType().size();
    }
 }

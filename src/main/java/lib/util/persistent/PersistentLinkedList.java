@@ -31,17 +31,20 @@ public class PersistentLinkedList<E extends AnyPersistent> extends PersistentObj
 	
     private static final IntField SIZE = new IntField();
     private static final ObjectField<PersistentEntry> HEADER = new ObjectField<>(PersistentEntry.class);
-    public static final ObjectType<PersistentLinkedList> TYPE = ObjectType.fromFields(PersistentLinkedList.class, SIZE, HEADER);
+    private static final ObjectType<PersistentLinkedList> TYPE = ObjectType.withFields(PersistentLinkedList.class, SIZE, HEADER);
+    private Class<E> elementClass; 
 	
     public PersistentLinkedList() {
-        this(TYPE);
+        super(TYPE);
+        setSize(0);
+        setHeader(new PersistentEntry<>(null, null));
     }    
 
-    protected PersistentLinkedList(ObjectType<? extends PersistentLinkedList> type) {
-		super(type);
-        setSize(0);
-        setHeader(new PersistentEntry<E>(null, null));
-	}
+    // protected PersistentLinkedList(ObjectType<? extends PersistentLinkedList> type) {
+    //     super(type);
+    //     setSize(0);
+    //     setHeader(new PersistentEntry<E>(null, null, null));
+    // }
 	
 	protected PersistentLinkedList(ObjectPointer<? extends PersistentLinkedList> p) {super(p);}
 	
@@ -169,9 +172,10 @@ public class PersistentLinkedList<E extends AnyPersistent> extends PersistentObj
 	
 	public static class PersistentEntry<E extends AnyPersistent> extends PersistentObject {
 				
-		private static final ObjectField<AnyPersistent> ELEMENT = new ObjectField<>();
+		// private static final ObjectField<AnyPersistent> ELEMENT = new ObjectField<>();
+		private static final GenericField<AnyPersistent> ELEMENT = new GenericField<>();
 		private static final ObjectField<PersistentEntry> NEXT = new ObjectField<>(PersistentEntry.class);
-	    public static final ObjectType<PersistentEntry> TYPE = ObjectType.fromFields(PersistentEntry.class, ELEMENT, NEXT);
+	    public static final ObjectType<PersistentEntry> TYPE = ObjectType.withFields(PersistentEntry.class, ELEMENT, NEXT);
 	   		    
 		public PersistentEntry(E element, PersistentEntry<E> next) {
 			super(TYPE);

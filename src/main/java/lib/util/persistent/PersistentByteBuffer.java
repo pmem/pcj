@@ -27,15 +27,13 @@ import lib.util.persistent.spi.*;
 import java.nio.*;
 
 public final class PersistentByteBuffer extends PersistentObject implements Comparable<PersistentByteBuffer> {
-    private static XHeap heap = (XHeap)PersistentMemoryProvider.getDefaultProvider().getHeap();
-
     private static final IntField POSITION = new IntField();
     private static final IntField LIMIT = new IntField();
     private static final IntField MARK = new IntField();
     private static final IntField CAPACITY = new IntField();
     private static final IntField START = new IntField();
     private static final FinalObjectField<PersistentByteArray> BYTES = new FinalObjectField<>(PersistentByteArray.class);
-    static final ObjectType<PersistentByteBuffer> TYPE = ObjectType.fromFields(PersistentByteBuffer.class, POSITION, LIMIT, MARK, CAPACITY, START, BYTES);
+    static final ObjectType<PersistentByteBuffer> TYPE = ObjectType.withFields(PersistentByteBuffer.class, POSITION, LIMIT, MARK, CAPACITY, START, BYTES);
 
     public static PersistentByteBuffer allocate(int size) {
         if (size < 0) throw new IllegalArgumentException("Capacity of PersistentByteBuffer must be non-negative");

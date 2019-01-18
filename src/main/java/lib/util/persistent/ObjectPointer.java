@@ -23,7 +23,7 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.ObjectType;
 
-public final class ObjectPointer<T extends AnyPersistent> extends Pointer<T>
+public final class ObjectPointer<T extends AnyPersistent> 
 {
     private final ObjectType<T> type;
     private final MemoryRegion region;

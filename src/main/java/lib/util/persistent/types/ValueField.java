@@ -25,13 +25,13 @@ import lib.util.persistent.AnyPersistent;
 
 
 public class ValueField<T extends AnyPersistent> extends FinalValueField<T> {
-
+    
     public ValueField(Class<T> cls) {
       super(cls);
     }
 
-    public ValueField(Class<T> cls, ValueType type) {
-    	super(ObjectType.fromValueType(cls, type));
+    public ValueField(ObjectType<T> type) {
+    	super(type);
     }
 
     @Override

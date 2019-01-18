@@ -34,54 +34,38 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Constructor;
 import static lib.util.persistent.Trace.*;
 
-public class ObjectType<T extends AnyPersistent> implements Named, Container {
-    public static long FIELDS_OFFSET = Header.TYPE.getAllocationSize(); // room for header fields;
-    private final List<PersistentType> types;
-    private List<PersistentType> staticTypes;
-    private final long[] offsets;
-    private final long size;
-    protected final Class<T> cls;
+public /*abstract */class ObjectType<T extends AnyPersistent> implements Named, Container {
+    public static final ReferenceObjectType<AnyPersistent> GENERIC_REFERENCE = new ReferenceObjectType<AnyPersistent>(AnyPersistent.class, Kind.Reference);
+    public static final ObjectType<AnyPersistent> GENERIC_OBJECT = new ObjectType<AnyPersistent>(AnyPersistent.class, Kind.Generic);
+    public enum Kind {
+        Reference,
+        DirectValue,
+        IndirectValue,
+        Generic
+    }
+
+    private final Class<T> cls;
+    private final Kind kind;
+    protected List<PersistentType> fieldTypes;
+    protected long[] offsets;
+    protected long size;
     protected Constructor reconstructor;
-    private int baseIndex;
-    private AnyPersistent statics;
-    private boolean valueBased;
 
-    private ObjectType(Class<T> cls, List<PersistentType> declaredTypes) {
+    protected ObjectType(Class<T> cls, Kind kind) {
         this.cls = cls;
-        this.types = new ArrayList<PersistentType>();
-        this.types.addAll(declaredTypes);
-        this.offsets = new long[types.size()];
-        long size = 0;
-        if (types.size() > 0) {
-            offsets[0] = size;
-            size += types.get(0).getSize();
-            for (int i = 1; i < types.size(); i++) {
-                offsets[i] = size;
-                size += types.get(i).getSize();
-            }
-        }
-        this.size = size;
-        this.baseIndex = 0;
+        this.kind = kind;
     }
 
-    public ObjectType(Class<T> cls, PersistentType... ts) {
-        this(cls, Arrays.asList(ts));
-    }
+    public long offset(int index) {return offsets[index];}
 
-    public ObjectType(Class<T> cls) {
-        this(cls, Header.TYPES);
-    }
+    public Kind kind() {return kind;}
+                                                                                               // TODO: temp, references leak
+    public boolean valueBased() {return kind == Kind.DirectValue || kind == Kind.IndirectValue || kind == Kind.Generic;}
 
-    public ObjectType(Class<T> cls, ValueType valueType) {
-        this(cls, new ArrayList<>());
-        this.valueBased = true;
-    }
+    public /*abstract */long allocationSize() {return 0;}
+    public /*abstract */long size() {return 0;}
 
-    public Class<T> cls() {
-        return cls;
-    }
-
-    public boolean isValueBased() {return valueBased;}
+    public Class<T> cls() {return cls;}
 
     public Constructor getReconstructor() { 
         if (reconstructor != null) return reconstructor;
@@ -93,42 +77,37 @@ public class ObjectType<T extends AnyPersistent> implements Named, Container {
         return reconstructor;
     }
 
-    // orig name
-    public static <U extends AnyPersistent> ObjectType<U> fromFields(Class<U> cls, PersistentField... fs) {
-        return withFields(cls, fs);
-    }
-
     public static <U extends AnyPersistent> ObjectType<U> withFields(Class<U> cls, PersistentField... fs) {
-        // System.out.println("\n*** layout fields for class " + cls);
         PersistentField[] ordered = fs.length > 1 ? layoutFields(fs) : fs;
+        // System.out.println("ordered here = " + Arrays.toString(ordered));
         return Header.TYPE.extendWith(cls, ordered);
     }
 
     public static <U extends AnyPersistent> ObjectType<U> withValueFields(Class<U> cls, ValueBasedField... fs) {
-        ValueType vt = ValueType.withFields(fs);
-        return fromValueType(cls, vt);
+        return DirectValueObjectType.withFields(cls, fs);
     }
 
-    public static <U extends AnyPersistent> ObjectType<U> fromValueType(Class<U> cls, ValueType valueType) {
-        // System.out.println("fromValueType, vt.allocationSize =  " + valueType.getSize());
-        return new ValueBasedObjectType<U>(cls, valueType);
+    public static <U extends AnyPersistent> ObjectType<U> indirectWithValueFields(Class<U> cls, ValueBasedField... fs) {
+        return IndirectValueObjectType.withFields(cls, fs);
     }
 
     public <U extends AnyPersistent> ObjectType<U> extendWith(Class<U> cls, PersistentType... ts) {
-        List<PersistentType> newTs = new ArrayList<>(types);
+        List<PersistentType> newTs = new ArrayList<>(fieldTypes());
         newTs.addAll(Arrays.asList(ts));
-        ObjectType<U> ans = new ObjectType<>(cls, newTs);
+        ReferenceObjectType<U> ans = new ReferenceObjectType<U>(cls, newTs);
         ans.baseIndex += fieldCount();
         return ans;
     }
 
     public <U extends AnyPersistent> ObjectType<U> extendWith(Class<U> cls, PersistentField... fs) {
-        List<PersistentType> ts = new ArrayList<>(types);
+        // System.out.println("ObjectType.extendWith(" + cls + ", " + Arrays.toString(fs));
+        List<PersistentType> ts = new ArrayList<>(fieldTypes());
         for (int i = 0; i < fs.length; i++) {
             fs[i].setIndex(fieldCount() + i);
+            // System.out.println("adding type " + fs[i].getType() + " for field index " + (fieldCount() + i));
             ts.add(fs[i].getType());
         }
-        ObjectType<U> ans = new ObjectType<>(cls, ts);
+        ReferenceObjectType<U> ans = new ReferenceObjectType<>(cls, ts);
         ans.baseIndex += fieldCount();
         for (int i = 0; i < fs.length; i++) {        
             if (fs[i] instanceof ObjectField) {
@@ -138,7 +117,7 @@ public class ObjectType<T extends AnyPersistent> implements Named, Container {
                   if (objField.cls() == cls) type = ans; // recursive type def
                   else type = Types.objectTypeForClass(objField.cls());
                   objField.setType(type);
-                  ans.getTypes().set(objField.getIndex(), type);
+                  ans.fieldTypes().set(objField.getIndex(), type);
                }
             }
         }
@@ -152,11 +131,12 @@ public class ObjectType<T extends AnyPersistent> implements Named, Container {
 
     // sort fields in descending order by size in bytes; value fields go at end regardless of size
     private static PersistentField[] layoutFields(PersistentField[] ts) {
+        // System.out.println("layoutFields: " + java.util.Arrays.toString(ts));
         java.util.Comparator<PersistentField> comp = (PersistentField f, PersistentField g) -> {
             boolean fIsValue = f instanceof ValueField;
             boolean gIsValue = g instanceof ValueField;
-            long fSize = f.getType().getSize();
-            long gSize = g.getType().getSize();
+            long fSize = f.getType().size();
+            long gSize = g.getType().size();
             int ans = 0;
             if (fIsValue) {
                 if (gIsValue) ans = 0;
@@ -171,50 +151,23 @@ public class ObjectType<T extends AnyPersistent> implements Named, Container {
         };
         PersistentField[] ordered = Arrays.copyOf(ts, ts.length);
         Arrays.sort(ordered, comp);
-        // System.out.format("ordered fields = %s\n", Arrays.toString(ordered));
         return ordered;
     }
 
-    public long getAllocationSize() {
-        return size;
-    }
-
-    @Override public String getName() {
+    @Override public String name() {
         return cls.getName();
     }
 
-    @Override public long getSize() {
-        return Types.LONG.getSize();
-    }
-
-    @Override public List<PersistentType> getTypes() {
-        return types;
-    }
-
-    public List<PersistentType> staticTypes() {
-        return staticTypes;
-    }
-
-
-    @Override public long getOffset(int index) {
-        // trace(true, "%s getOffset(%d) -> %d", this, index, offsets[index]);
-        return offsets[index];
+    @Override public List<PersistentType> fieldTypes() {
+        return fieldTypes;
     }
 
     public int fieldCount() {
-        return types.size();
-    }
-
-    public int baseIndex() {
-        return baseIndex;
-    }
-
-    public AnyPersistent statics() {
-        return statics;
+        return fieldTypes.size();
     }
 
     public String toString() {
-        return "ObjectType(" + getName() + ")";
+        return "ObjectType(" + name() + ")";
     }
 }
 

@@ -30,7 +30,7 @@ import lib.util.persistent.types.ObjectField;
 public class PersistentImmutableTuple2<T1 extends AnyPersistent, T2 extends AnyPersistent> extends PersistentImmutableObject {
     private static final ObjectField<AnyPersistent> FIELD1 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD2 = new ObjectField<>();
-    public static final ObjectType<PersistentImmutableTuple2> TYPE = ObjectType.fromFields(PersistentImmutableTuple2.class, FIELD1, FIELD2);
+    public static final ObjectType<PersistentImmutableTuple2> TYPE = ObjectType.withFields(PersistentImmutableTuple2.class, FIELD1, FIELD2);
 
     public PersistentImmutableTuple2(T1 t1, T2 t2) {
         this(TYPE, t1, t2);

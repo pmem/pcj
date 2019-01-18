@@ -33,11 +33,10 @@ class RawString {
         this.string = s;
         final Box<MemoryRegion> box = new Box<>();
         Transaction.run(() -> {
-            MemoryRegion r = box.set(PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(Types.INT.getSize() + s.length()));
+            MemoryRegion r = box.set(PersistentMemoryProvider.getDefaultProvider().getHeap().allocateRegion(Types.INT.size() + s.length()));
             putString(r, 0, s);
         });
         this.region = box.get();
-        // trace(region.addr(), "created RawString");
     }
 
     public RawString(MemoryRegion region) {
@@ -61,7 +60,7 @@ class RawString {
             System.exit(-1);
         }
         byte[] bytes = new byte[size];
-        long base = offset + Types.INT.getSize();
+        long base = offset + Types.INT.size();
         for (int i = 0; i < bytes.length; i++) bytes[i] = region.getByte(base + i);
         String s = new String(bytes);
         return s;
@@ -71,7 +70,7 @@ class RawString {
         byte[] bytes = s.getBytes();
         Transaction.run(() -> {
             region.putInt(offset, bytes.length);
-            long base = offset + Types.INT.getSize();
+            long base = offset + Types.INT.size();
             for (int i = 0; i < bytes.length; i++) region.putByte(base + i, bytes[i]);
         });
     }

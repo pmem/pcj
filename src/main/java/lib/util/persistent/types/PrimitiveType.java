@@ -28,7 +28,7 @@ public class PrimitiveType implements PersistentType {
         this.size = size;
     }
 
-    public long getSize() {
+    public long size() {
         return size;
     }
 

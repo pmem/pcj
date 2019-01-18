@@ -24,25 +24,26 @@ package lib.util.persistent;
 import java.util.List;
 import java.util.ArrayList;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.PersistentType;
 import lib.util.persistent.types.ObjectType;
 import lib.xpersistent.*;
 import lib.util.persistent.spi.PersistentMemoryProvider;
+import lib.util.persistent.PersistentHeap;
 import static lib.util.persistent.Trace.*;
 
 abstract class AbstractPersistentArray extends AnyPersistent {
     private int length = -1; // cache immutable length
-    private static XHeap heap = (XHeap) PersistentMemoryProvider.getDefaultProvider().getHeap();
+    private static PersistentHeap heap = PersistentMemoryProvider.getDefaultProvider().getHeap();
 
     protected AbstractPersistentArray(ArrayType<? extends AnyPersistent> type, int count, Object data) {
-        super(type, heap.allocateObjectRegion(type.getAllocationSize(count)));
-        // setInt(ArrayType.LENGTH_OFFSET, count);
-        setRawInt(ArrayType.LENGTH_OFFSET, count);
+        super(type, heap.allocateObjectRegion(type.allocationSize(count)));
+        setRawInt(ReferenceArrayType.LENGTH_OFFSET, count);
         length = count;
-        if (data != null) initializeElements(data, type.getElementType());
+        if (data != null) initializeElements(data, type.elementType());
         flushRegion();
-        if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(type.cls().getName(), type.getAllocationSize(count), Stats.AllocationStats.WRAPPER_PER_INSTANCE + 4, 1); // uncomment for allocation stats
+        if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(type.cls().getName(), type.allocationSize(count), Stats.AllocationStats.WRAPPER_PER_INSTANCE + 4, 1); // uncomment for allocation stats
     }
 
     protected AbstractPersistentArray(ArrayType<? extends AnyPersistent> type, int count) {
@@ -51,40 +52,44 @@ abstract class AbstractPersistentArray extends AnyPersistent {
 
     protected AbstractPersistentArray(ObjectPointer<? extends AbstractPersistentArray>  p) {
         super(p);
-        length = getRegionInt(ArrayType.LENGTH_OFFSET);
+        length = getRegionInt(ReferenceArrayType.LENGTH_OFFSET);
         if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(p.type().cls().getName() + "<rctor>", 0, Stats.AllocationStats.WRAPPER_PER_INSTANCE + 4, 1);  // uncomment for allocation stats
     }
 
-    public byte getByteElement(int index) {return getByte(elementOffset(check(index)));}
-    public short getShortElement(int index) {return getShort(elementOffset(check(index)));}
-    public int getIntElement(int index) {return getInt(elementOffset(check(index)));}
-    public long getLongElement(int index) {/*trace(true, "APA.getLongElement(%d)", index); */return getLong(elementOffset(check(index)));}
-    public float getFloatElement(int index) {return Float.intBitsToFloat(getInt(elementOffset(check(index))));}
-    public double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(check(index))));}
-    public char getCharElement(int index) {return (char)getInt(elementOffset(check(index)));}
-    public boolean getBooleanElement(int index) {return getByte(elementOffset(check(index))) == (byte)0 ? false : true;}
+    public byte getByteElement(int index) {return getByte(elementOffset(checkIndex(index)));}
+    public short getShortElement(int index) {return getShort(elementOffset(checkIndex(index)));}
+    public int getIntElement(int index) {return getInt(elementOffset(checkIndex(index)));}
+    public long getLongElement(int index) {/*trace(true, "APA.getLongElement(%d)", index); */return getLong(elementOffset(checkIndex(index)));}
+    public float getFloatElement(int index) {return Float.intBitsToFloat(getInt(elementOffset(checkIndex(index))));}
+    public double getDoubleElement(int index) {return Double.longBitsToDouble(getLong(elementOffset(checkIndex(index))));}
+    public char getCharElement(int index) {return (char)getInt(elementOffset(checkIndex(index)));}
+    public boolean getBooleanElement(int index) {return getByte(elementOffset(checkIndex(index))) == (byte)0 ? false : true;}
 
     AnyPersistent getObjectElement(int index) {
         // trace(true, "APA.getObjectElement(%d)", index);
-        return getObject(elementOffset(check(index)));
+        return getObject(elementOffset(checkIndex(index)));
     }
 
-    private void setByteElement(int index, byte value) {setByte(elementOffset(check(index)), value);}
-    private void setShortElement(int index, short value) {setShort(elementOffset(check(index)), value);}
-    private void setIntElement(int index, int value) {setInt(elementOffset(check(index)), value);}
-    private void setLongElement(int index, long value) {/*trace(true, "APA.setLongElement(%d)", index); */setLong(elementOffset(check(index)), value);}
-    private void setFloatElement(int index, float value) {setInt(elementOffset(check(index)), Float.floatToIntBits(value));}
-    private void setDoubleElement(int index, double value) {setLong(elementOffset(check(index)), Double.doubleToLongBits(value));}
-    private void setCharElement(int index, char value) {setInt(elementOffset(check(index)), (int)value);}
-    private void setBooleanElement(int index, boolean value) {setByte(elementOffset(check(index)), value ? (byte)1 : (byte)0);}
+    void flushRegion() {
+        region.flush(0, ((ArrayType<?>)type).allocationSize(length));
+    }
+
+    private void setByteElement(int index, byte value) {setByte(elementOffset(checkIndex(index)), value);}
+    private void setShortElement(int index, short value) {setShort(elementOffset(checkIndex(index)), value);}
+    private void setIntElement(int index, int value) {setInt(elementOffset(checkIndex(index)), value);}
+    private void setLongElement(int index, long value) {/*trace(true, "APA.setLongElement(%d)", index); */setLong(elementOffset(checkIndex(index)), value);}
+    private void setFloatElement(int index, float value) {setInt(elementOffset(checkIndex(index)), Float.floatToIntBits(value));}
+    private void setDoubleElement(int index, double value) {setLong(elementOffset(checkIndex(index)), Double.doubleToLongBits(value));}
+    private void setCharElement(int index, char value) {setInt(elementOffset(checkIndex(index)), (int)value);}
+    private void setBooleanElement(int index, boolean value) {setByte(elementOffset(checkIndex(index)), value ? (byte)1 : (byte)0);}
 
     void setObjectElement(int index, AnyPersistent value) {
         // trace(true, "APA.setObjectElement(%d)", index);
-        setObject(elementOffset(check(index)), value);
+        setObject(elementOffset(checkIndex(index)), value);
     }
 
     public PersistentType getElementType() {
-        return ((ArrayType)getType()).getElementType();
+        return ((ArrayType)getType()).elementType();
     }
 
     public int length() {
@@ -92,14 +97,14 @@ abstract class AbstractPersistentArray extends AnyPersistent {
     }
 
     long elementOffset(int index) {
-        return ((ArrayType)getType()).getElementOffset(index);
+        return ((ArrayType)getType()).elementOffset(index);
     }
 
     long elementOffset(int index, long size) {
-        return ((ArrayType)getType()).getElementOffset(index, size);
+        return ((ArrayType)getType()).elementOffset(index, size);
     }
 
-    int check(int index) {
+    int checkIndex(int index) {
         if (index < 0 || index >= length()) throw new IndexOutOfBoundsException("index " + index + " out of bounds");
         return index;
     }
@@ -109,8 +114,7 @@ abstract class AbstractPersistentArray extends AnyPersistent {
     {
         if (t == Types.BYTE) {
             byte[] array = (byte[])data;
-            // heap.memcpy(array, 0, region(), elementOffset(0), array.length);
-            region().putRawBytes(ArrayType.ELEMENTS_OFFSET, array);
+            region().putRawBytes(ReferenceArrayType.ELEMENTS_OFFSET, array);
         }
         else if (t == Types.SHORT) {
             short[] array = (short[])data;

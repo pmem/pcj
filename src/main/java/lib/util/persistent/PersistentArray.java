@@ -23,6 +23,7 @@ package lib.util.persistent;
 
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import lib.util.persistent.types.ObjectType;
 import java.lang.reflect.Array;
 import java.util.Arrays;
@@ -30,10 +31,10 @@ import lib.xpersistent.*;
 import static lib.util.persistent.Trace.*;
 
 public class PersistentArray<T extends AnyPersistent> extends AbstractPersistentMutableArray {
-    private static final ArrayType<PersistentArray> TYPE = new ArrayType<>(PersistentArray.class, Types.OBJECT);
+    private static final ArrayType<PersistentArray> TYPE = new ReferenceArrayType<>(PersistentArray.class, Types.GENERIC_REFERENCE);
 
     public static <A extends PersistentArray, T extends AnyPersistent> ArrayType<A> typeForClasses(Class<A> arrayClass, Class<T> elementClass) {
-        return new ArrayType<>(arrayClass, Types.typeForClass(elementClass));
+        return new ReferenceArrayType<>(arrayClass, Types.typeForClass(elementClass));
     }
 
     @SuppressWarnings("unchecked")
@@ -41,7 +42,7 @@ public class PersistentArray<T extends AnyPersistent> extends AbstractPersistent
         // System.out.format("PersistentArray forElementClass(%s, %d)\n", elementClass, size);
         PersistentArray<T> ans = null;
         ObjectType ot = Types.objectTypeForClass(elementClass);
-        if (ot.isValueBased()) {
+        if (ot.valueBased()) {
             ans = new PersistentValueArray<T>(elementClass, size);
         }
         else {
@@ -62,7 +63,7 @@ public class PersistentArray<T extends AnyPersistent> extends AbstractPersistent
 
 
     public PersistentArray(Class<? extends AnyPersistent> elementClass, int size) {
-        super(new ArrayType<PersistentArray>(PersistentArray.class, Types.typeForClass(elementClass)), size);
+        super(new ReferenceArrayType<PersistentArray>(PersistentArray.class, Types.typeForClass(elementClass)), size);
     }
 
     protected PersistentArray(ArrayType<? extends PersistentArray> type, int size) {

@@ -51,7 +51,7 @@ public class PersistentSIHashMap<K extends AnyPersistent, V extends AnyPersisten
     private static Statics statics;
     private static final IntField RESIZE_THRESHOLD = new IntField();
     private static final ObjectField<Table> TABLE = new ObjectField<>();
-    public static final ObjectType<PersistentSIHashMap> TYPE = ObjectType.fromFields(PersistentSIHashMap.class, RESIZE_THRESHOLD, TABLE);
+    public static final ObjectType<PersistentSIHashMap> TYPE = ObjectType.withFields(PersistentSIHashMap.class, RESIZE_THRESHOLD, TABLE);
 
     static {
         statics = ObjectDirectory.get("PersistentSIHashMap_statics", Statics.class);
@@ -61,7 +61,7 @@ public class PersistentSIHashMap<K extends AnyPersistent, V extends AnyPersisten
 
     public static final class Statics extends PersistentObject {
         private static final ObjectField<PersistentLong> ERROR_VALUE = new ObjectField<>();
-        public static final ObjectType<Statics> TYPE = ObjectType.fromFields(Statics.class, ERROR_VALUE);
+        public static final ObjectType<Statics> TYPE = ObjectType.withFields(Statics.class, ERROR_VALUE);
 
         public Statics() {
             super(TYPE);
@@ -77,7 +77,7 @@ public class PersistentSIHashMap<K extends AnyPersistent, V extends AnyPersisten
         private static final ObjectField<PersistentArrayList<PersistentArray<Node>>> ARRAY = new ObjectField<>();
         private static final IntField CAPACITY = new IntField();
         private static final IntField INITIAL_CAPACITY = new IntField();
-        private static final ObjectType<Table> TYPE = ObjectType.fromFields(Table.class, ARRAY, CAPACITY, INITIAL_CAPACITY);
+        private static final ObjectType<Table> TYPE = ObjectType.withFields(Table.class, ARRAY, CAPACITY, INITIAL_CAPACITY);
 
         AtomicBoolean resizing = new AtomicBoolean(false);
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -170,7 +170,7 @@ public class PersistentSIHashMap<K extends AnyPersistent, V extends AnyPersisten
         private static final ObjectField<AnyPersistent> KEY = new ObjectField<>();
         private static final ObjectField<AnyPersistent> VALUE = new ObjectField<>();
         private static final ObjectField<Node> NEXT = new ObjectField<>();
-        private static final ObjectType<Node> TYPE = ObjectType.fromFields(Node.class, HASH, KEY, VALUE, NEXT);
+        private static final ObjectType<Node> TYPE = ObjectType.withFields(Node.class, HASH, KEY, VALUE, NEXT);
 
         Node(long hash, K key, V value, Node next) {
             super(TYPE);

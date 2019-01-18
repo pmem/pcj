@@ -178,20 +178,11 @@ public class ObjectCache {
         }
         else {
             T obj = null;
-            try {
-                MemoryRegion region = new UncheckedPersistentMemoryRegion(address);
-                long classInfoAddress = region.getLong(0);
-                ClassInfo ci = ClassInfo.getClassInfo(classInfoAddress);
-                ObjectType<T> type = Types.typeForName(ci.className());
-                Constructor ctor = ci.getReconstructor();
-                obj = (T)ctor.newInstance(new ObjectPointer<T>(type, region));
-            }
-            catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-                if (e instanceof InvocationTargetException && e.getCause() instanceof TransactionRetryException){
-                    throw new TransactionRetryException();
-                }
-                else throw new RuntimeException("failed to call reflected constructor: " + e.getCause());
-            }
+            MemoryRegion region = new UncheckedPersistentMemoryRegion(address);
+            long classInfoAddress = region.getLong(0);
+            ClassInfo ci = ClassInfo.getClassInfo(classInfoAddress);
+            ObjectType<T> type = Types.typeForName(ci.className());
+            obj = AnyPersistent.reconstruct(new ObjectPointer<T>((ObjectType)type, region));
             ans = new Ref(obj, forAdmin);
             if (!Transaction.addReconstructedObject(address, ans)) cache.put(addr, ans);
         }
@@ -233,10 +224,10 @@ public class ObjectCache {
         uncommittedConstructions.remove(obj.addr());
     }
 
-    static class Address {
+    public static class Address {
         private final long addr;
 
-        Address(long addr) {
+        public Address(long addr) {
             if (Config.ENABLE_ALLOC_STATS) Stats.current.allocStats.update(Address.class.getName(), 0,  16 + 8, 1);  // uncomment for allocation stats
             this.addr = addr;
         }

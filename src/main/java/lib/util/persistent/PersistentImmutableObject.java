@@ -30,7 +30,7 @@ import static lib.util.persistent.Trace.*;
 public class PersistentImmutableObject extends AbstractPersistentObject {
 
     PersistentImmutableObject(ObjectType<? extends PersistentImmutableObject> type) {
-        this(type, type.isValueBased() ? new VolatileMemoryRegion(type.getAllocationSize()) : heap.allocateObjectRegion(type.getAllocationSize()));
+        this(type, type.valueBased() ? new VolatileMemoryRegion(type.allocationSize()) : heap.allocateObjectRegion(type.allocationSize()));
     }
 
     <T extends PersistentImmutableObject> PersistentImmutableObject(ObjectType<T> type, MemoryRegion region) {
@@ -79,16 +79,12 @@ public class PersistentImmutableObject extends AbstractPersistentObject {
     <T extends AnyPersistent> T getValueObject(long offset, PersistentType type) {
         // trace(true, "PIO getValueObject(%d, %s)", offset, type);
         MemoryRegion srcRegion = region();
-        MemoryRegion dstRegion = new VolatileMemoryRegion(type.getSize());
-        // trace(true, "PIO.getValueObject, src addr = %d, srcOffset = %d, dst  = %s, size = %d", srcRegion.addr(), offset, dstRegion, type.getSize());
-        Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.getSize());
-        T obj = null;
-        try {
-            Constructor ctor = ((ObjectType)type).getReconstructor();
-            ObjectPointer p = new ObjectPointer<T>((ObjectType)type, dstRegion);
-            obj = (T)ctor.newInstance(p);
-        }
-        catch (Exception e) {e.printStackTrace();}
+        MemoryRegion dstRegion = new VolatileMemoryRegion(type.size());
+        // trace(true, "PIO.getValueObject, src addr = %d, srcOffset = %d, dst  = %s, size = %d", srcRegion.addr(), offset, dstRegion, type.size());
+        Util.memCopy(getType(), (ObjectType)type, srcRegion, offset, dstRegion, 0L, type.size());
+        ObjectPointer<T> p = new ObjectPointer<>((ObjectType)type, dstRegion);
+        T obj = AnyPersistent.reconstruct(p);
+        if (obj != null) obj.onGet();
         return obj;
     }
 }

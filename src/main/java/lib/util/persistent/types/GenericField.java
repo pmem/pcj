@@ -19,10 +19,14 @@
  * Boston, MA  02110-1301, USA.
  */
 
-package lib.llpl;
+package lib.util.persistent.types;
 
-public class TransactionError extends Error {
-    public TransactionError(String message) {
-        super(message);
+import lib.util.persistent.AnyPersistent;
+
+public class GenericField<T extends AnyPersistent> extends FinalGenericField<T> {
+    public GenericField() {
+        super();
     }
+
+    public String toString() {return "GenericField(" + getType() + ")";}
 }

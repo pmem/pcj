@@ -26,6 +26,7 @@ import lib.util.persistent.types.ValueType;
 import lib.util.persistent.types.ObjectType;
 import lib.util.persistent.types.ObjectField;
 import lib.util.persistent.types.ArrayType;
+import lib.util.persistent.types.ReferenceArrayType;
 import lib.util.persistent.front.PersistentClass;
 import lib.util.persistent.PersistentArray;
 import static lib.util.persistent.Trace.*;
@@ -33,8 +34,7 @@ import static lib.util.persistent.Trace.*;
 public final class Long128 extends PersistentObject {
     private static final LongField X0 = new LongField();
     private static final LongField X1 = new LongField();
-    public static final ValueType VT = ValueType.fromFields(X0, X1);
-    public static final ObjectType<Long128> TYPE = ObjectType.fromValueType(Long128.class, VT);
+    public static final ObjectType<Long128> TYPE = ObjectType.withValueFields(Long128.class, X0, X1);
 
     public Long128(long x0, long x1) {
         super(TYPE);
@@ -53,7 +53,7 @@ public final class Long128 extends PersistentObject {
     public void setX1(long x1) {setLongField(X1, x1);}
 
     public String toString() {
-        return "{" + getX0() + ", " + getX1() + "}";
+        return "Long128(" + getX0() + ", " + getX1() + ")";
     }
 
     public static class Foo extends PersistentObject {
@@ -71,7 +71,7 @@ public final class Long128 extends PersistentObject {
     }
 
     public static class Long128Array extends AbstractPersistentMutableArray {
-        public static final ArrayType<Long128Array> TYPE = new ArrayType<>(Long128Array.class, Long128.TYPE);
+        public static final ArrayType<Long128Array> TYPE = new ReferenceArrayType<>(Long128Array.class, Long128.TYPE);
 
         public Long128Array(int size) {
           super(TYPE, size);

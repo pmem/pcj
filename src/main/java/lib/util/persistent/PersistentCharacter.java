@@ -28,7 +28,7 @@ import lib.util.persistent.types.Types;
 
 public final class PersistentCharacter extends PersistentImmutableObject implements Comparable<PersistentCharacter> { 
     private static final CharField CHAR = new CharField();
-    private static final ObjectType<PersistentCharacter> TYPE = ObjectType.fromFields(PersistentCharacter.class, CHAR);
+    private static final ObjectType<PersistentCharacter> TYPE = ObjectType.withFields(PersistentCharacter.class, CHAR);
 
     public PersistentCharacter(char x) {
         super(TYPE, (PersistentCharacter self) -> {

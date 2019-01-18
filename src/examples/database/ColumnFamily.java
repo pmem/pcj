@@ -28,7 +28,7 @@ public final class ColumnFamily extends PersistentObject {
     private static final ObjectField<PersistentSkipListMap> TABLE = new ObjectField<>(PersistentSkipListMap.class);
     private static final IntField COLCOUNT = new IntField();
     private static final ObjectField<PersistentArray> COLNAMES = new ObjectField<>(PersistentArray.class);
-    public static final ObjectType<ColumnFamily> TYPE = ObjectType.fromFields(ColumnFamily.class, TABLE, COLCOUNT, COLNAMES);
+    public static final ObjectType<ColumnFamily> TYPE = ObjectType.withFields(ColumnFamily.class, TABLE, COLCOUNT, COLNAMES);
 
     public ColumnFamily(String[] colNames) {
         super(TYPE);

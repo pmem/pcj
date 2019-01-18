@@ -65,38 +65,35 @@ public class Util {
     }
 
     public static void memCopyVV(MemoryRegion src, long srcOffset, MemoryRegion dst, long dstOffset, long size) {
-        // System.out.println("src size = " + ((VolatileMemoryRegion)src).size);
-        // System.out.println("dst size = " + ((VolatileMemoryRegion)dst).size);
         // trace(true, "memCopyVV src = %d, srcOffset = %d, dst = %d, dstOffset = %d, size = %d", src.addr(), srcOffset, dst.addr(), dstOffset, size);
+        // System.out.println("src bytes = " + java.util.Arrays.toString(((VolatileMemoryRegion)src).getBytes()));
+        // System.out.println("dst bytes before = " + java.util.Arrays.toString(((VolatileMemoryRegion)dst).getBytes()));
         System.arraycopy(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, ((VolatileMemoryRegion)dst).getBytes(), (int)dstOffset, (int)size);
-
+        // System.out.println("dst bytes after  = " + java.util.Arrays.toString(((VolatileMemoryRegion)dst).getBytes()));
     }
     
     public static void memCopyVP(MemoryRegion src, long srcOffset, MemoryRegion dst, long dstOffset, long size) {
         // trace(true, "memCopyVP src = %s, srcOffset = %d, dst = %s, dstOffset = %d, size = %d", src, srcOffset, dst, dstOffset, size);
         Transaction.run(() -> {
-// <<<<<<< HEAD
-            // heap.memcpy(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, dst, dstOffset, (int)size);
             heap.copyBytesToRegion(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, dst, dstOffset, (int)size);
-// =======
-//             heap.memcpy(((VolatileMemoryRegion)src).getBytes(), (int)srcOffset, dst, dstOffset, (int)size);
-// >>>>>>> persistent_bytes
         });
     }
     
     public static void memCopyPV(MemoryRegion src, long srcOffset, MemoryRegion dst, long dstOffset, long size) {
         // trace(true, "memCopyPV src = %d, srcOffset = %d, dst = %d, dstOffset = %d, size = %d", src.addr(), srcOffset, dst.addr(), dstOffset, size);
+        // System.out.println("dst bytes before = " + java.util.Arrays.toString(((VolatileMemoryRegion)dst).getBytes()));
         heap.memcpy(src, srcOffset, ((VolatileMemoryRegion)dst).getBytes(), (int)dstOffset, (int)size); 
+        // System.out.println("dst bytes after  = " + java.util.Arrays.toString(((VolatileMemoryRegion)dst).getBytes()));
     }
 
     public static void memCopy(ObjectType fromType, ObjectType toType, MemoryRegion src, long srcOffset, MemoryRegion dst, long dstOffset, long size) {
-        // trace(true, "memCopy fromType = %s (IVB = %s), toType = %s (IVB = %s)", fromType, fromType.isValueBased(), toType, toType.isValueBased());
-        if (fromType.isValueBased()) {
-            if (toType.isValueBased()) memCopyVV(src, srcOffset, dst, dstOffset, size);
+        // trace(true, "memCopy fromType = %s (IVB = %s), toType = %s (IVB = %s)", fromType, fromType.valueBased(), toType, toType.valueBased());
+        if (fromType.valueBased()) {
+            if (toType.valueBased()) memCopyVV(src, srcOffset, dst, dstOffset, size);
             else memCopyVP(src, srcOffset, dst, dstOffset, size);
         }
         else {
-            if (toType.isValueBased()) memCopyPV(src, srcOffset, dst, dstOffset, size);
+            if (toType.valueBased()) memCopyPV(src, srcOffset, dst, dstOffset, size);
             else memCopyPP(src, srcOffset, dst, dstOffset, size);
         }
     }

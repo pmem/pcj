@@ -25,7 +25,7 @@ public class CarriedType extends PrimitiveType implements Carried {
     private final PersistentType carrier;
 
     public CarriedType(PersistentType carrier) {
-        super(carrier.getSize());
+        super(carrier.size());
         this.carrier = carrier;
     }
 

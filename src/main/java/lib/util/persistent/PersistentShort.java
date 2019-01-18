@@ -28,7 +28,7 @@ import lib.util.persistent.types.Types;
 
 public final class PersistentShort extends PersistentImmutableObject implements Comparable<PersistentShort> { 
     private static final ShortField SHORT = new ShortField();
-    private static final ObjectType<PersistentShort> TYPE = ObjectType.fromFields(PersistentShort.class, SHORT);
+    private static final ObjectType<PersistentShort> TYPE = ObjectType.withFields(PersistentShort.class, SHORT);
 
     public PersistentShort(short x) {
         super(TYPE, (PersistentShort self) -> {

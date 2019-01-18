@@ -28,7 +28,7 @@ import lib.util.persistent.types.*;
 
 public class Key extends PersistentObject implements Comparable<Key> {
     private static final ObjectField<PersistentString> KEY = new ObjectField<>(PersistentString.class);
-    public static final ObjectType<Key> TYPE = ObjectType.fromFields(Key.class, KEY);
+    public static final ObjectType<Key> TYPE = ObjectType.withFields(Key.class, KEY);
 
     public Key(String key) {
         super(TYPE);

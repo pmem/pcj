@@ -36,7 +36,7 @@ public class PersistentImmutableTuple8<T1 extends AnyPersistent, T2 extends AnyP
     private static final ObjectField<AnyPersistent> FIELD6 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD7 = new ObjectField<>();
     private static final ObjectField<AnyPersistent> FIELD8 = new ObjectField<>();
-    public static final ObjectType<PersistentImmutableTuple8> TYPE = ObjectType.fromFields(PersistentImmutableTuple8.class, FIELD1, FIELD2, FIELD3, FIELD4, FIELD5, FIELD6, FIELD7, FIELD8);
+    public static final ObjectType<PersistentImmutableTuple8> TYPE = ObjectType.withFields(PersistentImmutableTuple8.class, FIELD1, FIELD2, FIELD3, FIELD4, FIELD5, FIELD6, FIELD7, FIELD8);
 
     public PersistentImmutableTuple8(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6, T7 t7, T8 t8) {
         this(TYPE, t1, t2, t3, t4, t5, t6, t7, t8);

@@ -31,177 +31,48 @@ public final class XRoot implements Root {
     private static final int OBJECT_DIRECTORY_OFFSET = 0;
     private static final int CLASS_INFO_OFFSET = 8;
     private static final long ROOT_SIZE = 16;   // 2 objects, each represented by an 8-byte pointer
-    // private static final int PREV_VMOFFSETS_OFFSET = 8;
-    // private static final int NEW_VMOFFSETS_OFFSET = 16;
-    // private static final int ALL_OBJECTS_OFFSET = 24;
-    // private static final int CANDIDATES_OFFSET = 32;
-    // private static final int OLD_CANDIDATES_OFFSET = 40;
-    // private static final int CLASS_INFO_OFFSET = 48;
-    // private static final int CLASS_INFO_OFFSET = 48;
-    // private static final long ROOT_SIZE = 56;   // 7 objects, each represented by an 8-byte pointer
 
     private final MemoryRegion region;
-    private final XHeap heap;
-
-    // private HashSet<Long> candidatesSet;
-    private ArrayList<Long> oldAddrs;
-
     private final PersistentHashMap<PersistentString, AnyPersistent> objectDirectory;
-
-    // PersistentConcurrentHashMapInternal vmOffsets;
-    // PersistentConcurrentHashMapInternal prevVMOffsets;
-    //PersistentConcurrentHashMapInternal allObjects;
-    // PersistentConcurrentHashMapInternal candidates;
-    long rootClassInfoAddr;
+    private long rootClassInfoAddr;
 
     @SuppressWarnings("unchecked")
-    public XRoot(XHeap heap) {
-        this.heap = heap;
+    XRoot(XHeap heap) {
         if (nativeRootExists()) {
             region = new UncheckedPersistentMemoryRegion(nativeGetRootOffset());
             objectDirectory = PersistentObject.fromPointer(new ObjectPointer<PersistentHashMap>(PersistentHashMap.TYPE, new UncheckedPersistentMemoryRegion(region.getLong(OBJECT_DIRECTORY_OFFSET))));
-            // this.prevVMOffsets = new PersistentConcurrentHashMapInternal(region.getLong(PREV_VMOFFSETS_OFFSET));
-            // long newVMOffsetsAddr = region.getLong(NEW_VMOFFSETS_OFFSET);
-            // this.vmOffsets = newVMOffsetsAddr == 0 ? new PersistentConcurrentHashMapInternal() : new PersistentConcurrentHashMapInternal(newVMOffsetsAddr);
-            //allObjects = new PersistentConcurrentHashMapInternal(region.getLong(ALL_OBJECTS_OFFSET), true);
-            /*candidates = new PersistentConcurrentHashMapInternal(region.getLong(CANDIDATES_OFFSET), true);
-            if (region.getLong(OLD_CANDIDATES_OFFSET) != 0) {
-                PersistentConcurrentHashMapInternal oldCandidates = new PersistentConcurrentHashMapInternal(region.getLong(OLD_CANDIDATES_OFFSET));
-                oldCandidates.delete();
-                Transaction.run(() -> { region.putLong(OLD_CANDIDATES_OFFSET, 0); });
-            }*/
             rootClassInfoAddr = region.getLong(CLASS_INFO_OFFSET);
         } else {
             region = new UncheckedPersistentMemoryRegion(nativeCreateRoot(ROOT_SIZE));
-            MemoryRegion objectDirectoryRegion = heap.allocateRegion(PersistentHashMap.TYPE.getAllocationSize());
-            // TODO: HACK to make OD have non-zero refCount
+            MemoryRegion objectDirectoryRegion = heap.allocateRegion(PersistentHashMap.TYPE.allocationSize());
+            // TODO: HACK to make object directory have non-zero refCount
             objectDirectoryRegion.putDurableInt(8, 1);
             objectDirectory = PersistentObject.fromPointer(new ObjectPointer<>(PersistentHashMap.TYPE, objectDirectoryRegion));
             Transaction.run(() -> {
                 region.putLong(OBJECT_DIRECTORY_OFFSET, objectDirectoryRegion.addr());
-                // this.vmOffsets = new PersistentConcurrentHashMapInternal();
-                // region.putLong(NEW_VMOFFSETS_OFFSET, this.vmOffsets.addr());
-                // this.prevVMOffsets = new PersistentConcurrentHashMapInternal();
-                // region.putLong(PREV_VMOFFSETS_OFFSET, this.prevVMOffsets.addr());
-                //this.allObjects = new PersistentConcurrentHashMapInternal();
-                //region.putLong(ALL_OBJECTS_OFFSET, this.allObjects.addr());
-                /*this.candidates = new PersistentConcurrentHashMapInternal();
-                region.putLong(CANDIDATES_OFFSET, this.candidates.addr());
-                region.putLong(OLD_CANDIDATES_OFFSET, 0);*/
                 this.rootClassInfoAddr = 0;
                 region.putLong(CLASS_INFO_OFFSET, rootClassInfoAddr);
             });
         }
-        this.oldAddrs = new ArrayList<>();
     }
 
     public PersistentHashMap<PersistentString, AnyPersistent> getObjectDirectory() { return objectDirectory; }
 
-    synchronized static native boolean nativeRootExists();
-    synchronized static native long nativeGetRootOffset();
-    synchronized static native long nativeCreateRoot(long size);
-
-    native void nativeRetrieveAddrs();
-
-    public void addToAllObjects(long addr) {
-        // allObjects.put(addr, 0);
-    }
-
-    public void removeFromAllObjects(long addr) {
-        // allObjects.remove(addr);
-    }
-
-    public void printAllObjects() {
-        // nativePrintAllObjects(this.allObjects, this.vmOffsets);
-    }
-
-    public void addToCandidates(long addr) {
-        // candidates.put(addr, 0);
-    }
-
-    public void removeFromCandidates(long addr) {
-        // candidates.remove(addr);
-    }
-
     void clean() {
-        /*PersistentConcurrentHashMapInternal.EntryIterator newIter = vmOffsets.iter();
-        while (newIter.hasNext()) {
-            PersistentConcurrentHashMapInternal.NodeLL node = newIter.next();
-            Transaction.run(() -> {
-                long oldCount = prevVMOffsets.get(node.getKey());
-                long newCount = (oldCount == -1L) ? node.getValue() : (oldCount + node.getValue());
-                prevVMOffsets.put(node.getKey(), newCount);
-                newIter.remove();
-            });
-        }
-
-        vmOffsets = Transaction.run(() -> {
-            vmOffsets.delete();
-            PersistentConcurrentHashMapInternal newVMOffsets = new PersistentConcurrentHashMapInternal();
-            region.putLong(NEW_VMOFFSETS_OFFSET, newVMOffsets.addr());
-            return newVMOffsets;
-        });
-
-        if (prevVMOffsets != null) {
-            PersistentConcurrentHashMapInternal.EntryIterator iter = prevVMOffsets.iter();
-            while (iter.hasNext()) {
-                PersistentConcurrentHashMapInternal.NodeLL node = iter.next();
-                Transaction.run(() -> {
-                    AnyPersistent.deleteResidualReferences(node.getKey(), (int)node.getValue());
-                    iter.remove();
-                });
-            }
-        }
-        prevVMOffsets.delete(false);
-        Transaction.run(() -> {
-            prevVMOffsets.deleteHead();
-            region.putLong(PREV_VMOFFSETS_OFFSET, vmOffsets.addr());
-            region.putLong(NEW_VMOFFSETS_OFFSET, 0);
-        });*/
-        nativeRetrieveAddrs();
-        for (Long addr : oldAddrs) {
-            // System.out.println("Processing address " + addr);
-            Transaction.run(() -> {
-                AnyPersistent.deleteResidualReferences(addr, 0);
-            });
-        }
+        nativeCleanHeap();
     }
 
-    private void addToAddrs(long addr) {
-        this.oldAddrs.add(addr);
-    }
-
-    public void registerObject(long addr) {
-        // vmOffsets.put(addr, 1);
-    }
-
-    public void deregisterObject(long addr) {
-        // vmOffsets.remove(addr);
-    }
-
-    /*public PersistentConcurrentHashMapInternal getCandidates() {
-        PersistentConcurrentHashMapInternal oldCandidates = this.candidates;
-        Transaction.run(() -> {
-            this.candidates = new PersistentConcurrentHashMapInternal();
-            this.region.putLong(CANDIDATES_OFFSET, this.candidates.addr());
-            this.region.putLong(OLD_CANDIDATES_OFFSET, oldCandidates.addr());
-        });
-        return oldCandidates;
-    }
-
-    public void deleteOldCandidates() {
-        PersistentConcurrentHashMapInternal oldCandidates = new PersistentConcurrentHashMapInternal(this.region.getLong(OLD_CANDIDATES_OFFSET));
-        oldCandidates.delete();
-        Transaction.run(() -> { this.region.putLong(OLD_CANDIDATES_OFFSET, 0); });
-    }*/
-
+    // TODO: should not be public
     public long getRootClassInfoAddr() {return rootClassInfoAddr;}
+
+    // TODO: should not be public
     public void setRootClassInfoAddr(long addr) {
         rootClassInfoAddr = addr;
         Transaction.run(() -> { region.putLong(CLASS_INFO_OFFSET, rootClassInfoAddr); });
     }
 
-    public void debugVMOffsets() {
-        // vmOffsets.debugFromHead();
-    }
+    synchronized static native boolean nativeRootExists();
+    synchronized static native long nativeGetRootOffset();
+    synchronized static native long nativeCreateRoot(long size);
+    native void nativeCleanHeap();
 }

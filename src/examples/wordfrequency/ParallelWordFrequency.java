@@ -1,9 +1,3 @@
-package examples.wordfrequency;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.Scanner;
-import java.util.concurrent.ConcurrentSkipListMap;
 /* Copyright (C) 2018  Intel Corporation
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +19,12 @@ import java.util.concurrent.ConcurrentSkipListMap;
  * Boston, MA  02110-1301, USA.
  */
 
+package examples.wordfrequency;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.Scanner;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.Map;
 
 public class ParallelWordFrequency {

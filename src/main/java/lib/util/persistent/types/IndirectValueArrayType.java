@@ -19,16 +19,21 @@
  * Boston, MA  02110-1301, USA.
  */
 
-#include "lib_llpl_RawMemoryRegion.h"
-#include "persistent_heap.h"
+package lib.util.persistent.types;
 
-JNIEXPORT jint JNICALL Java_lib_llpl_RawMemoryRegion_nativePutBits
-  (JNIEnv *env, jobject obj, jlong region_offset, jlong offset, jlong value, jint size)
-{
-    PMEMoid oid = {get_uuid_lo(), region_offset};
-    void* dest = (void*)((uint64_t)pmemobj_direct(oid)+(uint64_t)offset);
-    void* src = &value;
+import lib.util.persistent.AnyPersistent;
+import java.util.ArrayList;
 
-    memcpy(dest, src, size);
-    return 0;
+public class IndirectValueArrayType<T extends AnyPersistent> extends DirectValueArrayType<T> { 
+
+    public IndirectValueArrayType(Class<T> cls, PersistentType elementType) {
+        super(cls, ObjectType.Kind.IndirectValue, elementType);
+    }
+
+    @Override
+    public String toString() {
+        return "IndirectValueArrayType(" + name() + ", " + elementType() + ")";
+    }
+
+       
 }

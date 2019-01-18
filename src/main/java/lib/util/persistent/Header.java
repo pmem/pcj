@@ -22,6 +22,7 @@
 package lib.util.persistent;
 
 import lib.util.persistent.types.ObjectType;
+import lib.util.persistent.types.ReferenceObjectType;
 import lib.util.persistent.types.Types;
 import lib.util.persistent.types.PersistentType;
 
@@ -29,11 +30,13 @@ public class Header {
     static final int CLASS_INFO = 0;  // must be first field
     static final int REF_COUNT = 1;
 
+    // TODO: should not be public
     public static final PersistentType[] TYPES = new PersistentType[] {
         Types.LONG,        // CLASS_INFO
         Types.INT,         // REF_COUNT
         Types.INT,         // PADDING
     };
 
-    public static final ObjectType<AnyPersistent> TYPE = new ObjectType<>(AnyPersistent.class, TYPES);
+    // TODO: should not be public
+    public static final ObjectType<AnyPersistent> TYPE = new ReferenceObjectType<>(AnyPersistent.class, TYPES);
 }

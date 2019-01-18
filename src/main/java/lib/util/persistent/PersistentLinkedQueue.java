@@ -35,7 +35,7 @@ public class PersistentLinkedQueue <E extends AnyPersistent> extends PersistentO
 
 	private static final ObjectField<PersistentAtomicReference> HEAD = new ObjectField<>(PersistentAtomicReference.class);
 	private static final ObjectField<PersistentAtomicReference> TAIL = new ObjectField<>(PersistentAtomicReference.class);
-	public static final ObjectType<PersistentLinkedQueue> TYPE = ObjectType.fromFields(PersistentLinkedQueue.class, HEAD, TAIL);
+	public static final ObjectType<PersistentLinkedQueue> TYPE = ObjectType.withFields(PersistentLinkedQueue.class, HEAD, TAIL);
 
 	public PersistentLinkedQueue() {
 		this(TYPE);
@@ -334,7 +334,7 @@ public class PersistentLinkedQueue <E extends AnyPersistent> extends PersistentO
 	public static class PersistentNode<E extends AnyPersistent> extends PersistentObject {
 		private static final ObjectField<PersistentAtomicReference> ITEM = new ObjectField<>(PersistentAtomicReference.class);
 		private static final ObjectField<PersistentAtomicReference> NEXT = new ObjectField<>(PersistentAtomicReference.class);
-		public static final ObjectType<PersistentNode> TYPE = ObjectType.fromFields(PersistentNode.class, ITEM, NEXT);
+		public static final ObjectType<PersistentNode> TYPE = ObjectType.withFields(PersistentNode.class, ITEM, NEXT);
 
 		protected PersistentNode(ObjectType<? extends PersistentNode> type, E item, PersistentAtomicReference<PersistentNode<E>> next) {
 			super(type);
