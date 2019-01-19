@@ -98,7 +98,7 @@ code contributions once this happens.  We will update this README then.
 In the meantime, we would love to hear your comments and suggestions via the contacts listed below.
 
 ## Contacts ##
-For more information on this library, contact Lei Fan (lei.t.fan@intel.com), Steve Dohrmann
-(steve.dohrmann@intel.com), or Olasoji Denloye (olasoji.denloye@intel.com).
+For more information on this library, contact Olasoji Denloye (olasoji.denloye@intel.com) or Steve Dohrmann
+(steve.dohrmann@intel.com).
 
 \* Other names and brands may be claimed as the property of others.
